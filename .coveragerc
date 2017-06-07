@@ -1,0 +1,16 @@
+[paths]
+source =
+   src/bluepea
+   */site-packages/bluepea
+
+[run]
+branch = true
+source =
+    bluepea
+    tests
+parallel = true
+
+[report]
+show_missing = true
+precision = 2
+omit = *migrations*
