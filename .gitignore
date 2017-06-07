@@ -62,3 +62,11 @@ docs/_build
 .bootstrap
 .appveyor.token
 *.bak
+
+.bumpversion.cfg
+.cache/
+.cookiecutterrc
+.coveragerc
+.editorconfig
+.git/
+.travis.yml
