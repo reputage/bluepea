@@ -124,7 +124,7 @@ setup(
         # eg: 'keyword1', 'keyword2', 'keyword3',
     ],
     install_requires=[
-        'click', 'falcon>=1.2', 'ioflo>=1.6.8', 'libnacl>=1.5.1',
+        'click', 'falcon>=1.2', 'ioflo>=1.6.8', 'libnacl>=1.5.1', 'simplejson>=3.11.1',
     ],
     extras_require={
         # eg:
