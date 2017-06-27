@@ -23,7 +23,9 @@ from ioflo.aio.http import Valet
 from ioflo.base import doify
 from ioflo.aid import getConsole
 
-from ..end import ending,  exampling
+import falcon
+
+from ..end import ending, exampling
 
 
 console = getConsole()
@@ -66,12 +68,11 @@ def bluepeaServerOpen(self, buffer=False, **kwa):
         wlog = None
 
     port = int(self.port.value)
+    test = True if self.test.value else False  # use to load test endpoints
 
-    #app = bottle.apps.new_app() # create new bottle app
-    test = True if self.test.value else False
-    #ending.loadAll(app, self.store, test=test)
+    app = falcon.API()  # falcon.API instances are callable WSGI apps
+    ending.loadEnds(app, self.store)
 
-    app = exampling.app
 
     self.valet.value = Valet(port=port,
                              bufsize=131072,
