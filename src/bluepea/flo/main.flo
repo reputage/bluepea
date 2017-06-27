@@ -1,0 +1,17 @@
+# Main Flow
+
+house main
+
+  framer setup be active
+    frame startup
+      print Starting Server
+      bid start server
+
+
+  init main.server.test to True
+
+  framer server be inactive via .main.server
+    frame server
+      do bluepea server open at enter
+      do bluepea server service
+      do bluepea server close at exit

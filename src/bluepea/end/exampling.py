@@ -114,8 +114,9 @@ def jsonGenerator():
     """
     example generator that yields empty before returning json
     """
-    yield bytes()
-    time.sleep(0.5)
+    for i in range(10):
+        yield bytes()
+        time.sleep(0.1)
     yield bytes(json.dumps(ODict(name="John Smith", country="United States")), "ascii")
     #yield bytes("\r\n", "ascii")
 
