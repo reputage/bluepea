@@ -71,7 +71,7 @@ def bluepeaServerOpen(self, buffer=False, **kwa):
     test = True if self.test.value else False  # use to load test endpoints
 
     app = falcon.API()  # falcon.API instances are callable WSGI apps
-    ending.loadEnds(app, self.store)
+    ending.loadEnds(app, store=self.store)
 
 
     self.valet.value = Valet(port=port,
