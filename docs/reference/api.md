@@ -48,7 +48,7 @@ It is the responsibility of the client application to store the private signing
 key as it will be needed to make any future changes to the resultant agent data
 resource.
 
-The request is made by sending an HTTP  POST to /Agent/Registration
+The request is made by sending an HTTP POST to ```/Agent/Registration```
 
 The request includes a custom "Signature" header whose value is the signature
 produced above.
