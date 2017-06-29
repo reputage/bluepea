@@ -19,8 +19,11 @@ import falcon
 from ioflo.aid.sixing import *
 from ioflo.aid import getConsole
 
+from ..help.helping import validateSignedAgentReg
+
 console = getConsole()
 
+BASE_PATH = "/agent"
 
 class AgentRegister:
     """
@@ -56,27 +59,27 @@ class AgentRegister:
         """
         Handles POST requests
         """
+        signature = req.get_header("Signature")
         try:
-            raw = req.stream.read()
+            registration = req.stream.read()
         except Exception:
-            raise falcon.HTTPError(falcon.HTTP_748,
+            raise falcon.HTTPError(falcon.HTTP_400,
                                        'Read Error',
                                        'Could not read the request body.')
 
-        try:
-            data = json.loads(raw, 'utf-8')
-        except ValueError:
-            raise falcon.HTTPError(falcon.HTTP_753,
-                                       'Malformed JSON',
-                                       'Could not decode the request body. The '
-                                       'JSON was incorrect.')
 
-        sig = req.get_header("Signature")
+        result = validateSignedAgentReg(signature, registration.decode("utf-8"))
+        if not result:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                           'Validation Error',
+                                            'Could not validate the request body.')
 
 
-        result = ODict(data=data, sig=sig)
+        did = result['did']
+        didEncoded = falcon.uri.encode_value(did)
 
-        rep.status = falcon.HTTP_200  # This is the default status
+        rep.status = falcon.HTTP_201  # post response status with location header
+        rep.location = "{}/register?did={}".format(BASE_PATH, didEncoded)
         rep.body = json.dumps(result)
 
 

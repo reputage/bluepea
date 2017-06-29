@@ -7,10 +7,12 @@ from __future__ import generator_stop
 
 import os
 import stat
+import shutil
 from collections import OrderedDict as ODict, deque
 import enum
 import binascii
 import base64
+import tempfile
 
 try:
     import simplejson as json
@@ -151,11 +153,15 @@ def verify64u(signature, message, verkey):
     sig = key64uToKey(signature)
     vk = key64uToKey(verkey)
     msg = message.encode("utf-8")
+    try:
+        result = verify(sig, msg, vk)
+    except Exception as ex:
+        return False
 
-    return True if verify(sig, msg, vk) else False
+    return True if result else False
 
 
-def makeAgentRegistration(vk, sk):
+def makeSignedAgentReg(vk, sk):
     """
     Return duple of (registration, signature) of minimal self-signing
     agent registration record for keypair vk, sk
@@ -170,18 +176,98 @@ def makeAgentRegistration(vk, sk):
     """
     reg = ODict()  # create registration record as dict
 
-    did = makeDid(verkey)  # create the did
+    did = makeDid(vk)  # create the did
     index = 0
     signer = "{}#{}".format(did, index)  # signer field value key at index
-    key64u = keyToKey64u(verkey)  # make key index field value
+    key64u = keyToKey64u(vk)  # make key index field value
     kind = "EdDSA"
 
     reg["did"] = did
     reg["signer"] = signer
     reg["keys"] = [ODict(key=key64u, kind=kind)]
 
-    msg = json.dumps(reg, indent=2).encode("utf-8")
-    sig = libnacl.crypto_sign(msg, sk)[:libnacl.crypto_sign_BYTES]
+    registration = json.dumps(reg, indent=2)
+    sig = libnacl.crypto_sign(registration.encode("utf-8"), sk)[:libnacl.crypto_sign_BYTES]
     signature = keyToKey64u(sig)
 
-    reutrn (registration, signature)
+    return (signature, registration)
+
+def validateSignedAgentReg(signature, registration, method="igo"):
+    """
+    Returns dict of deserialized registration if signature verifies
+    and registration is correctly formed with self-signing did-key
+    Otherwise returns None
+
+    registration is json encoded unicode string of registration record
+    signature is base64 url-file safe unicode string signature generated
+    by signing bytes version of registration
+    """
+    try:
+        try:
+            reg = json.loads(registration, object_pairs_hook=ODict)
+        except ValueError as ex:
+            return None  # invalid json
+
+        if not reg:  # registration must not be empty
+            return None
+
+        if not isinstance(reg, dict):  # must be dict subclass
+            return None
+
+        if "signer" not in reg:  # signer required
+            return None
+
+        try:
+            sdid, index = reg["signer"].rsplit("#", maxsplit=1)
+            index = int(index)  # get index and sdid from signer field
+        except (AttributeError, ValueError) as ex:
+            return None  # missing sdid or index
+
+        try:  # correct did format  pre:method:keystr
+            pre, meth, keystr = sdid.split(":")
+        except ValueError as ex:
+            return None
+
+        if pre != "did" or meth != method:
+            return None  # did format bad
+
+        if "did" not in reg:  # did required
+            return None
+
+        if reg['did'] != sdid:
+            return None  # must be self signing and same key in signer
+
+        if "keys" not in reg:  # must have key
+            return None
+
+        try:
+            keyer = reg["keys"][index]
+        except IndexError as ex:
+            return None  # missing index
+
+        if "key" not in keyer:  # missing key
+            return None
+
+        if "kind" not in keyer:  # missing kind
+            return None
+
+        kind = keyer["kind"]
+
+        if kind not in ("EdDSA", "Ed25519"):
+            return None  # invalid key kind
+
+        verkey = keyer["key"]
+
+        if verkey != keystr:
+            return None  # must be same key that created did and signer
+
+        if len(verkey) != 44:
+            return None  # invalid length for base64 encoded key
+
+        if not verify64u(signature, registration, verkey):
+            return None  # signature fails
+
+    except Exception as ex:  # unknown problem
+        return None
+
+    return reg

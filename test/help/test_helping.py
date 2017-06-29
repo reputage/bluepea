@@ -1,6 +1,7 @@
 from __future__ import generator_stop
 
 import os
+import stat
 import tempfile
 import shutil
 import binascii
@@ -19,10 +20,8 @@ import pytest
 from pytest import approx
 
 from bluepea.help.helping import (setupTmpBaseDir, cleanupBaseDir, dumpKeys, loadKeys,
-                                  verify, makeDid, key64uToKey, keyToKey64u)
-
-
-
+                                  verify, makeDid, key64uToKey, keyToKey64u,
+                                  makeSignedAgentReg, validateSignedAgentReg)
 
 
 def test_dumpLoadKeys():
@@ -72,6 +71,8 @@ def test_dumpLoadKeys():
 
     dumpKeys(keyData, keyFilePath)
     assert os.path.exists(keyFilePath)
+    mode = stat.filemode(os.stat(keyFilePath).st_mode)
+    assert mode == "-rw-------"
 
     keyDataFiled = loadKeys(keyFilePath)
     assert keyData == keyDataFiled
@@ -84,14 +85,14 @@ def test_dumpLoadKeys():
     assert vk == verkey
 
     cleanupBaseDir(baseDirPath)
+    assert not os.path.exists(keyFilePath)
     print("Done Test")
 
-def test_makeDid():
+def test_makeDidSign():
     """
-
+    Testing utility functions for did keys and signature
     """
-    print("Testing makeDid keys")
-
+    print("Testing makeDid and Signature keys")
 
     # random seed used to generate private signing key
     #seed = libnacl.randombytes(libnacl.crypto_sign_SEEDBYTES)
@@ -100,7 +101,6 @@ def test_makeDid():
 
     # creates signing/verification key pair
     verkey, sigkey = libnacl.crypto_sign_seed_keypair(seed)
-
 
     # create registration record as dict
     reg = ODict()
@@ -171,5 +171,48 @@ def test_makeDid():
     result = verify(sig, regserb, verkey)
     assert result
 
+    print("Done Test")
+
+
+def test_signedAgentRegistration():
+    """
+    Test helper function
+    """
+    print("Testing makeSignedAgentRegistration")
+
+    # random seed used to generate private signing key
+    #seed = libnacl.randombytes(libnacl.crypto_sign_SEEDBYTES)
+    seed = (b'PTi\x15\xd5\xd3`\xf1u\x15}^r\x9bfH\x02l\xc6\x1b\x1d\x1c\x0b9\xd7{\xc0_'
+            b'\xf2K\x93`')
+
+    # creates signing/verification key pair
+    verkey, sigkey = libnacl.crypto_sign_seed_keypair(seed)
+
+    signature, registration = makeSignedAgentReg(verkey, sigkey)
+
+    assert len(signature) == 88
+    assert signature == ('B0Qc72RP5IOodsQRQ_s4MKMNe0PIAqwjKsBl4b6lK9co2XPZHLmz'
+                         'QFHWzjA2PvxWso09cEkEHIeet5pjFhLUDg==')
+
+    assert len(registration) == 249
+    assert "\r\n\r\n" not in registration  # separator
+    assert registration == (
+        '{\n'
+        '  "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",\n'
+        '  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",\n'
+        '  "keys": [\n'
+        '    {\n'
+        '      "key": "Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",\n'
+        '      "kind": "EdDSA"\n'
+        '    }\n'
+        '  ]\n'
+        '}' )
+
+    # validate
+    reg = validateSignedAgentReg(signature, registration)
+
+    assert reg is not None
+
+    assert verkey == key64uToKey(reg["keys"][0]["key"])
 
     print("Done Test")
