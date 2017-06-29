@@ -51,12 +51,11 @@ resource.
 The request is made by sending an HTTP POST to ```/Agent/Registration```
 
 The request includes a custom "Signature" header whose value is the signature
-produced above.
-The request body is registration text produced above.
+produced above. The request body is the registration text produced above.
 
 A successful request results in a response with the associated Agent data resource
-in the JSON body of the response is and the value of the location header
-in the response is the URL to access the Agent Data Resource via a GET request.
+in the JSON body of the response is and a location header
+whose value is the URL to access the Agent Data Resource via a GET request.
 This location value has already been URL encoded.
 
 A successful request will return status code 201
