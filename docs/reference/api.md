@@ -7,17 +7,25 @@ is a self-signed or self-owned data resource in that the signer field value
 references is the self-same data resource.
 
 In order to create an Agent Registration request the client application needs
-to produce a unique EdDSA signing keypair.  The example code below shows how to
-create this key pair using the python libnacl bindings for libsodium. The bluepea
-python library has a helper function
+to produce a unique EdDSA signing keypair.
+
+The bluepea python library has a helper function,
+
 ```python
 makeSignedAgentReg(vk, sk)
 ```
 
 in the
+
 ```python
-bluepea.help.helping module
+bluepea.help.helping
 ```
+
+module.
+
+The example code below shows how to
+create this key pair and the associated agent registration plain text
+using the python libnacl bindings for libsodium and the helper function.
 
 ```python
 import libnacl
