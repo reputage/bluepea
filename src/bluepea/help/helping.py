@@ -31,6 +31,24 @@ import libnacl.sign
 
 console = getConsole()
 
+def setupTmpBaseDir(baseDirPath=""):
+    """
+    Create temporary directory
+    """
+    # create temp directory at /tmp/bluepea...test
+    if not baseDirPath:
+        baseDirPath = tempfile.mkdtemp(prefix="bluepea",  suffix="test", dir="/tmp")
+    baseDirPath = os.path.abspath(os.path.expanduser(baseDirPath))
+    return baseDirPath
+
+
+def cleanupBaseDir(baseDirPath):
+    """
+    Remove temporary baseDirPath
+    """
+    if os.path.exists(baseDirPath):
+        shutil.rmtree(baseDirPath)
+
 
 def dumpKeys(data, filepath):
     '''

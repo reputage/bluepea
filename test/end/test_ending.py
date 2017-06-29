@@ -12,6 +12,9 @@ try:
 except ImportError:
     import json
 
+import libnacl
+import libnacl.sign
+
 from ioflo.base import storing
 import falcon
 
@@ -101,8 +104,7 @@ def test_post_AgentRegisterSigned(client):  # client is a fixture in pytest_falc
     """
     print("Testing POST /agent/register with signature")
 
-    import libnacl
-    import libnacl.sign
+
 
     # random seed used to generate private signing key
     #seed = libnacl.randombytes(libnacl.crypto_sign_SEEDBYTES)
