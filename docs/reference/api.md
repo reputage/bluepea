@@ -137,7 +137,9 @@ resource.
 The request is made by sending an HTTP POST to ```/Agent/Registration```
 
 The request includes a custom "Signature" header whose value is the signature
-produced above. The request body is the registration text produced above.
+produced above. The *tag* value is *signer*.  
+
+The request body is the registration text produced above.
 
 A successful request results in a response with the associated Agent data resource
 in the JSON body of the response is and a location header
