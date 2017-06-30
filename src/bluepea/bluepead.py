@@ -10,6 +10,7 @@ example production:
 
 bluepead -v concise -r -p 0.0625 -n bluepea -f flo/main.flo -b bluepea.core
 
+bluepead -v concise -r -p 0.0625 -n bluepea -f /Data/Code/private/indigo/bluepea/src/bluepea/flo/main.flo -b bluepea.core
 
 example testing:
 
