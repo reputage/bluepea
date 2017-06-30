@@ -7,7 +7,7 @@ is a self-signed or self-owned data resource in that the signer field value
 references is the self-same data resource.
 
 In order to create an Agent Registration request the client application needs
-to produce a unique EdDSA signing keypair.
+to produce a unique EdDSA signing keypair using the libsodium library.
 
 The bluepea python library has a helper function,
 
