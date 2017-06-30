@@ -125,8 +125,8 @@ verkey, sigkey = libnacl.crypto_sign_seed_keypair(seed)
 
 signature, registration = makeSignedAgentReg(verkey, sigkey)
 
-# registration is the body text for the registration request. It is a json serialization
-# signature is the Base64 URL safe encoding of theEdDSA signature of registration body
+# registration is the json serialized body text for the registration request
+# signature is the Base64 URL safe encoding of the EdDSA signature of the registration body text
 
 ```
 
