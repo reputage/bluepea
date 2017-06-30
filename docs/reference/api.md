@@ -33,6 +33,57 @@ $ bluepead -v concise -r -p 0.0625 -n bluepea -f /Data/Code/private/indigo/bluep
 
 ```
 
+## Signature Header
+
+Indigo service requests may require a custom *Signature* header. This provides one or more signatures of the request body.
+
+The format of the custom Signature header follows the conventions of [RFC 7230](https://tools.ietf.org/html/rfc7230)
+
+Signature header has format:
+
+```http
+Signature: headervalue
+
+Headervalue:
+  tag = "signature"
+or
+  tag = "signature"; tag = "signature"  ...
+```
+
+Where tag is the name of a field in the body of the request whose value
+is a DID from which the public key for the signature can be obtained.
+If the same tag appears multiple times then only the last occurrence is used.
+
+Each signature value is a doubly quoted string ```""``` that contains the actual signature
+in Base64 url safe format. By default the signatures are 64 byte EdDSA (Ed25519) signatures that have been encoded into BASE64 url-file safe format. The encoded signatures are 88 characters in length and include two trailing pad characters ```=```.
+
+An optional tag name = *kind* with values *EdDSA* or *Ed25519* may be present.
+The *kind* tag field value specifies the type of signature. All signatures within the header
+must be of the same kind.
+
+The two tag field values currently supported are *did* and *signer*.
+
+Example valid *Signature* headers are shown below:
+
+```http
+Signature: did="B0Qc72RP5IOodsQRQ_s4MKMNe0PIAqwjKsBl4b6lK9co2XPZHLmzQFHWzjA2PvxWso09cEkEHIeet5pjFhLUDg=="
+
+```
+
+```http
+Signature: signer="B0Qc72RP5IOodsQRQ_s4MKMNe0PIAqwjKsBl4b6lK9co2XPZHLmzQFHWzjA2PvxWso09cEkEHIeet5pjFhLUDg=="; 
+
+```
+
+```http
+Signature: signer="B0Qc72RP5IOodsQRQ_s4MKMNe0PIAqwjKsBl4b6lK9co2XPZHLmzQFHWzjA2PvxWso09cEkEHIeet5pjFhLUDg=="; did="B0Qc72RP5IOodsQRQ_s4MKMNe0PIAqwjKsBl4b6lK9co2XPZHLmzQFHWzjA2PvxWso09cEkEHIeet5pjFhLUDg=="
+
+```
+
+```http
+Signature: signer="B0Qc72RP5IOodsQRQ_s4MKMNe0PIAqwjKsBl4b6lK9co2XPZHLmzQFHWzjA2PvxWso09cEkEHIeet5pjFhLUDg=="; did="B0Qc72RP5IOodsQRQ_s4MKMNe0PIAqwjKsBl4b6lK9co2XPZHLmzQFHWzjA2PvxWso09cEkEHIeet5pjFhLUDg=="; kind="EdDSA"
+
+```
 
 
 ## Agent Registration
@@ -103,7 +154,7 @@ Example requests and responses are shown below.
 
 ```http
 POST /agent/register HTTP/1.1
-Signature: B0Qc72RP5IOodsQRQ_s4MKMNe0PIAqwjKsBl4b6lK9co2XPZHLmzQFHWzjA2PvxWso09cEkEHIeet5pjFhLUDg==
+Signature: signer="B0Qc72RP5IOodsQRQ_s4MKMNe0PIAqwjKsBl4b6lK9co2XPZHLmzQFHWzjA2PvxWso09cEkEHIeet5pjFhLUDg=="
 Content-Type: text/html
 Host: localhost:8080
 Connection: close
@@ -130,7 +181,7 @@ Location: /agent/register?did=did%3Aigo%3AQt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1v
 Content-Length: 215
 Content-Type: application/json; charset=UTF-8
 Server: Ioflo WSGI Server
-Date: Thu, 29 Jun 2017 23:16:46 GMT
+Date: Fri, 30 Jun 2017 16:16:39 GMT
 
 {
   "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",

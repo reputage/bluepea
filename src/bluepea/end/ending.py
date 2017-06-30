@@ -19,7 +19,7 @@ import falcon
 from ioflo.aid.sixing import *
 from ioflo.aid import getConsole
 
-from ..help.helping import validateSignedAgentReg
+from ..help.helping import parseSignatureHeader, validateSignedAgentReg
 
 console = getConsole()
 
@@ -60,6 +60,13 @@ class AgentRegister:
         Handles POST requests
         """
         signature = req.get_header("Signature")
+        sigs = parseSignatureHeader(signature)
+        signer = sigs.get('signer')
+        if not signer:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                           'Validation Error',
+                                           'Invalid or missing Signature header.')
+
         try:
             registration = req.stream.read()
         except Exception:
@@ -68,7 +75,7 @@ class AgentRegister:
                                        'Could not read the request body.')
 
 
-        result = validateSignedAgentReg(signature, registration.decode("utf-8"))
+        result = validateSignedAgentReg(signer, registration.decode("utf-8"))
         if not result:
             raise falcon.HTTPError(falcon.HTTP_400,
                                            'Validation Error',

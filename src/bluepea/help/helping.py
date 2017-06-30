@@ -109,7 +109,61 @@ def loadKeys(filepath):
         return None
     return it
 
+def parseSignatureHeader(signature):
+    """
+    Returns ODict of fields and values parsed from signature
+    which is the value portion of a Signature header
 
+    Signature header has format:
+
+        Signature: headervalue
+
+    Headervalue:
+        tag = "signature"
+
+    or
+
+        tag = "signature"; tag = "signature"  ...
+
+    where tag is the name of a field in the body of the request whose value
+    is a DID from which the public key for the signature can be obtained
+    If the same tag appears multiple times then only the last occurrence is returned
+
+    each signature value is a doubly quoted string that contains the actual signature
+    in Base64 url safe format. By default the signatures are EdDSA (Ed25519)
+    which are 88 characters long (with two trailing pad bytes) that represent
+    64 byte EdDSA signatures
+
+    An option tag name = "kind" with values "EdDSA"  "Ed25519" may be present
+    that specifies the type of signature. All signatures within the header
+    must be of the same kind.
+
+    The two tag fields currently supported are "did" and "signer"
+
+
+    """
+    sigs = ODict()
+    if signature:
+        clauses = signature.split(";")
+        for clause in clauses:
+            clause = clause.strip()
+            if not clause:
+                continue
+            try:
+                tag, value = clause.split("=", maxsplit=1)
+            except ValueError as ex:
+                continue
+            tag = tag.strip()
+            if not tag:
+                continue
+            value = value.strip()
+            if not value.startswith('"') or not value.endswith('"') or len(value) < 3:
+                continue
+            value = value[1:-1]
+            value = value.strip()
+            sigs[tag] = value
+
+    return sigs
 
 def keyToKey64u(key):
     """
@@ -271,3 +325,5 @@ def validateSignedAgentReg(signature, registration, method="igo"):
         return None
 
     return reg
+
+

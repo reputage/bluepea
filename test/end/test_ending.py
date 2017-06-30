@@ -89,8 +89,15 @@ def test_post_AgentRegisterSigned(client):  # client is a fixture in pytest_falc
                             '  ]\n'
                             '}')
 
+
     headers = {"Content-Type": "text/html; charset=utf-8",
-               "Signature": signature, }
+               "Signature": 'signer="{}"'.format(signature), }
+
+    assert headers['Signature'] == ('signer="B0Qc72RP5IOodsQRQ_s4MKMNe0PIAqwjKs'
+                    'Bl4b6lK9co2XPZHLmzQFHWzjA2PvxWso09cEkEHIeet5pjFhLUDg=="')
+
+    signer="B0Qc72RP5IOodsQRQ_s4MKMNe0PIAqwjKsBl4b6lK9co2XPZHLmzQFHWzjA2PvxWso09cEkEHIeet5pjFhLUDg=="
+
     body = registration
 
     rep = client.post('/agent/register', body=body, headers=headers)

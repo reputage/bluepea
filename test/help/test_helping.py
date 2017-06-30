@@ -20,7 +20,8 @@ import pytest
 from pytest import approx
 
 from bluepea.help.helping import (setupTmpBaseDir, cleanupBaseDir, dumpKeys, loadKeys,
-                                  verify, makeDid, key64uToKey, keyToKey64u,
+                                  parseSignatureHeader, verify, makeDid,
+                                  key64uToKey, keyToKey64u,
                                   makeSignedAgentReg, validateSignedAgentReg)
 
 
@@ -87,6 +88,43 @@ def test_dumpLoadKeys():
     cleanupBaseDir(baseDirPath)
     assert not os.path.exists(keyFilePath)
     print("Done Test")
+
+def test_parseSignatureHeader():
+    """
+    Test helper function to parse signature header
+    """
+    print("Testing parseSignatureHeader")
+
+    signature = None
+    sigs = parseSignatureHeader(signature)
+    assert len(sigs) == 0
+
+    signature = ('did="B0Qc72RP5IOodsQRQ_s4MKMNe0PIAqwjKsBl4b6lK9co2XPZHLmz'
+                 'QFHWzjA2PvxWso09cEkEHIeet5pjFhLUDg=="')
+    sigs = parseSignatureHeader(signature)
+    assert sigs['did'] == ("B0Qc72RP5IOodsQRQ_s4MKMNe0PIAqwjKsBl4b6lK9co2XPZHLmz"
+                           "QFHWzjA2PvxWso09cEkEHIeet5pjFhLUDg==")
+
+    signature = ('did = "B0Qc72RP5IOodsQRQ_s4MKMNe0PIAqwjKsBl4b6lK9co2XPZHLmz'
+                 'QFHWzjA2PvxWso09cEkEHIeet5pjFhLUDg=="  ;  ')
+    sigs = parseSignatureHeader(signature)
+    assert sigs['did'] == ("B0Qc72RP5IOodsQRQ_s4MKMNe0PIAqwjKsBl4b6lK9co2XPZHLmz"
+                           "QFHWzjA2PvxWso09cEkEHIeet5pjFhLUDg==")
+
+    signature = ('did="B0Qc72RP5IOodsQRQ_s4MKMNe0PIAqwjKsBl4b6lK9co2XPZHLmz'
+                 'QFHWzjA2PvxWso09cEkEHIeet5pjFhLUDg==";'
+                 'signer="B0Qc72RP5IOodsQRQ_s4MKMNe0PIAqwjKsBl4b6lK9co2XPZHLmz'
+                 'QFHWzjA2PvxWso09cEkEHIeet5pjFhLUDg==";'
+                 'kind="EdDSA";')
+    sigs = parseSignatureHeader(signature)
+    assert sigs['did'] == ("B0Qc72RP5IOodsQRQ_s4MKMNe0PIAqwjKsBl4b6lK9co2XPZHLmz"
+                           "QFHWzjA2PvxWso09cEkEHIeet5pjFhLUDg==")
+    assert sigs['did'] == ("B0Qc72RP5IOodsQRQ_s4MKMNe0PIAqwjKsBl4b6lK9co2XPZHLmz"
+                           "QFHWzjA2PvxWso09cEkEHIeet5pjFhLUDg==")
+    assert sigs['kind'] == "EdDSA"
+
+    print("Done Test")
+
 
 def test_makeDidSign():
     """
