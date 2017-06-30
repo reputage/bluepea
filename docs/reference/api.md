@@ -35,7 +35,7 @@ $ bluepead -v concise -r -p 0.0625 -n bluepea -f /Data/Code/private/indigo/bluep
 
 ## Signature Header
 
-Indigo service requests may require a custom *Signature* header. This provides one or more signatures of the request body.
+Indigo service requests or responses may require a custom *Signature* header that provides one or more signatures of the request/response body text.
 
 The format of the custom Signature header follows the conventions of [RFC 7230](https://tools.ietf.org/html/rfc7230)
 

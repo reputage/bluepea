@@ -73,10 +73,16 @@ Installation
 
 ::
 
-    pip install bluepea
+    pip3 install bluepea
 
 Documentation
 =============
+
+API Documentation API_:
+
+.. _API: docs/reference/api.md
+
+
 
 https://bluepea.readthedocs.io/
 
