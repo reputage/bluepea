@@ -138,6 +138,7 @@ setup(
     entry_points={
         'console_scripts': [
             'bluepea = bluepea.cli:main',
+            'bluepead = bluepea.bluepead:main',
         ]
     },
     cmdclass={'build_ext': optional_build_ext},

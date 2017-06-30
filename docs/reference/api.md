@@ -1,5 +1,40 @@
 # Indigo Service API
 
+## Installing Service
+
+The sourcecode for the Indigo service is in the GitHub repo
+```bash
+https://github.com/indigo-d/bluepea
+```
+
+To install the code clone the repo as follows:
+
+```bash
+$ git clone https://github.com/indigo-d/bluepea
+```
+
+This will create a bluepea directory. The source code is written in Python and
+can be installed with Python3.6 or later using pip. First navigate to the directory
+with the bluepea directory and then install with pip3.
+
+
+```bash
+$ pip3 install -e bluepea
+```
+
+The Indigo micro web service is run via the bluepead  (bluepea daemon) that is
+installed with the pip3 install above.
+
+To run the daemon, execute the following from the command line after first changing
+the -f argument to point to the appropriate location on your disk.
+
+```bash
+$ bluepead -v concise -r -p 0.0625 -n bluepea -f /Data/Code/private/indigo/bluepea/src/bluepea/flo/main.flo -b bluepea.core
+
+```
+
+
+
 ## Agent Registration
 
 Agent Registration creates a data resource corresponding to a given Agent. This
