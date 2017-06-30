@@ -33,6 +33,9 @@ import libnacl.sign
 
 console = getConsole()
 
+SEPARATOR =  "\r\n\r\n"
+SEPARATOR_BYTES = SEPARATOR.encode("utf-8")
+
 def setupTmpBaseDir(baseDirPath=""):
     """
     Create temporary directory
@@ -43,14 +46,24 @@ def setupTmpBaseDir(baseDirPath=""):
     baseDirPath = os.path.abspath(os.path.expanduser(baseDirPath))
     return baseDirPath
 
+def cleanupTmpBaseDir(baseDirPath):
+    """
+    Remove temporary root of baseDirPath
+    Ascend tree to find temporary root directory
+    """
+    if os.path.exists(baseDirPath):
+        while baseDirPath.startswith("/tmp/bluepea"):
+            if baseDirPath.endswith("test"):
+                shutil.rmtree(baseDirPath)
+                break
+            baseDirPath = os.path.dirname(baseDirPath)
 
 def cleanupBaseDir(baseDirPath):
     """
-    Remove temporary baseDirPath
+    Remove baseDirPath
     """
     if os.path.exists(baseDirPath):
         shutil.rmtree(baseDirPath)
-
 
 def dumpKeys(data, filepath):
     '''
@@ -189,11 +202,15 @@ def makeDid(verkey, method="igo"):
 
 def verify(sig, msg, vk):
     """
-    Returns message if signature sig of message msg is verified with
-    verification key vk
+    Returns True if signature sig of message msg is verified with
+    verification key vk Otherwise False
     All of sig, msg, vk are bytes
     """
-    return (libnacl.crypto_sign_open(sig + msg, vk))
+    try:
+        result = libnacl.crypto_sign_open(sig + msg, vk)
+    except Exception as ex:
+        return False
+    return (True if result else False)
 
 def verify64u(signature, message, verkey):
     """
@@ -212,7 +229,7 @@ def verify64u(signature, message, verkey):
     except Exception as ex:
         return False
 
-    return True if result else False
+    return (True if result else False)
 
 
 def makeSignedAgentReg(vk, sk):

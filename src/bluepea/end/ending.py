@@ -19,7 +19,8 @@ import falcon
 from ioflo.aid.sixing import *
 from ioflo.aid import getConsole
 
-from ..help.helping import parseSignatureHeader, validateSignedAgentReg
+from ..help.helping import SEPARATOR, parseSignatureHeader, validateSignedAgentReg
+from ..db import dbing
 
 console = getConsole()
 
@@ -61,21 +62,22 @@ class AgentRegister:
         """
         signature = req.get_header("Signature")
         sigs = parseSignatureHeader(signature)
-        signer = sigs.get('signer')
+        signer = sigs.get('signer')  # str not bytes
         if not signer:
             raise falcon.HTTPError(falcon.HTTP_400,
                                            'Validation Error',
                                            'Invalid or missing Signature header.')
 
         try:
-            registration = req.stream.read()
+            regb = req.stream.read()  # bytes
         except Exception:
             raise falcon.HTTPError(falcon.HTTP_400,
                                        'Read Error',
                                        'Could not read the request body.')
 
+        registration = regb.decode("utf-8")
 
-        result = validateSignedAgentReg(signer, registration.decode("utf-8"))
+        result = validateSignedAgentReg(signer, registration)
         if not result:
             raise falcon.HTTPError(falcon.HTTP_400,
                                            'Validation Error',
@@ -83,8 +85,16 @@ class AgentRegister:
 
 
         did = result['did']
-        didEncoded = falcon.uri.encode_value(did)
 
+        # save to database
+        dbEnv = dbing.dbEnv  # lmdb database env assumes already setup
+        dbCore = dbEnv.open_db(b'core')  # open named sub db named 'core' within env
+
+        with dbing.dbEnv.begin(db=dbCore, write=True) as txn:  # txn is a Transaction object
+            resource = registration + SEPARATOR + signer
+            txn.put(did.encode("utf-8"), resource.encode("utf-8") )  # keys and values are bytes
+
+        didEncoded = falcon.uri.encode_value(did)
         rep.status = falcon.HTTP_201  # post response status with location header
         rep.location = "{}/register?did={}".format(BASE_PATH, didEncoded)
         rep.body = json.dumps(result)
@@ -98,3 +108,5 @@ def loadEnds(app, store):
     """
     agentRegister = AgentRegister(store=store)
     app.add_route('/agent/register', agentRegister)
+
+

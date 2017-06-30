@@ -19,7 +19,8 @@ import libnacl.sign
 import pytest
 from pytest import approx
 
-from bluepea.help.helping import (setupTmpBaseDir, cleanupBaseDir, dumpKeys, loadKeys,
+from bluepea.help.helping import (SEPARATOR, setupTmpBaseDir, cleanupTmpBaseDir,
+                                  dumpKeys, loadKeys,
                                   parseSignatureHeader, verify, makeDid,
                                   key64uToKey, keyToKey64u,
                                   makeSignedAgentReg, validateSignedAgentReg)
@@ -85,7 +86,7 @@ def test_dumpLoadKeys():
     vk = binascii.unhexlify(keyDataFiled['verkey'].encode('utf-8'))
     assert vk == verkey
 
-    cleanupBaseDir(baseDirPath)
+    cleanupTmpBaseDir(baseDirPath)
     assert not os.path.exists(keyFilePath)
     print("Done Test")
 
@@ -177,7 +178,7 @@ def test_makeDidSign():
 
     regser = json.dumps(reg, indent=2)
     assert len(regser) == 249
-    assert "\r\n\r\n" not in regser  # separator
+    assert SEPARATOR not in regser  # separator
     assert regser == ('{\n'
                       '  "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",\n'
                       '  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",\n'
@@ -233,7 +234,7 @@ def test_signedAgentRegistration():
                          'QFHWzjA2PvxWso09cEkEHIeet5pjFhLUDg==')
 
     assert len(registration) == 249
-    assert "\r\n\r\n" not in registration  # separator
+    assert SEPARATOR not in registration  # separator
     assert registration == (
         '{\n'
         '  "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",\n'

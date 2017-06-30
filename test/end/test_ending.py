@@ -31,10 +31,12 @@ import pytest_falcon # declares client fixture
 """
 
 import bluepea.end.ending as ending
-from bluepea.help.helping import (dumpKeys, loadKeys, verify, makeDid,
-                                  key64uToKey, keyToKey64u,
-                                  setupTmpBaseDir, cleanupBaseDir,
-                                  makeSignedAgentReg)
+from bluepea.help.helping import (dumpKeys, loadKeys,
+                                  key64uToKey, keyToKey64u, makeDid,
+                                  verify, verify64u,
+                                  setupTmpBaseDir, cleanupTmpBaseDir,
+                                  makeSignedAgentReg, SEPARATOR_BYTES)
+from bluepea.db.dbing import setupTestDbEnv
 
 store = storing.Store(stamp=0.0)
 
@@ -66,6 +68,8 @@ def test_post_AgentRegisterSigned(client):  # client is a fixture in pytest_falc
     """
     print("Testing POST /agent/register with signature")
 
+    dbEnv = setupTestDbEnv()
+
     # random seed used to generate private signing key
     #seed = libnacl.randombytes(libnacl.crypto_sign_SEEDBYTES)
     seed = (b'PTi\x15\xd5\xd3`\xf1u\x15}^r\x9bfH\x02l\xc6\x1b\x1d\x1c\x0b9\xd7{\xc0_'
@@ -95,8 +99,6 @@ def test_post_AgentRegisterSigned(client):  # client is a fixture in pytest_falc
 
     assert headers['Signature'] == ('signer="B0Qc72RP5IOodsQRQ_s4MKMNe0PIAqwjKs'
                     'Bl4b6lK9co2XPZHLmzQFHWzjA2PvxWso09cEkEHIeet5pjFhLUDg=="')
-
-    signer="B0Qc72RP5IOodsQRQ_s4MKMNe0PIAqwjKsBl4b6lK9co2XPZHLmzQFHWzjA2PvxWso09cEkEHIeet5pjFhLUDg=="
 
     body = registration
 
@@ -130,4 +132,22 @@ def test_post_AgentRegisterSigned(client):  # client is a fixture in pytest_falc
         'signer': 'did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0'
     }
 
+    dbCore = dbEnv.open_db(b'core')  # open named sub db named 'core' within env
+
+    with dbEnv.begin(db=dbCore) as txn:  # txn is a Transaction object
+        rsrcb = txn.get(reg['did'].encode('utf-8'))  # keys are bytes
+
+    assert rsrcb
+
+    datab, sep, signatureb = rsrcb.partition(SEPARATOR_BYTES)
+
+    data = json.loads(datab.decode("utf-8"), object_pairs_hook=ODict)
+    assert data == reg
+    assert signatureb.decode("utf-8") == signature
+
+    assert verify64u(signature=signatureb.decode("utf-8"),
+                     message=datab.decode("utf-8"),
+                     verkey=reg["keys"][0]["key"])
+
+    cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")

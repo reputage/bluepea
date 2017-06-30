@@ -14,6 +14,8 @@ import lmdb
 from ioflo.aid.sixing import *
 from ioflo.aid import getConsole
 
+from ..help.helping import setupTmpBaseDir
+
 console = getConsole()
 
 MAX_DB_COUNT = 8
@@ -21,16 +23,16 @@ MAX_DB_COUNT = 8
 BASE_DIR_PATH = "/var/db/bluepea"  # default
 ALT_BASE_DIR_PATH = os.path.join('~', '.bluepea')
 
-dbBaseDirPath = None  # database directory location has not been set up yet
+dbDirPath = None  # database directory location has not been set up yet
 dbEnv = None  # database environment has not been set up yet
 
 def setupDbEnv(baseDirPath=None):
     """
-    Setup  the module globals dbBaseDirPath, dbBaseFilePath, dbEnv using baseDirPath
+    Setup  the module globals dbEnv, dbDirPath using baseDirPath
     if provided otherwise use BASE_DIR_PATH
 
     """
-    global dbBaseDirPath, dbBaseFilePath, dbEnv
+    global dbEnv, dbDirPath
 
     if not baseDirPath:
         baseDirPath = BASE_DIR_PATH
@@ -51,20 +53,29 @@ def setupDbEnv(baseDirPath=None):
             if not os.path.exists(baseDirPath):
                 os.makedirs(baseDirPath)
 
-    dbBaseDirPath = baseDirPath  # set global
+    dbDirPath = baseDirPath  # set global
 
-    #dbBaseFilePath = os.path.join(dbBaseDirPath, "bluepea.lmdb")  # set global
-
-    dbEnv = lmdb.open(dbBaseDirPath, max_dbs=MAX_DB_COUNT)
+    dbEnv = lmdb.open(dbDirPath, max_dbs=MAX_DB_COUNT)
     # creates files data.mdb and lock.mdb in dbBaseDirPath
 
     # create named dbs  (core and tables)
     dbEnv.open_db(b'core')
 
+    # verify that the server resource is present in the database
+    # need to read in saved server signing keys and query database
+    # if not present then create server resource
+
     return dbEnv
 
-#with env.begin(write=True) as txn:
-   #txn.put('somename', 'somedata')
+def setupTestDbEnv():
+    """
+    Return dbEnv resulting from baseDirpath in temporary directory
+    and then setupDbEnv
+    """
+    baseDirPath = setupTmpBaseDir()
+    baseDirPath = os.path.join(baseDirPath, "db/bluepea")
+    os.makedirs(baseDirPath)
+    return setupDbEnv(baseDirPath=baseDirPath)
 
 if __name__ == '__main__':
     env = setupDbEnv()

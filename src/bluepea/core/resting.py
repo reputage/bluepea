@@ -26,7 +26,8 @@ from ioflo.aid import getConsole
 import falcon
 
 from ..end import ending, exampling
-
+from ..db import dbing
+from ..help import helping
 
 console = getConsole()
 
@@ -43,7 +44,8 @@ frame server
 
 @doify('BluepeaServerOpen', ioinits=odict(valet="",
                                           port=odict(inode="", ival=8080),
-                                          test=""))
+                                          dbDirPath="",
+                                          test="",))
 def bluepeaServerOpen(self, buffer=False, **kwa):
     """
     Setup and open a rest server
@@ -68,11 +70,20 @@ def bluepeaServerOpen(self, buffer=False, **kwa):
         wlog = None
 
     port = int(self.port.value)
-    test = True if self.test.value else False  # use to load test endpoints
+    test = True if self.test.value else False  # use to load test environment
+
+
+    if test:
+        dbing.setupTestDbEnv()
+    else:
+        dbDirPath = self.dbDirPath.value if self.dbDirPath.value else None  # None is default
+        dbDirPath = os.path.abspath(os.path.expanduser(dbDirPath))
+        dbing.setupDbEnv(baseDirPath=dbDirPath)
+
+    self.dbDirPath.value = dbing.dbDirPath
 
     app = falcon.API()  # falcon.API instances are callable WSGI apps
     ending.loadEnds(app, store=self.store)
-
 
     self.valet.value = Valet(port=port,
                              bufsize=131072,
@@ -110,7 +121,7 @@ def bluepeaServerService(self, **kwa):
         self.valet.value.serviceAll()
 
 
-@doify('BluepeaServerClose', ioinits=odict(valet=""))
+@doify('BluepeaServerClose', ioinits=odict(valet="",))
 def bluepeaServerClose(self, **kwa):
     """
     Close server in valet
@@ -129,5 +140,8 @@ def bluepeaServerClose(self, **kwa):
         console.concise("Closed server '{0}' at '{1}'\n".format(
                             self.valet.name,
                             self.valet.value.servant.eha))
+
+
+
 
 

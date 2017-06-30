@@ -19,7 +19,7 @@ import libnacl.sign
 import pytest
 from pytest import approx
 
-from bluepea.help.helping import setupTmpBaseDir, cleanupBaseDir
+from bluepea.help.helping import setupTmpBaseDir, cleanupTmpBaseDir
 from bluepea.db import dbing
 
 
@@ -39,10 +39,8 @@ def test_setupDbEnv():
     env = dbing.setupDbEnv(baseDirPath=dbDirPath)
     assert env.path() == dbDirPath
 
-    assert dbing.dbBaseDirPath == dbDirPath
+    assert dbing.dbDirPath == dbDirPath
     assert dbing.dbEnv is env
-
-
 
     data = ODict()
 
@@ -70,7 +68,7 @@ def test_setupDbEnv():
         assert data['city'] == "Alta"
 
 
-    cleanupBaseDir(baseDirPath)
+    cleanupTmpBaseDir(dbDirPath)
     assert not os.path.exists(dbDirPath)
     print("Done Test")
 
