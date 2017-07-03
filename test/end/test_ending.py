@@ -5,6 +5,7 @@ import tempfile
 import shutil
 import binascii
 import base64
+import datetime
 
 from collections import OrderedDict as ODict
 try:
@@ -12,10 +13,13 @@ try:
 except ImportError:
     import json
 
+import arrow
+
 import libnacl
 import libnacl.sign
 
 from ioflo.base import storing
+from ioflo.aid import timing
 import falcon
 
 import pytest
@@ -65,27 +69,36 @@ def test_post_AgentRegisterSigned(client):  # client is a fixture in pytest_falc
     # creates signing/verification key pair
     verkey, sigkey = libnacl.crypto_sign_seed_keypair(seed)
 
-    signature, registration = makeSignedAgentReg(verkey, sigkey)
+    dt = datetime.datetime(2000, 1, 1, tzinfo=datetime.timezone.utc)
+    stamp = timing.iso8601(dt, aware=True)
+    assert  stamp == "2000-01-01T00:00:00+00:00"
 
-    assert signature == "B0Qc72RP5IOodsQRQ_s4MKMNe0PIAqwjKsBl4b6lK9co2XPZHLmzQFHWzjA2PvxWso09cEkEHIeet5pjFhLUDg=="
+    assert arrow.get(stamp).datetime == dt
 
-    assert registration == ('{\n'
-                            '  "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",\n'
-                            '  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",\n'
-                            '  "keys": [\n'
-                            '    {\n'
-                            '      "key": "Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",\n'
-                            '      "kind": "EdDSA"\n'
-                            '    }\n'
-                            '  ]\n'
-                            '}')
+    signature, registration = makeSignedAgentReg(verkey, sigkey, changed=stamp)
+
+    assert signature == ('AeYbsHot0pmdWAcgTo5sD8iAuSQAfnH5U6wiIGpVNJQQoYKBYrPPx'
+                         'AoIc1i5SHCIDS8KFFgf8i0tDq8XGizaCg==')
+
+    assert registration == (
+        '{\n'
+        '  "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",\n'
+        '  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",\n'
+        '  "changed": "2000-01-01T00:00:00+00:00",\n'
+        '  "keys": [\n'
+        '    {\n'
+        '      "key": "Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",\n'
+        '      "kind": "EdDSA"\n'
+        '    }\n'
+        '  ]\n'
+        '}')
 
 
     headers = {"Content-Type": "text/html; charset=utf-8",
                "Signature": 'signer="{}"'.format(signature), }
 
-    assert headers['Signature'] == ('signer="B0Qc72RP5IOodsQRQ_s4MKMNe0PIAqwjKs'
-                    'Bl4b6lK9co2XPZHLmzQFHWzjA2PvxWso09cEkEHIeet5pjFhLUDg=="')
+    assert headers['Signature'] == ('signer="AeYbsHot0pmdWAcgTo5sD8iAuSQAfnH5U6'
+                    'wiIGpVNJQQoYKBYrPPxAoIc1i5SHCIDS8KFFgf8i0tDq8XGizaCg=="')
 
     body = registration  # client.post encodes the body
 
@@ -108,15 +121,16 @@ def test_post_AgentRegisterSigned(client):  # client is a fixture in pytest_falc
     reg = rep.json
     assert reg["did"] == did
     assert reg == {
-        'did': 'did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=',
-        'keys':
-        [
-            {
-                'key': 'Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=',
-                'kind': 'EdDSA'
-            }
-        ],
-        'signer': 'did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0'
+      'changed': '2000-01-01T00:00:00+00:00',
+      'did': 'did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=',
+      'keys':
+      [
+        {
+          'key': 'Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=',
+          'kind': 'EdDSA'
+        }
+      ],
+      'signer': 'did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0'
     }
 
     dbCore = dbEnv.open_db(b'core')  # open named sub db named 'core' within env
@@ -143,10 +157,10 @@ def test_post_AgentRegisterSigned(client):  # client is a fixture in pytest_falc
     rep = client.get('/agent/register?did={}'.format(didURI))
 
     assert rep.status == falcon.HTTP_OK
-    assert int(rep.headers['content-length']) == 249
+    assert int(rep.headers['content-length']) == 291
     assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
-    assert rep.headers['signature'] == 'signer="B0Qc72RP5IOodsQRQ_s4MKMNe0PIAqwjKsBl4b6lK9co2XPZHLmzQFHWzjA2PvxWso09cEkEHIeet5pjFhLUDg=="'
-
+    assert rep.headers['signature'] == ('signer="AeYbsHot0pmdWAcgTo5sD8iAuSQAfnH5U6'
+                    'wiIGpVNJQQoYKBYrPPxAoIc1i5SHCIDS8KFFgf8i0tDq8XGizaCg=="')
     sigs = parseSignatureHeader(rep.headers['signature'])
 
     assert sigs['signer'] == signature

@@ -6,6 +6,7 @@ import tempfile
 import shutil
 import binascii
 import base64
+import datetime
 
 from collections import OrderedDict as ODict
 try:
@@ -15,6 +16,8 @@ except ImportError:
 
 import libnacl
 import libnacl.sign
+
+from ioflo.aid import timing
 
 import pytest
 from pytest import approx
@@ -227,25 +230,30 @@ def test_signedAgentRegistration():
     # creates signing/verification key pair
     verkey, sigkey = libnacl.crypto_sign_seed_keypair(seed)
 
-    signature, registration = makeSignedAgentReg(verkey, sigkey)
+    dt = datetime.datetime(2000, 1, 1, tzinfo=datetime.timezone.utc)
+    stamp = timing.iso8601(dt, aware=True)
+    assert  stamp == "2000-01-01T00:00:00+00:00"
+
+    signature, registration = makeSignedAgentReg(verkey, sigkey, changed=stamp)
 
     assert len(signature) == 88
-    assert signature == ('B0Qc72RP5IOodsQRQ_s4MKMNe0PIAqwjKsBl4b6lK9co2XPZHLmz'
-                         'QFHWzjA2PvxWso09cEkEHIeet5pjFhLUDg==')
+    assert signature == ('AeYbsHot0pmdWAcgTo5sD8iAuSQAfnH5U6wiIGpVNJQQoYKBYrPP'
+                         'xAoIc1i5SHCIDS8KFFgf8i0tDq8XGizaCg==')
 
-    assert len(registration) == 249
+    assert len(registration) == 291
     assert SEPARATOR not in registration  # separator
     assert registration == (
         '{\n'
         '  "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",\n'
         '  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",\n'
+        '  "changed": "2000-01-01T00:00:00+00:00",\n'
         '  "keys": [\n'
         '    {\n'
         '      "key": "Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",\n'
         '      "kind": "EdDSA"\n'
         '    }\n'
         '  ]\n'
-        '}' )
+        '}')
 
     # validate
     reg = validateSignedAgentReg(signature, registration)

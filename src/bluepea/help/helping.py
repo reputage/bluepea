@@ -13,6 +13,7 @@ import enum
 import binascii
 import base64
 import tempfile
+import datetime
 
 try:
     import simplejson as json
@@ -24,9 +25,12 @@ try:
 except ImportError:
     pass
 
+import arrow
+
 from ioflo.aid.sixing import *
 from ioflo.aid import getConsole
 from ioflo.aid import filing
+from ioflo.aid import timing
 
 import libnacl
 import libnacl.sign
@@ -232,7 +236,7 @@ def verify64u(signature, message, verkey):
     return (True if result else False)
 
 
-def makeSignedAgentReg(vk, sk):
+def makeSignedAgentReg(vk, sk, changed=None):
     """
     Return duple of (registration, signature) of minimal self-signing
     agent registration record for keypair vk, sk
@@ -247,6 +251,9 @@ def makeSignedAgentReg(vk, sk):
     """
     reg = ODict()  # create registration record as dict
 
+    if not changed:
+        changed = timing.iso8601(aware=True)
+
     did = makeDid(vk)  # create the did
     index = 0
     signer = "{}#{}".format(did, index)  # signer field value key at index
@@ -255,6 +262,7 @@ def makeSignedAgentReg(vk, sk):
 
     reg["did"] = did
     reg["signer"] = signer
+    reg["changed"] = changed
     reg["keys"] = [ODict(key=key64u, kind=kind)]
 
     registration = json.dumps(reg, indent=2)
@@ -285,7 +293,15 @@ def validateSignedAgentReg(signature, registration, method="igo"):
         if not isinstance(reg, dict):  # must be dict subclass
             return None
 
-        if "signer" not in reg:  # signer required
+        if "changed" not in reg:  # changed field required
+            return None
+
+        try:
+            arrow.get(reg["changed"])
+        except arrow.parser.ParserError as ex:  # invalid datetime format
+            return None
+
+        if "signer" not in reg:  # signer field required
             return None
 
         try:
@@ -302,13 +318,13 @@ def validateSignedAgentReg(signature, registration, method="igo"):
         if pre != "did" or meth != method:
             return None  # did format bad
 
-        if "did" not in reg:  # did required
+        if "did" not in reg:  # did field required
             return None
 
         if reg['did'] != sdid:
             return None  # must be self signing and same key in signer
 
-        if "keys" not in reg:  # must have key
+        if "keys" not in reg:  # must have key field
             return None
 
         try:
