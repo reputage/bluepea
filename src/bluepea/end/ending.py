@@ -84,19 +84,25 @@ class AgentRegister:
                                             'Could not validate the request body.')
 
 
-        did = result['did']
+        did = result['did']  # unicode version
+        didb = did.encode("utf-8")  # bytes version
 
         # save to database
         dbEnv = dbing.dbEnv  # lmdb database env assumes already setup
         dbCore = dbEnv.open_db(b'core')  # open named sub db named 'core' within env
 
         with dbing.dbEnv.begin(db=dbCore, write=True) as txn:  # txn is a Transaction object
+            rsrc = txn.get(didb)
+            if rsrc is not None:  # must not be pre-existing
+                raise falcon.HTTPError(falcon.HTTP_412,
+                                       'Preexistence Error',
+                                       'DID already exists')
             resource = registration + SEPARATOR + signer
-            txn.put(did.encode("utf-8"), resource.encode("utf-8") )  # keys and values are bytes
+            txn.put(didb, resource.encode("utf-8") )  # keys and values are bytes
 
-        didEncoded = falcon.uri.encode_value(did)
+        didURI = falcon.uri.encode_value(did)
         rep.status = falcon.HTTP_201  # post response status with location header
-        rep.location = "{}/register?did={}".format(BASE_PATH, didEncoded)
+        rep.location = "{}/register?did={}".format(BASE_PATH, didURI)
         rep.body = json.dumps(result)
 
 
