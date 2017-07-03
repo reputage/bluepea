@@ -85,7 +85,7 @@ Signature: signer="B0Qc72RP5IOodsQRQ_s4MKMNe0PIAqwjKsBl4b6lK9co2XPZHLmzQFHWzjA2P
 
 ```
 
-## Authentication
+## Challenge Based Authentication
 
 Although all resource write requests are signed by the client and therefore can not be created by anyone other than the Keeper of the associated private key, a malicious network device could record and resend prior requests in a different order (replay attack) and there change the state of the database. To prevent replay attacks on requests that change data resources a client needs to authenticate in a time sensitive manner with the server. This is accomplished by the use of a challenge from the server to the client that includes a one time random nonce. The standard approach for doing authentication in HTTP is to follow [RFC 7235](https://tools.ietf.org/html/rfc7235). Unfortunately RFC 7235 assumes password authentication not signatured based authentication. An approach that uses signatures is [RFC 7486](https://tools.ietf.org/html/rfc7486) HTTP Origin-Bound Authentication (HOBA). A simplified approach similar to HOBA but using EdDSA signatures will be used here for any requests that change the state of the data resources. This are POST, PUT, and DELETE.
 
