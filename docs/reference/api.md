@@ -160,16 +160,17 @@ Example requests and responses are shown below.
 
 ```http
 POST /agent/register HTTP/1.1
-Signature: signer="B0Qc72RP5IOodsQRQ_s4MKMNe0PIAqwjKsBl4b6lK9co2XPZHLmzQFHWzjA2PvxWso09cEkEHIeet5pjFhLUDg=="
+Signature: signer="AeYbsHot0pmdWAcgTo5sD8iAuSQAfnH5U6wiIGpVNJQQoYKBYrPPxAoIc1i5SHCIDS8KFFgf8i0tDq8XGizaCg=="
 Content-Type: application/json; charset=UTF-8
 Host: localhost:8080
 Connection: close
 User-Agent: Paw/3.1.1 (Macintosh; OS X/10.12.5) GCDHTTPRequest
-Content-Length: 249
+Content-Length: 291
 
 {
   "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
   "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",
+  "changed": "2000-01-01T00:00:00+00:00",
   "keys": [
     {
       "key": "Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
@@ -184,14 +185,15 @@ Content-Length: 249
 ```http
 HTTP/1.1 201 Created
 Location: /agent/register?did=did%3Aigo%3AQt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE%3D
-Content-Length: 215
+Content-Length: 255
 Content-Type: application/json; charset=UTF-8
 Server: Ioflo WSGI Server
-Date: Fri, 30 Jun 2017 16:16:39 GMT
+Date: Mon, 03 Jul 2017 22:31:54 GMT
 
 {
   "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
   "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",
+  "changed": "2000-01-01T00:00:00+00:00",
   "keys": [
     {
       "key": "Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
@@ -244,15 +246,16 @@ User-Agent: Paw/3.1.1 (Macintosh; OS X/10.12.5) GCDHTTPRequest
 
 ```http
 HTTP/1.1 200 OK
-Signature: signer="B0Qc72RP5IOodsQRQ_s4MKMNe0PIAqwjKsBl4b6lK9co2XPZHLmzQFHWzjA2PvxWso09cEkEHIeet5pjFhLUDg=="
+Signature: signer="AeYbsHot0pmdWAcgTo5sD8iAuSQAfnH5U6wiIGpVNJQQoYKBYrPPxAoIc1i5SHCIDS8KFFgf8i0tDq8XGizaCg=="
 Content-Type: application/json; charset=UTF-8
-Content-Length: 249
+Content-Length: 291
 Server: Ioflo WSGI Server
-Date: Mon, 03 Jul 2017 20:49:18 GMT
+Date: Mon, 03 Jul 2017 22:33:01 GMT
 
 {
   "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
   "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",
+  "changed": "2000-01-01T00:00:00+00:00",
   "keys": [
     {
       "key": "Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
