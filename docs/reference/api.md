@@ -104,9 +104,9 @@ Detailed examples are to be provided.
 
 
 
-## Agent Registration
+## Agent Registration Creation 
 
-Agent Registration creates a data resource corresponding to a given Agent. This
+The Agent Registration creation request (POST) creates a data resource corresponding to a given Agent. This
 is a self-signed or self-owned data resource in that the signer field value
 references is the self-same data resource.
 
@@ -214,3 +214,65 @@ Date: Fri, 30 Jun 2017 16:16:39 GMT
   ]
 }
 ```
+
+
+## Agent Registration Read 
+
+The Agent Registration read request (GET) retrieves a data resource corresponding to a given Agent as indicated by the *did* query parameter in the request. This
+is a self-signed or self-owned data resource in that the signer field value
+references is the self-same data resource. In order to retrieve an agent registration data resource the client application needs the DID for that resource. This is supplied in the *Location* header of the response to a successful Agent Registration creation request. The signature of the data resource is supplied in the Signature header of the response. The client application can verify that the data resource has not been tampered with by verifing the signature against the response body which contains the data resource which is a JSON serialization of the registration data.
+
+The bluepea python library has a helper function,
+
+```python
+verify64u(signature, message, verkey)
+```
+
+in the
+
+```python
+bluepea.help.helping
+```
+
+module that shows how to verify a signature.
+
+
+The request is made by sending an HTTP Get to ```/Agent/Registration``` with a *did* query parameter whose value is the desired DID. This value needs to be URL encoded.
+A successful request will return status code 201. An unsuccessful request will return an error status code such as 404 Not Found.
+If successful the response includes a custom "Signature" header whose *signer* field value is the signature.
+
+
+Example requests and responses are shown below.
+
+## Request
+
+```http
+GET /agent/register?did=did%3Aigo%3AQt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE%3D HTTP/1.1
+Content-Type: application/json; charset=utf-8
+Host: localhost:8080
+Connection: close
+User-Agent: Paw/3.1.1 (Macintosh; OS X/10.12.5) GCDHTTPRequest
+```
+
+## Response
+
+```http
+HTTP/1.1 200 OK
+Signature: signer="B0Qc72RP5IOodsQRQ_s4MKMNe0PIAqwjKsBl4b6lK9co2XPZHLmzQFHWzjA2PvxWso09cEkEHIeet5pjFhLUDg=="
+Content-Type: application/json; charset=UTF-8
+Content-Length: 249
+Server: Ioflo WSGI Server
+Date: Mon, 03 Jul 2017 20:49:18 GMT
+
+{
+  "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",
+  "keys": [
+    {
+      "key": "Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+      "kind": "EdDSA"
+    }
+  ]
+}
+```
+

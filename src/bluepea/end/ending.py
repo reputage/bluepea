@@ -106,7 +106,7 @@ class AgentRegister:
         with dbing.dbEnv.begin(db=dbCore, write=True) as txn:  # txn is a Transaction object
             rsrcb = txn.get(didb)
             if rsrcb is None:  # does not exist
-                raise falcon.HTTPError(falcon.HTTP_4O4,
+                raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
                                        'Not Found Error',
                                        'DID resource does not exist')
 
