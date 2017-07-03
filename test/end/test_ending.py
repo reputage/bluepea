@@ -33,7 +33,7 @@ import pytest_falcon # declares client fixture
 import bluepea.end.ending as ending
 from bluepea.help.helping import (dumpKeys, loadKeys,
                                   key64uToKey, keyToKey64u, makeDid,
-                                  verify, verify64u,
+                                  verify, verify64u, parseSignatureHeader,
                                   setupTmpBaseDir, cleanupTmpBaseDir,
                                   makeSignedAgentReg, SEPARATOR_BYTES)
 from bluepea.db.dbing import setupTestDbEnv
@@ -47,24 +47,11 @@ ending.loadEnds(exapp, store=store)
 def app():
     return exapp
 
-def test_get_AgentRegister(client):  # client is a fixture in pytest_falcon
-    """
-    Test GET agent/register endpoint with did query parameter
-    """
-    print("Testing GET /agent/register?did=....")
-
-    rep = client.get('/agent/register?did=did%3Aigo%3Aabcdefghijklmnopqrstuvwxyz')
-    assert rep.status == falcon.HTTP_OK
-    assert rep.headers == {'content-length': '45', 'content-type': 'application/json; charset=UTF-8'}
-    assert rep.body == '{"did": "did:igo:abcdefghijklmnopqrstuvwxyz"}'
-    assert rep.json == {'did': 'did:igo:abcdefghijklmnopqrstuvwxyz'}
-
-    print("Done Test")
-
 
 def test_post_AgentRegisterSigned(client):  # client is a fixture in pytest_falcon
     """
     Use libnacl and Base64 to generate compliant signed Agent Registration
+    Test both POST to create resource and subsequent GET to retrieve it.
     """
     print("Testing POST /agent/register with signature")
 
@@ -148,6 +135,26 @@ def test_post_AgentRegisterSigned(client):  # client is a fixture in pytest_falc
     assert verify64u(signature=signatureb.decode("utf-8"),
                      message=datab.decode("utf-8"),
                      verkey=reg["keys"][0]["key"])
+
+
+    print("Testing GET /agent/register?did=....")
+
+    didURI = falcon.uri.encode_value(did)
+    rep = client.get('/agent/register?did={}'.format(didURI))
+
+    assert rep.status == falcon.HTTP_OK
+    assert int(rep.headers['content-length']) == 249
+    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
+    assert rep.headers['signature'] == 'signer="B0Qc72RP5IOodsQRQ_s4MKMNe0PIAqwjKsBl4b6lK9co2XPZHLmzQFHWzjA2PvxWso09cEkEHIeet5pjFhLUDg=="'
+
+    sigs = parseSignatureHeader(rep.headers['signature'])
+
+    assert sigs['signer'] == signature
+
+    assert rep.body == registration
+    assert rep.json == reg
+
+    assert verify64u(signature, registration, reg['keys'][0]['key'])
 
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")

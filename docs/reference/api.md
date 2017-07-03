@@ -175,7 +175,7 @@ Example requests and responses are shown below.
 ```http
 POST /agent/register HTTP/1.1
 Signature: signer="B0Qc72RP5IOodsQRQ_s4MKMNe0PIAqwjKsBl4b6lK9co2XPZHLmzQFHWzjA2PvxWso09cEkEHIeet5pjFhLUDg=="
-Content-Type: text/html
+Content-Type: application/json; charset=UTF-8
 Host: localhost:8080
 Connection: close
 User-Agent: Paw/3.1.1 (Macintosh; OS X/10.12.5) GCDHTTPRequest
