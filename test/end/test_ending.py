@@ -172,3 +172,138 @@ def test_post_AgentRegisterSigned(client):  # client is a fixture in pytest_falc
 
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")
+
+
+def test_post_IssuerRegisterSigned(client):  # client is a fixture in pytest_falcon
+    """
+    Use libnacl and Base64 to generate compliant signed Agent Registration
+    Test both POST to create resource and subsequent GET to retrieve it.
+    """
+    print("Testing Issuer creation POST /agent/register with signature ")
+
+    dbEnv = setupTestDbEnv()
+
+    # random seed used to generate private signing key
+    #seed = libnacl.randombytes(libnacl.crypto_sign_SEEDBYTES)
+    seed = (b'PTi\x15\xd5\xd3`\xf1u\x15}^r\x9bfH\x02l\xc6\x1b\x1d\x1c\x0b9\xd7{\xc0_'
+            b'\xf2K\x93`')
+
+    # creates signing/verification key pair
+    verkey, sigkey = libnacl.crypto_sign_seed_keypair(seed)
+
+    dt = datetime.datetime(2000, 1, 1, tzinfo=datetime.timezone.utc)
+    stamp = timing.iso8601(dt, aware=True)
+    assert  stamp == "2000-01-01T00:00:00+00:00"
+    assert arrow.get(stamp).datetime == dt
+
+    data = ODict()
+    hid = ODict(kind="dns",
+                issuer="generic.com",
+                registered=stamp,
+                validationURL="https://generic.com/indigo")
+    data["hids"] = [hid]  # list of hids
+
+    signature, registration = makeSignedAgentReg(verkey,
+                                                 sigkey,
+                                                 changed=stamp,
+                                                 data=data)
+    assert signature == ('f2w1L6XtU8_GS5N8UwX0d77aw2kR0IM5BVdBLOaoIyR9nzra6d4Jg'
+                         'VV7TlJrEx8WhJlgBRpyInRZgdnSf_WQAg==')
+
+    assert registration == (
+        '{\n'
+        '  "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",\n'
+        '  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",\n'
+        '  "changed": "2000-01-01T00:00:00+00:00",\n'
+        '  "keys": [\n'
+        '    {\n'
+        '      "key": "Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",\n'
+        '      "kind": "EdDSA"\n'
+        '    }\n'
+        '  ],\n'
+        '  "hids": [\n'
+        '    {\n'
+        '      "kind": "dns",\n'
+        '      "issuer": "generic.com",\n'
+        '      "registered": "2000-01-01T00:00:00+00:00",\n'
+        '      "validationURL": "https://generic.com/indigo"\n'
+        '    }\n'
+        '  ]\n'
+        '}')
+
+
+    headers = {"Content-Type": "text/html; charset=utf-8",
+               "Signature": 'signer="{}"'.format(signature), }
+
+    assert headers['Signature'] == ('signer="f2w1L6XtU8_GS5N8UwX0d77aw2kR0IM5BV'
+                    'dBLOaoIyR9nzra6d4JgVV7TlJrEx8WhJlgBRpyInRZgdnSf_WQAg=="')
+
+    body = registration  # client.post encodes the body
+
+    rep = client.post('/agent/register', body=body, headers=headers)
+
+    assert rep.status == falcon.HTTP_201
+
+    location = falcon.uri.decode(rep.headers['location'])
+    assert location == "/agent/register?did=did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE="
+
+    path, query = location.rsplit("?", maxsplit=1)
+    assert query == "did=did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE="
+
+    query = falcon.uri.parse_query_string(query)
+    did = query['did']
+    assert did == "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE="
+
+    assert rep.headers['content-type'] == "application/json; charset=UTF-8"
+
+    reg = rep.json
+    assert reg["did"] == did
+    assert reg == {'changed': '2000-01-01T00:00:00+00:00',
+                    'did': 'did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=',
+                    'hids': [{'issuer': 'generic.com',
+                              'kind': 'dns',
+                              'registered': '2000-01-01T00:00:00+00:00',
+                              'validationURL': 'https://generic.com/indigo'}],
+                    'keys': [{'key': 'Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=',
+                              'kind': 'EdDSA'}],
+                    'signer': 'did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0'}
+
+    dbCore = dbEnv.open_db(b'core')  # open named sub db named 'core' within env
+
+    with dbEnv.begin(db=dbCore) as txn:  # txn is a Transaction object
+        rsrcb = txn.get(reg['did'].encode('utf-8'))  # keys are bytes
+
+    assert rsrcb
+
+    datab, sep, signatureb = rsrcb.partition(SEPARATOR_BYTES)
+
+    data = json.loads(datab.decode("utf-8"), object_pairs_hook=ODict)
+    assert data == reg
+    assert signatureb.decode("utf-8") == signature
+
+    assert verify64u(signature=signatureb.decode("utf-8"),
+                     message=datab.decode("utf-8"),
+                     verkey=reg["keys"][0]["key"])
+
+
+    print("Testing GET /agent/register?did=....")
+
+    didURI = falcon.uri.encode_value(did)
+    rep = client.get('/agent/register?did={}'.format(didURI))
+
+    assert rep.status == falcon.HTTP_OK
+    assert int(rep.headers['content-length']) == 473
+    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
+    assert rep.headers['signature'] == ('signer="f2w1L6XtU8_GS5N8UwX0d77aw2kR0IM5BV'
+                    'dBLOaoIyR9nzra6d4JgVV7TlJrEx8WhJlgBRpyInRZgdnSf_WQAg=="')
+    sigs = parseSignatureHeader(rep.headers['signature'])
+
+    assert sigs['signer'] == signature
+
+    assert rep.body == registration
+    assert rep.json == reg
+
+    assert verify64u(signature, registration, reg['keys'][0]['key'])
+
+    cleanupTmpBaseDir(dbEnv.path())
+    print("Done Test")

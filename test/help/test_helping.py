@@ -263,3 +263,70 @@ def test_signedAgentRegistration():
     assert verkey == key64uToKey(reg["keys"][0]["key"])
 
     print("Done Test")
+
+
+def test_signedAgentRegistrationWithData():
+    """
+    Test helper function
+    """
+    print("Testing makeSignedAgentRegistration")
+
+    # random seed used to generate private signing key
+    #seed = libnacl.randombytes(libnacl.crypto_sign_SEEDBYTES)
+    seed = (b'PTi\x15\xd5\xd3`\xf1u\x15}^r\x9bfH\x02l\xc6\x1b\x1d\x1c\x0b9\xd7{\xc0_'
+            b'\xf2K\x93`')
+
+    # creates signing/verification key pair
+    verkey, sigkey = libnacl.crypto_sign_seed_keypair(seed)
+
+    dt = datetime.datetime(2000, 1, 1, tzinfo=datetime.timezone.utc)
+    stamp = timing.iso8601(dt, aware=True)
+    assert  stamp == "2000-01-01T00:00:00+00:00"
+
+    data = ODict()
+    hid = ODict(kind="dns",
+                issuer="generic.com",
+                registered=stamp,
+                validationURL="https://generic.com/indigo")
+    data["hids"] = [hid]  # list of hids
+
+    signature, registration = makeSignedAgentReg(verkey,
+                                                 sigkey,
+                                                 changed=stamp,
+                                                 data=data)
+
+    assert len(signature) == 88
+    assert signature == ('f2w1L6XtU8_GS5N8UwX0d77aw2kR0IM5BVdBLOaoIyR9nzra6d4J'
+                         'gVV7TlJrEx8WhJlgBRpyInRZgdnSf_WQAg==')
+
+    assert len(registration) == 473
+    assert SEPARATOR not in registration  # separator
+    assert registration == (
+        '{\n'
+        '  "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",\n'
+        '  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",\n'
+        '  "changed": "2000-01-01T00:00:00+00:00",\n'
+        '  "keys": [\n'
+        '    {\n'
+        '      "key": "Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",\n'
+        '      "kind": "EdDSA"\n'
+        '    }\n'
+        '  ],\n'
+        '  "hids": [\n'
+        '    {\n'
+        '      "kind": "dns",\n'
+        '      "issuer": "generic.com",\n'
+        '      "registered": "2000-01-01T00:00:00+00:00",\n'
+        '      "validationURL": "https://generic.com/indigo"\n'
+        '    }\n'
+        '  ]\n'
+        '}')
+
+    # validate
+    reg = validateSignedAgentReg(signature, registration)
+
+    assert reg is not None
+
+    assert verkey == key64uToKey(reg["keys"][0]["key"])
+
+    print("Done Test")

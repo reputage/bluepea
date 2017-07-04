@@ -69,6 +69,10 @@ class AgentRegister:
                                            'Validation Error',
                                             'Could not validate the request body.')
 
+        if "hids" in result:
+            # validate hid control here
+            pass
+
 
         did = result['did']  # unicode version
         didb = did.encode("utf-8")  # bytes version

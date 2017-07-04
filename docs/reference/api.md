@@ -280,3 +280,130 @@ Date: Mon, 03 Jul 2017 22:33:01 GMT
 }
 ```
 
+## *Issuer* Agent Registration Creation 
+
+When the Agent Registration creation request includes an *hids* field then the  data resource represents an *Issuer* agent. The creation request will also validate control of the associated *hid* namespaces.  The *hids* field is a list of one or more HID json objects. Each object contains information about a namespace used by the *Issuer* to generate HIDs:
+
+```json
+"hids":
+[
+  {
+    "kind": "dns",
+    "issuer": "generic.com",
+    "registered": "2000-01-01T00:00:00+00:00",
+    "validationURL": "https://generic.com/indigo"
+  }
+]
+```
+
+Example requests and responses are shown below.
+
+## Request
+
+```http
+POST /agent/register HTTP/1.1
+Signature: signer="f2w1L6XtU8_GS5N8UwX0d77aw2kR0IM5BVdBLOaoIyR9nzra6d4JgVV7TlJrEx8WhJlgBRpyInRZgdnSf_WQAg=="
+Content-Type: application/json; charset=UTF-8
+Host: localhost:8080
+Connection: close
+User-Agent: Paw/3.1.1 (Macintosh; OS X/10.12.5) GCDHTTPRequest
+Content-Length: 473
+
+{
+  "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",
+  "changed": "2000-01-01T00:00:00+00:00",
+  "keys": [
+    {
+      "key": "Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+      "kind": "EdDSA"
+    }
+  ],
+  "hids": [
+    {
+      "kind": "dns",
+      "issuer": "generic.com",
+      "registered": "2000-01-01T00:00:00+00:00",
+      "validationURL": "https://generic.com/indigo"
+    }
+  ]
+}
+```
+
+## Response
+
+```http
+HTTP/1.1 201 Created
+Location: /agent/register?did=did%3Aigo%3AQt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE%3D
+Content-Length: 397
+Content-Type: application/json; charset=UTF-8
+Server: Ioflo WSGI Server
+Date: Tue, 04 Jul 2017 00:00:04 GMT
+
+{
+  "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",
+  "changed": "2000-01-01T00:00:00+00:00",
+  "keys": [
+    {
+      "key": "Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+      "kind": "EdDSA"
+    }
+  ],
+  "hids": [
+    {
+      "kind": "dns",
+      "issuer": "generic.com",
+      "registered": "2000-01-01T00:00:00+00:00",
+      "validationURL": "https://generic.com/indigo"
+    }
+  ]
+}
+```
+
+## *Issuer* Agent Registration Read 
+
+The *Issuer* Agent Registration read request (GET) is the same as the generic Agent read request. The only differece is that an *Issuer* Agent with have an *hids* field in its data resource. 
+Example requests and responses are shown below.
+
+## Request
+
+```http
+GET /agent/register?did=did%3Aigo%3AQt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE%3D HTTP/1.1
+Content-Type: application/json; charset=utf-8
+Host: localhost:8080
+Connection: close
+User-Agent: Paw/3.1.1 (Macintosh; OS X/10.12.5) GCDHTTPRequest
+```
+
+## Response
+
+```http
+HTTP/1.1 200 OK
+Signature: signer="f2w1L6XtU8_GS5N8UwX0d77aw2kR0IM5BVdBLOaoIyR9nzra6d4JgVV7TlJrEx8WhJlgBRpyInRZgdnSf_WQAg=="
+Content-Type: application/json; charset=UTF-8
+Content-Length: 473
+Server: Ioflo WSGI Server
+Date: Tue, 04 Jul 2017 00:02:12 GMT
+
+{
+  "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",
+  "changed": "2000-01-01T00:00:00+00:00",
+  "keys": [
+    {
+      "key": "Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+      "kind": "EdDSA"
+    }
+  ],
+  "hids": [
+    {
+      "kind": "dns",
+      "issuer": "generic.com",
+      "registered": "2000-01-01T00:00:00+00:00",
+      "validationURL": "https://generic.com/indigo"
+    }
+  ]
+}
+```
+

@@ -236,20 +236,24 @@ def verify64u(signature, message, verkey):
     return (True if result else False)
 
 
-def makeSignedAgentReg(vk, sk, changed=None):
+def makeSignedAgentReg(vk, sk, changed=None,  data=None):
     """
     Return duple of (registration, signature) of minimal self-signing
     agent registration record for keypair vk, sk
 
-
     vk and sk are bytes
     vk is the public verification key and sk is the private signing key
+    changed is ISO8601 date time stamp string if not provided then uses current datetime
+    data is option dict of additional data for data resource such as hids.
+
 
     registration is json encoded unicode string of registration record
     signature is base64 url-file safe unicode string signature generated
     by signing bytes version of registration
     """
-    reg = ODict()  # create registration record as dict
+    reg = ODict(did="", signer="", changed="", keys=None)  # create registration record as dict
+    if data:
+        reg.update(data.items())
 
     if not changed:
         changed = timing.iso8601(aware=True)
