@@ -238,7 +238,7 @@ def verify64u(signature, message, verkey):
 
 def makeSignedAgentReg(vk, sk, changed=None,  **kwa):
     """
-    Return duple of (registration, signature) of minimal self-signing
+    Return duple of (signature,registration) of minimal self-signing
     agent registration record for keypair vk, sk
 
     registration is json encoded unicode string of registration record
@@ -368,4 +368,68 @@ def validateSignedAgentReg(signature, registration, method="igo"):
 
     return reg
 
+def makeSignedThingReg(dvk, dsk, ssk, signer, changed=None, hid=None, **kwa):
+    """
+    Return triple of (dsignature, ssignature, registration) of minimal self-signing
+    thing registration record for did keypair (dvk, dsk) and signer key ssk as well
+    as signer key indexed did signer and hid
 
+    dsignature is base64 url-file safe unicode string signature generated
+        by signing bytes version of registration with dsk
+    ssignature is base64 url-file safe unicode string signature generated
+        by signing bytes version of registration with ssk
+    registration is json encoded unicode string of registration record
+        {
+          "did": "did:igo:abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQR",
+          "hid": "hid:dns:canon.com#01,
+          "signer": "did:igo:abcdefghijklmnopqrABCDEFGHIJKLMNOPQRSTUVWXYZ#1",
+          "changed": "2000-01-01T00:00:00+00:00",
+          "data":
+          {
+            "keywords": ["Canon", "EOS Rebel T6", "251440"],
+            "message": "If found call this number",
+          }
+        }
+
+    Parameters:
+        dvk is bytes that is the public verification key for the thing did
+        dsk is bytes that is the private signing key for dvk
+        ssk is bytes that is the private signing key indicated by
+            the signer key indexed did
+        signer is key indexed did to the key of the signer Agent that controls the thing
+            svk, ssk, and signer are for the same keypair
+        changed is optional ISO8601 date time stamp string
+            if not provided then uses current datetime
+        hid is optional HID for the thing that is controlled by signer/issuer  Agent
+            if provided hid must validate as being controlled by signer/issuer Agent
+        **kwa are optional fields to be added to data resource. Each keyword is
+           the associated field name and the argument parameter is the value of
+           that field in the data resource.  Keywords in ("did", "signer", "changed",
+            "keys", "hid") will be overidden. Common use case is data.
+
+    """
+    reg = ODict(did="", hid="", signer="", changed="")  # create registration record as dict
+    if kwa:
+        reg.update(kwa.items())
+
+    if not changed:
+        changed = timing.iso8601(aware=True)
+
+    tdid = makeDid(dvk)  # create the thing did
+    reg["did"] = tdid
+
+    if hid is not None:
+        reg["hid"] = hid
+
+    reg["signer"] = signer
+    reg["changed"] = changed
+
+    registration = json.dumps(reg, indent=2)
+
+    dsig = libnacl.crypto_sign(registration.encode("utf-8"), dsk)[:libnacl.crypto_sign_BYTES]
+    dsignature = keyToKey64u(dsig)
+
+    ssig = libnacl.crypto_sign(registration.encode("utf-8"), ssk)[:libnacl.crypto_sign_BYTES]
+    ssignature = keyToKey64u(ssig)
+
+    return (dsignature, ssignature, registration)

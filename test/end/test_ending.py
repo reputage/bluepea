@@ -39,7 +39,8 @@ from bluepea.help.helping import (dumpKeys, loadKeys,
                                   key64uToKey, keyToKey64u, makeDid,
                                   verify, verify64u, parseSignatureHeader,
                                   setupTmpBaseDir, cleanupTmpBaseDir,
-                                  makeSignedAgentReg, SEPARATOR_BYTES)
+                                  makeSignedAgentReg, makeSignedThingReg,
+                                  SEPARATOR_BYTES)
 from bluepea.db.dbing import setupTestDbEnv
 
 store = storing.Store(stamp=0.0)
@@ -332,11 +333,11 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
     assert  stamp == "2000-01-01T00:00:00+00:00"
     assert arrow.get(stamp).datetime == dt
 
-    hid = ODict(kind="dns",
+    hidspace = ODict(kind="dns",
                 issuer="generic.com",
                 registered=stamp,
                 validationURL="https://generic.com/indigo")
-    hids = [hid]  # list of hids
+    hids = [hidspace]  # list of hids
 
     signature, registration = makeSignedAgentReg(verkey,
                                                  sigkey,
@@ -367,6 +368,98 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
 
     rep = client.post('/agent/register', body=body, headers=headers)
     assert rep.status == falcon.HTTP_201
+
+    reg = rep.json
+
+    assert reg ==  {
+
+        'did': 'did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=',
+        'signer': 'did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0',
+        'changed': '2000-01-01T00:00:00+00:00',
+        'keys':
+        [
+            {
+                'key': 'Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=',
+                'kind': 'EdDSA'
+            }
+        ],
+        'hids':
+        [
+            {
+                'issuer': 'generic.com',
+                'kind': 'dns',
+                'registered': '2000-01-01T00:00:00+00:00',
+                'validationURL': 'https://generic.com/indigo'
+            }
+         ]
+    }
+
+    # creates signing/verification key pair thing DID
+    #seed = libnacl.randombytes(libnacl.crypto_sign_SEEDBYTES)
+    seed = (b'\xba^\xe4\xdd\x81\xeb\x8b\xfa\xb1k\xe2\xfd6~^\x86tC\x9c\xa7\xe3\x1d2\x9d'
+            b'P\xdd&R <\x97\x01')
+
+
+    dvk, dsk = libnacl.crypto_sign_seed_keypair(seed)
+    assert dvk == (b'\xe0\x90\x8c\xf1\xd2V\xc3\xf3\xb9\xee\xf38\x90\x0bS\xb7L\x96\xa9('
+                   b'\x01\xbb\x08\x87\xa5X\x1d\xe7\x90b\xa0#')
+    assert dsk == (b'\xba^\xe4\xdd\x81\xeb\x8b\xfa\xb1k\xe2\xfd6~^\x86tC\x9c\xa7\xe3\x1d2\x9d'
+                    b'P\xdd&R <\x97\x01\xe0\x90\x8c\xf1\xd2V\xc3\xf3\xb9\xee\xf38\x90\x0bS\xb7'
+                    b'L\x96\xa9(\x01\xbb\x08\x87\xa5X\x1d\xe7\x90b\xa0#')
+
+
+    ssk = sigkey
+    signer = reg['signer']
+    hid = "hid:dns:generic.com#02"
+    data = ODict(keywords=["Canon", "EOS Rebel T6", "251440"],
+                 message="If found please return.")
+
+    dsignature, ssignature, tregistration = makeSignedThingReg(dvk,
+                                                               dsk,
+                                                               ssk,
+                                                               signer,
+                                                               changed=stamp,
+                                                               hid=hid,
+                                                               data=data)
+
+
+    assert tregistration == (
+        '{\n'
+        '  "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",\n'
+        '  "hid": "hid:dns:generic.com#02",\n'
+        '  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",\n'
+        '  "changed": "2000-01-01T00:00:00+00:00",\n'
+        '  "data": {\n'
+        '    "keywords": [\n'
+        '      "Canon",\n'
+        '      "EOS Rebel T6",\n'
+        '      "251440"\n'
+        '    ],\n'
+        '    "message": "If found please return."\n'
+        '  }\n'
+        '}')
+
+    assert dsignature == ('kWZwPfepoAV9zyt9B9vPlPNGeb_POHlP9LL3H-PH71WWZzVJT1Ce'
+                          '64IKj1GmOXkNo2JaXrnIpQyfm2vynn7mCg==')
+
+    assert ssignature == ('RtlBu9sZgqhfc0QbGe7IHqwsHOARrGNjy4BKJG7gNfNP4GfKDQ8F'
+                          'Gdjyv-EzN1OIHYlnMBFB2Kf05KZAj-g2Cg==')
+
+    '''
+
+    {
+      "did": "did:igo:abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQR",
+      "hid": "hid:dns:canon.com#01,
+      "signer": "did:igo:abcdefghijklmnopqrABCDEFGHIJKLMNOPQRSTUVWXYZ#1",
+      "changed": "2000-01-01T00:00:00+00:00",
+      "data":
+      {
+        "keywords": ["Canon", "EOS Rebel T6", "251440"],
+        "message": "If found call this number",
+      }
+    }
+
+    '''
 
 
 
