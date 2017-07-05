@@ -196,17 +196,16 @@ def test_post_IssuerRegisterSigned(client):  # client is a fixture in pytest_fal
     assert  stamp == "2000-01-01T00:00:00+00:00"
     assert arrow.get(stamp).datetime == dt
 
-    data = ODict()
     hid = ODict(kind="dns",
                 issuer="generic.com",
                 registered=stamp,
                 validationURL="https://generic.com/indigo")
-    data["hids"] = [hid]  # list of hids
+    hids = [hid]  # list of hids
 
     signature, registration = makeSignedAgentReg(verkey,
                                                  sigkey,
                                                  changed=stamp,
-                                                 data=data)
+                                                 hids=hids)
     assert signature == ('f2w1L6XtU8_GS5N8UwX0d77aw2kR0IM5BVdBLOaoIyR9nzra6d4Jg'
                          'VV7TlJrEx8WhJlgBRpyInRZgdnSf_WQAg==')
 
@@ -304,6 +303,72 @@ def test_post_IssuerRegisterSigned(client):  # client is a fixture in pytest_fal
     assert rep.json == reg
 
     assert verify64u(signature, registration, reg['keys'][0]['key'])
+
+    cleanupTmpBaseDir(dbEnv.path())
+    print("Done Test")
+
+
+def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falcon
+    """
+    Use libnacl and Base64 to generate compliant signed Thing Registration
+    Test both POST to create resource and subsequent GET to retrieve it.
+
+    Does an Agent registration to setup database
+    """
+    print("Testing Thing creation POST /agent/register with signature ")
+
+    dbEnv = setupTestDbEnv()
+
+    # random seed used to generate private signing key
+    #seed = libnacl.randombytes(libnacl.crypto_sign_SEEDBYTES)
+    seed = (b'PTi\x15\xd5\xd3`\xf1u\x15}^r\x9bfH\x02l\xc6\x1b\x1d\x1c\x0b9\xd7{\xc0_'
+            b'\xf2K\x93`')
+
+    # creates signing/verification key pair
+    verkey, sigkey = libnacl.crypto_sign_seed_keypair(seed)
+
+    dt = datetime.datetime(2000, 1, 1, tzinfo=datetime.timezone.utc)
+    stamp = timing.iso8601(dt, aware=True)
+    assert  stamp == "2000-01-01T00:00:00+00:00"
+    assert arrow.get(stamp).datetime == dt
+
+    hid = ODict(kind="dns",
+                issuer="generic.com",
+                registered=stamp,
+                validationURL="https://generic.com/indigo")
+    hids = [hid]  # list of hids
+
+    signature, registration = makeSignedAgentReg(verkey,
+                                                 sigkey,
+                                                 changed=stamp,
+                                                 hids=hids)
+
+
+    # version without posting agent creation just put in database
+    #did = result['did']  # unicode version
+    #didb = did.encode("utf-8")  # bytes version
+
+    ## save to database
+    #dbEnv = dbing.dbEnv  # lmdb database env assumes already setup
+    #dbCore = dbEnv.open_db(b'core')  # open named sub db named 'core' within env
+    #with dbing.dbEnv.begin(db=dbCore, write=True) as txn:  # txn is a Transaction object
+        #rsrcb = txn.get(didb)
+        #if rsrcb is not None:  # must not be pre-existing
+            #raise falcon.HTTPError(falcon.HTTP_412,
+                                   #'Preexistence Error',
+                                   #'DID already exists')
+        #resource = registration + SEPARATOR + signer
+        #txn.put(didb, resource.encode("utf-8") )  # keys and values are bytes
+
+    headers = {"Content-Type": "text/html; charset=utf-8",
+               "Signature": 'signer="{}"'.format(signature), }
+
+    body = registration  # client.post encodes the body
+
+    rep = client.post('/agent/register', body=body, headers=headers)
+    assert rep.status == falcon.HTTP_201
+
+
 
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")

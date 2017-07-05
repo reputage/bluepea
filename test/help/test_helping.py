@@ -283,17 +283,16 @@ def test_signedAgentRegistrationWithData():
     stamp = timing.iso8601(dt, aware=True)
     assert  stamp == "2000-01-01T00:00:00+00:00"
 
-    data = ODict()
     hid = ODict(kind="dns",
                 issuer="generic.com",
                 registered=stamp,
                 validationURL="https://generic.com/indigo")
-    data["hids"] = [hid]  # list of hids
+    hids = [hid]  # list of hids
 
     signature, registration = makeSignedAgentReg(verkey,
                                                  sigkey,
                                                  changed=stamp,
-                                                 data=data)
+                                                 hids=hids)
 
     assert len(signature) == 88
     assert signature == ('f2w1L6XtU8_GS5N8UwX0d77aw2kR0IM5BVdBLOaoIyR9nzra6d4J'
