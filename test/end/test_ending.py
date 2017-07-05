@@ -369,10 +369,9 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
     rep = client.post('/agent/register', body=body, headers=headers)
     assert rep.status == falcon.HTTP_201
 
-    reg = rep.json
+    areg = rep.json
 
-    assert reg ==  {
-
+    assert areg ==  {
         'did': 'did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=',
         'signer': 'did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0',
         'changed': '2000-01-01T00:00:00+00:00',
@@ -409,7 +408,7 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
 
 
     ssk = sigkey
-    signer = reg['signer']
+    signer = areg['signer']
     hid = "hid:dns:generic.com#02"
     data = ODict(keywords=["Canon", "EOS Rebel T6", "251440"],
                  message="If found please return.")
@@ -445,22 +444,31 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
     assert ssignature == ('RtlBu9sZgqhfc0QbGe7IHqwsHOARrGNjy4BKJG7gNfNP4GfKDQ8F'
                           'Gdjyv-EzN1OIHYlnMBFB2Kf05KZAj-g2Cg==')
 
-    '''
+    treg = json.loads(tregistration, object_pairs_hook=ODict)
 
-    {
-      "did": "did:igo:abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQR",
-      "hid": "hid:dns:canon.com#01,
-      "signer": "did:igo:abcdefghijklmnopqrABCDEFGHIJKLMNOPQRSTUVWXYZ#1",
+    assert treg == {
+      "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
+      "hid": "hid:dns:generic.com#02",
+      "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",
       "changed": "2000-01-01T00:00:00+00:00",
       "data":
       {
         "keywords": ["Canon", "EOS Rebel T6", "251440"],
-        "message": "If found call this number",
+        "message": "If found please return.",
       }
     }
 
-    '''
+    headers = {
+        "Content-Type": "text/html; charset=utf-8",
+        "Signature": 'signer="{}";did="{}"'.format(ssignature, dsignature),
+    }
 
+    body = tregistration  # client.post encodes the body
+
+    rep = client.post('/thing/register', body=body, headers=headers)
+    assert rep.status == falcon.HTTP_201
+
+    assert treg == rep.json
 
 
     cleanupTmpBaseDir(dbEnv.path())

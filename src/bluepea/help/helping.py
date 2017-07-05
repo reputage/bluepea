@@ -194,13 +194,13 @@ def key64uToKey(key64u):
     """
     return base64.urlsafe_b64decode(key64u.encode("utf-8"))
 
-def makeDid(verkey, method="igo"):
+def makeDid(vk, method="igo"):
     """
-    Create and return Indigo Did from bytes verkey.
-    verkey is 32 byte verifier key from EdDSA (Ed25519) keypair
+    Create and return Indigo Did from bytes vk.
+    vk is 32 byte verifier key from EdDSA (Ed25519) keypair
     """
     # convert verkey to jsonable unicode string of base64 url-file safe
-    vk64u = base64.urlsafe_b64encode(verkey).decode("utf-8")
+    vk64u = base64.urlsafe_b64encode(vk).decode("utf-8")
     did = "did:{}:{}".format(method, vk64u)
     return did
 
@@ -286,9 +286,12 @@ def validateSignedAgentReg(signature, registration, method="igo"):
     and registration is correctly formed with self-signing did-key
     Otherwise returns None
 
-    registration is json encoded unicode string of registration record
     signature is base64 url-file safe unicode string signature generated
     by signing bytes version of registration
+
+    registration is json encoded unicode string of registration record
+
+    method is the method string used to generate dids in the registration
     """
     try:
         try:
@@ -433,3 +436,94 @@ def makeSignedThingReg(dvk, dsk, ssk, signer, changed=None, hid=None, **kwa):
     ssignature = keyToKey64u(ssig)
 
     return (dsignature, ssignature, registration)
+
+
+def validateSignedThingReg(dsignature, ssignature, registration, sverkey, method="igo"):
+    """
+    Returns dict of deserialized registration if both dsignature and ssignature
+    verify and registration is correctly formed
+    Otherwise returns None
+
+    dsignatures is base64 url-file safe unicode string signature generated
+        by signing bytes version of registration with privated signing key associated with
+        public verification key used to create did in registration
+
+    ssignature is base64 url-file safe unicode string signature generated
+        by signing bytes version of registration with privated signing key associated with
+        public verification key referenced by key indexed signer field in registration
+
+    registration is json encoded unicode string of registration record
+
+    sverkey is base64 url-file safe unicode string public verification key referenced
+        by signer field in registration. This is looked up in database from signer's
+        agent data resource
+
+    method is the method string used to generate dids in the registration
+    """
+
+    try:
+        try:
+            reg = json.loads(registration, object_pairs_hook=ODict)
+        except ValueError as ex:
+            return None  # invalid json
+
+        if not reg:  # registration must not be empty
+            return None
+
+        if not isinstance(reg, dict):  # must be dict subclass
+            return None
+
+        if "changed" not in reg:  # changed field required
+            return None
+
+        try:
+            arrow.get(reg["changed"])
+        except arrow.parser.ParserError as ex:  # invalid datetime format
+            return None
+
+        if "signer" not in reg:  # signer field required
+            return None
+
+        try:
+            sdid, index = reg["signer"].rsplit("#", maxsplit=1)
+            index = int(index)  # get index and sdid from signer field
+        except (AttributeError, ValueError) as ex:
+            return None  # missing sdid or index
+
+        try:  # correct did format  pre:method:keystr
+            pre, meth, keystr = sdid.split(":")
+        except ValueError as ex:
+            return None
+
+        if pre != "did" or meth != method:
+            return None  # did format bad
+
+        if "did" not in reg:  # did field required
+            return None
+
+        ddid = reg["did"]
+
+        try:  # correct did format  pre:method:keystr
+            pre, meth, keystr = ddid.split(":")
+        except ValueError as ex:
+            return None
+
+        if pre != "did" or meth != method:
+            return None  # did format bad
+
+        dverkey = keystr
+
+        if len(dverkey) != 44:
+            return None  # invalid length for base64 encoded key
+
+        if not verify64u(dsignature, registration, dverkey):
+            return None  # signature fails
+
+        if not verify64u(ssignature, registration, sverkey):
+            return None  # signature fails
+
+
+    except Exception as ex:  # unknown problem
+        return None
+
+    return reg

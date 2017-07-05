@@ -19,7 +19,8 @@ import falcon
 from ioflo.aid.sixing import *
 from ioflo.aid import getConsole
 
-from ..help.helping import SEPARATOR, parseSignatureHeader, validateSignedAgentReg
+from ..help.helping import (SEPARATOR, parseSignatureHeader,
+                            validateSignedAgentReg, validateSignedThingReg)
 from ..db import dbing
 
 console = getConsole()
@@ -124,6 +125,111 @@ class AgentRegister:
         rep.body = registration
 
 
+class ThingRegister:
+    """
+    Thing Register Resource
+
+    Attributes:
+        .store is reference to ioflo data store
+
+    """
+    def  __init__(self, store=None, **kwa):
+        """
+        Parameters:
+            store is reference to ioflo data store
+        """
+        super(**kwa)
+        self.store = store
+
+    def on_post(self, req, rep):
+        """
+        Handles POST requests
+        """
+        signature = req.get_header("Signature")
+        sigs = parseSignatureHeader(signature)
+
+        dsig = sigs.get('did')  # str not bytes
+        if not dsig:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                           'Validation Error',
+                                           'Invalid or missing Signature header.')
+
+        ssig = sigs.get('signer')  # str not bytes
+        if not ssig:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                           'Validation Error',
+                                           'Invalid or missing Signature header.')
+
+        try:
+            regb = req.stream.read()  # bytes
+        except Exception:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                       'Read Error',
+                                       'Could not read the request body.')
+
+        registration = regb.decode("utf-8")
+
+        result = validateSignedThingReg(dsig, ssig, registration)
+        if not result:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                           'Validation Error',
+                                            'Could not validate the request body.')
+
+        sdid = result['signer']
+
+        if "hid" in result and result["hid"]:  # non-empty hid
+            # validate hid control here
+            pass
+
+
+        did = result['did']  # unicode version
+        didb = did.encode("utf-8")  # bytes version
+
+        # save to database
+        dbEnv = dbing.dbEnv  # lmdb database env assumes already setup
+        dbCore = dbEnv.open_db(b'core')  # open named sub db named 'core' within env
+        with dbing.dbEnv.begin(db=dbCore, write=True) as txn:  # txn is a Transaction object
+            rsrcb = txn.get(didb)
+            if rsrcb is not None:  # must not be pre-existing
+                raise falcon.HTTPError(falcon.HTTP_412,
+                                       'Preexistence Error',
+                                       'DID already exists')
+            resource = registration + SEPARATOR + ssig
+            txn.put(didb, resource.encode("utf-8") )  # keys and values are bytes
+
+        didURI = falcon.uri.encode_value(did)
+        rep.status = falcon.HTTP_201  # post response status with location header
+        rep.location = "{}/register?did={}".format(BASE_PATH, didURI)
+        rep.body = json.dumps(result)
+
+    def on_get(self, req, rep):
+        """
+        Handles GET request for an AgentResources given by query parameter
+        with did
+
+
+        """
+        did = req.get_param("did")  # already has url-decoded query parameter value
+        didb = did.encode("utf-8")  # bytes version
+
+        # read fromdatabase
+        dbEnv = dbing.dbEnv  # lmdb database env assumes already setup
+        dbCore = dbEnv.open_db(b'core')  # open named sub db named 'core' within env
+        with dbing.dbEnv.begin(db=dbCore, write=True) as txn:  # txn is a Transaction object
+            rsrcb = txn.get(didb)
+            if rsrcb is None:  # does not exist
+                raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
+                                       'Not Found Error',
+                                       'DID resource does not exist')
+
+        resource = rsrcb.decode("utf-8")
+        registration, sep, signature = resource.partition(SEPARATOR)
+        #reg = json.loads(registration, object_pairs_hook=ODict)
+
+        rep.set_header("Signature", 'signer="{}"'.format(signature))
+        rep.set_header("Content-Type", "application/json; charset=UTF-8")
+        rep.status = falcon.HTTP_200  # This is the default status
+        rep.body = registration
 
 
 def loadEnds(app, store):
@@ -135,4 +241,5 @@ def loadEnds(app, store):
     agentRegister = AgentRegister(store=store)
     app.add_route('/agent/register', agentRegister)
 
-
+    thingRegister = ThingRegister(store=store)
+    app.add_route('/thing/register', thingRegister)

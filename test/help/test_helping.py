@@ -27,7 +27,7 @@ from bluepea.help.helping import (SEPARATOR, setupTmpBaseDir, cleanupTmpBaseDir,
                                   parseSignatureHeader, verify, makeDid,
                                   key64uToKey, keyToKey64u,
                                   makeSignedAgentReg, validateSignedAgentReg,
-                                  makeSignedThingReg)
+                                  makeSignedThingReg, validateSignedThingReg)
 
 
 def test_dumpLoadKeys():
@@ -143,12 +143,12 @@ def test_makeDidSign():
             b'\xf2K\x93`')
 
     # creates signing/verification key pair
-    verkey, sigkey = libnacl.crypto_sign_seed_keypair(seed)
+    vk, sk = libnacl.crypto_sign_seed_keypair(seed)
 
     # create registration record as dict
     reg = ODict()
 
-    did = makeDid(verkey)  # create the did
+    did = makeDid(vk)  # create the did
     assert did.startswith("did:igo:")
     assert len(did) == 52
 
@@ -158,14 +158,14 @@ def test_makeDidSign():
     index = int(index)
     assert index ==  0
 
-    key64u = keyToKey64u(verkey)  # make key index field value
+    verkey = keyToKey64u(vk)  # make key index field value
     kind = "EdDSA"
 
     reg["did"] = did
     reg["signer"] = signer
-    reg["keys"] = [ODict(key=key64u, kind=kind)]
+    reg["keys"] = [ODict(key=verkey, kind=kind)]
 
-    assert reg["keys"][index]["key"] == key64u
+    assert reg["keys"][index]["key"] == verkey
 
     assert reg == ODict([
         ('did', 'did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE='),
@@ -201,7 +201,7 @@ def test_makeDidSign():
     assert rregser == regser  # roundtrip
 
     # sign bytes
-    sig = libnacl.crypto_sign(regserb, sigkey)[:libnacl.crypto_sign_BYTES]
+    sig = libnacl.crypto_sign(regserb, sk)[:libnacl.crypto_sign_BYTES]
     assert len(sig) == 64
     signature = keyToKey64u(sig)
     assert len(signature) == 88
@@ -211,7 +211,7 @@ def test_makeDidSign():
     rsig = key64uToKey(signature)
     assert rsig == sig
 
-    result = verify(sig, regserb, verkey)
+    result = verify(sig, regserb, vk)
     assert result
 
     print("Done Test")
@@ -229,13 +229,13 @@ def test_signedAgentRegistration():
             b'\xf2K\x93`')
 
     # creates signing/verification key pair
-    verkey, sigkey = libnacl.crypto_sign_seed_keypair(seed)
+    vk, sk = libnacl.crypto_sign_seed_keypair(seed)
 
     dt = datetime.datetime(2000, 1, 1, tzinfo=datetime.timezone.utc)
     stamp = timing.iso8601(dt, aware=True)
     assert  stamp == "2000-01-01T00:00:00+00:00"
 
-    signature, registration = makeSignedAgentReg(verkey, sigkey, changed=stamp)
+    signature, registration = makeSignedAgentReg(vk, sk, changed=stamp)
 
     assert len(signature) == 88
     assert signature == ('AeYbsHot0pmdWAcgTo5sD8iAuSQAfnH5U6wiIGpVNJQQoYKBYrPP'
@@ -261,7 +261,7 @@ def test_signedAgentRegistration():
 
     assert reg is not None
 
-    assert verkey == key64uToKey(reg["keys"][0]["key"])
+    assert vk == key64uToKey(reg["keys"][0]["key"])
 
     print("Done Test")
 
@@ -278,7 +278,7 @@ def test_signedAgentRegistrationWithData():
             b'\xf2K\x93`')
 
     # creates signing/verification key pair
-    verkey, sigkey = libnacl.crypto_sign_seed_keypair(seed)
+    vk, sk = libnacl.crypto_sign_seed_keypair(seed)
 
     dt = datetime.datetime(2000, 1, 1, tzinfo=datetime.timezone.utc)
     stamp = timing.iso8601(dt, aware=True)
@@ -290,8 +290,8 @@ def test_signedAgentRegistrationWithData():
                 validationURL="https://generic.com/indigo")
     hids = [hid]  # list of hids
 
-    signature, registration = makeSignedAgentReg(verkey,
-                                                 sigkey,
+    signature, registration = makeSignedAgentReg(vk,
+                                                 sk,
                                                  changed=stamp,
                                                  hids=hids)
 
@@ -327,7 +327,7 @@ def test_signedAgentRegistrationWithData():
 
     assert reg is not None
 
-    assert verkey == key64uToKey(reg["keys"][0]["key"])
+    assert vk == key64uToKey(reg["keys"][0]["key"])
 
     print("Done Test")
 
@@ -402,6 +402,9 @@ def test_signedThingRegistrationWithData():
                           'Gdjyv-EzN1OIHYlnMBFB2Kf05KZAj-g2Cg==')
 
     # validate
+    sverkey = keyToKey64u(svk)
+    reg = validateSignedThingReg(dsignature, ssignature, tregistration, sverkey)
 
+    assert reg is not None
 
     print("Done Test")
