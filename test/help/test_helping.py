@@ -26,7 +26,8 @@ from bluepea.help.helping import (SEPARATOR, setupTmpBaseDir, cleanupTmpBaseDir,
                                   dumpKeys, loadKeys,
                                   parseSignatureHeader, verify, makeDid,
                                   key64uToKey, keyToKey64u,
-                                  makeSignedAgentReg, validateSignedAgentReg)
+                                  makeSignedAgentReg, validateSignedAgentReg,
+                                  makeSignedThingReg)
 
 
 def test_dumpLoadKeys():
@@ -327,5 +328,80 @@ def test_signedAgentRegistrationWithData():
     assert reg is not None
 
     assert verkey == key64uToKey(reg["keys"][0]["key"])
+
+    print("Done Test")
+
+
+def test_signedThingRegistrationWithData():
+    """
+    Test helper function
+    """
+    print("Testing makeSignedThingRegistration")
+
+    # random seed used to generate private signing key
+    #seed = libnacl.randombytes(libnacl.crypto_sign_SEEDBYTES)
+    seed = (b'PTi\x15\xd5\xd3`\xf1u\x15}^r\x9bfH\x02l\xc6\x1b\x1d\x1c\x0b9\xd7{\xc0_'
+            b'\xf2K\x93`')
+
+    # creates signing/verification key pair
+    svk, ssk = libnacl.crypto_sign_seed_keypair(seed)
+
+    dt = datetime.datetime(2000, 1, 1, tzinfo=datetime.timezone.utc)
+    stamp = timing.iso8601(dt, aware=True)
+    assert  stamp == "2000-01-01T00:00:00+00:00"
+
+    sdid = makeDid(svk)  # create the did
+    index = 0
+    signer = "{}#{}".format(sdid, index)  # signer field value key at index
+
+    seed = (b'\xba^\xe4\xdd\x81\xeb\x8b\xfa\xb1k\xe2\xfd6~^\x86tC\x9c\xa7\xe3\x1d2\x9d'
+            b'P\xdd&R <\x97\x01')
+
+
+    dvk, dsk = libnacl.crypto_sign_seed_keypair(seed)
+    assert dvk == (b'\xe0\x90\x8c\xf1\xd2V\xc3\xf3\xb9\xee\xf38\x90\x0bS\xb7L\x96\xa9('
+                   b'\x01\xbb\x08\x87\xa5X\x1d\xe7\x90b\xa0#')
+    assert dsk == (b'\xba^\xe4\xdd\x81\xeb\x8b\xfa\xb1k\xe2\xfd6~^\x86tC\x9c\xa7\xe3\x1d2\x9d'
+                   b'P\xdd&R <\x97\x01\xe0\x90\x8c\xf1\xd2V\xc3\xf3\xb9\xee\xf38\x90\x0bS\xb7'
+                    b'L\x96\xa9(\x01\xbb\x08\x87\xa5X\x1d\xe7\x90b\xa0#')
+
+
+    hid = "hid:dns:generic.com#02"
+    data = ODict(keywords=["Canon", "EOS Rebel T6", "251440"],
+                 message="If found please return.")
+
+    dsignature, ssignature, tregistration = makeSignedThingReg(dvk,
+                                                               dsk,
+                                                               ssk,
+                                                               signer=signer,
+                                                               changed=stamp,
+                                                               hid=hid,
+                                                               data=data)
+
+
+    assert tregistration == (
+        '{\n'
+        '  "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",\n'
+        '  "hid": "hid:dns:generic.com#02",\n'
+        '  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",\n'
+        '  "changed": "2000-01-01T00:00:00+00:00",\n'
+        '  "data": {\n'
+        '    "keywords": [\n'
+        '      "Canon",\n'
+        '      "EOS Rebel T6",\n'
+        '      "251440"\n'
+        '    ],\n'
+        '    "message": "If found please return."\n'
+        '  }\n'
+        '}')
+
+    assert dsignature == ('kWZwPfepoAV9zyt9B9vPlPNGeb_POHlP9LL3H-PH71WWZzVJT1Ce'
+                          '64IKj1GmOXkNo2JaXrnIpQyfm2vynn7mCg==')
+
+    assert ssignature == ('RtlBu9sZgqhfc0QbGe7IHqwsHOARrGNjy4BKJG7gNfNP4GfKDQ8F'
+                          'Gdjyv-EzN1OIHYlnMBFB2Kf05KZAj-g2Cg==')
+
+    # validate
+
 
     print("Done Test")
