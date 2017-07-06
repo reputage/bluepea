@@ -123,7 +123,7 @@ def test_putSigned_getSelfSigned():
     dat = json.loads(ser, object_pairs_hook=ODict)
     did = dat['did']
     assert did == "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE="
-    dbing.putSigned(ser, sig, did)
+    dbing.putSigned(ser, sig, did, clobber=False)
 
     gdat, gser, gsig = dbing.getSelfSigned(did)
     assert gdat == dat
@@ -196,7 +196,7 @@ def test_putSigned_getSelfSigned():
     sdat = json.loads(sser, object_pairs_hook=ODict)
     sdid = sdat['did']
     assert sdid == "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE="
-    dbing.putSigned(sser, ssig, sdid)
+    dbing.putSigned(sser, ssig, sdid, clobber=False)
 
     # creates signing/verification key pair thing DID
     #seed = libnacl.randombytes(libnacl.crypto_sign_SEEDBYTES)
@@ -252,7 +252,7 @@ def test_putSigned_getSelfSigned():
     tdat = json.loads(tser, object_pairs_hook=ODict)
     tdid = tdat['did']
     assert tdid == "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM="
-    dbing.putSigned(tser, tsig, tdid)
+    dbing.putSigned(tser, tsig, tdid, clobber=False)
 
     gdat, gser, gsig = dbing.getSigned(tdid)
     assert gdat == tdat

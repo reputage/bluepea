@@ -53,8 +53,8 @@ class AgentRegister:
         """
         signature = req.get_header("Signature")
         sigs = parseSignatureHeader(signature)
-        signer = sigs.get('signer')  # str not bytes
-        if not signer:
+        sig = sigs.get('signer')  # str not bytes
+        if not sig:
             raise falcon.HTTPError(falcon.HTTP_400,
                                            'Validation Error',
                                            'Invalid or missing Signature header.')
@@ -68,7 +68,7 @@ class AgentRegister:
 
         registration = regb.decode("utf-8")
 
-        result = validateSignedAgentReg(signer, registration)
+        result = validateSignedAgentReg(sig, registration)
         if not result:
             raise falcon.HTTPError(falcon.HTTP_400,
                                            'Validation Error',
@@ -78,21 +78,15 @@ class AgentRegister:
             # validate hid control here
             pass
 
-
         did = result['did']  # unicode version
-        didb = did.encode("utf-8")  # bytes version
 
         # save to database
-        dbEnv = dbing.dbEnv  # lmdb database env assumes already setup
-        dbCore = dbEnv.open_db(b'core')  # open named sub db named 'core' within env
-        with dbEnv.begin(db=dbCore, write=True) as txn:  # txn is a Transaction object
-            rsrcb = txn.get(didb)
-            if rsrcb is not None:  # must not be pre-existing
-                raise falcon.HTTPError(falcon.HTTP_412,
-                                       'Preexistence Error',
-                                       'DID already exists')
-            resource = registration + SEPARATOR + signer
-            txn.put(didb, resource.encode("utf-8") )  # keys and values are bytes
+        try:
+            dbing.putSigned(registration, sig, did, clobber=False)
+        except DatabaseError as ex:
+            raise falcon.HTTPError(falcon.HTTP_412,
+                                  'Database Error',
+                                  '{}'.format(ex.args[0]))
 
         didURI = falcon.uri.encode_value(did)
         rep.status = falcon.HTTP_201  # post response status with location header
@@ -150,14 +144,14 @@ class ThingRegister:
         signature = req.get_header("Signature")
         sigs = parseSignatureHeader(signature)
 
-        dsig = sigs.get('did')  # str not bytes
+        dsig = sigs.get('did')  # str not bytes thing's did signature
         if not dsig:
             raise falcon.HTTPError(falcon.HTTP_400,
                                            'Validation Error',
                                            'Invalid or missing Signature header.')
 
-        ssig = sigs.get('signer')  # str not bytes
-        if not ssig:
+        tsig = sigs.get('signer')  # str not bytes thing's signer signature
+        if not tsig:
             raise falcon.HTTPError(falcon.HTTP_400,
                                            'Validation Error',
                                            'Invalid or missing Signature header.')
@@ -187,65 +181,23 @@ class ThingRegister:
                                    'Validation Error',
                                     'Invalid or missing did key index.')   # missing sdid or index
 
-        sdidb = sdid.encode("utf-8")  # bytes version
-
-        # read signer agent from database
-        dbEnv = dbing.dbEnv  # lmdb database env assumes already setup
-        dbCore = dbEnv.open_db(b'core')  # open named sub db named 'core' within env
-        with dbEnv.begin(db=dbCore) as txn:  # txn is a Transaction object
-            rsrcb = txn.get(sdidb)
-            if rsrcb is None:  # does not exist
-                raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
-                                       'Not Found Error',
-                                       'DID resource does not exist')
-
-        resource = rsrcb.decode("utf-8")
-        agent, sep, asig = resource.partition(SEPARATOR)
+        # read and verify signer agent from database
         try:
-            agentRsrc = json.loads(agent, object_pairs_hook=ODict)
-        except ValueError as ex:
-            raise falcon.HTTPError(falcon.HTTP_424,
-                                       'Data Resource Error',
-                                       'Could not decode associated data resource')
-
-        # Verify that signer agent resource is valid here by looking at agents's
-        # signer field and verifying its signature. Signed at rest.
-
-        # Look up signer agent data resource in database
-        try:
-            adid, aindex = agentRsrc["signer"].rsplit("#", maxsplit=1)
-            aindex = int(aindex)  # get index and sdid from signer field
-        except (AttributeError, ValueError) as ex:
-                raise falcon.HTTPError(falcon.HTTP_400,
-                                   'Validation Error',
-                                    'Invalid or missing did key index.')   # missing sdid or index
-
-        if adid != agentRsrc['did']:
-            raise falcon.HTTPError(falcon.HTTP_424,
-                                   'Data Resource Error',
-                                   'Signing did mismatch')
-
-        try:
-            akey = agentRsrc['keys'][aindex]['key']
-        except (IndexError, KeyError) as ex:
-            raise falcon.HTTPError(falcon.HTTP_424,
-                                           'Data Resource Error',
-                                           'Missing signing key')
-
-        if not verify64u(asig, agent, akey):
-            raise falcon.HTTPError(falcon.HTTP_424,
-                                           'Data Resource Error',
-                                           'Invalid signing key')
+            sdat, sser, ssig = dbing.getSelfSigned(sdid)
+        except dbing.DatabaseError as ex:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                            'Resource Verification Error',
+                            'Error verifying signer resource. {}'.format(ex))
 
         # now use signer agents key indexed for thing signer to verify thing resource
         try:
-            sverkey = agentRsrc['keys'][index]['key']
+            tkey = sdat['keys'][index]['key']
         except (IndexError, KeyError) as ex:
             raise falcon.HTTPError(falcon.HTTP_424,
                                            'Data Resource Error',
                                            'Missing signing key')
 
-        if not validateSignedResource(ssig, registration, sverkey):
+        if not validateSignedResource(tsig, registration, tkey):
                 raise falcon.HTTPError(falcon.HTTP_400,
                                    'Validation Error',
                                     'Could not validate the request body.')
@@ -255,24 +207,20 @@ class ThingRegister:
             pass
 
         tdid = result['did']  # unicode version
-        tdidb = tdid.encode("utf-8")  # bytes version
 
         # save to database core
-        dbEnv = dbing.dbEnv  # lmdb database env assumes already setup
-        dbCore = dbEnv.open_db(b'core')  # open named sub db named 'core' within env
-        with dbEnv.begin(db=dbCore, write=True) as txn:  # txn is a Transaction object
-            rsrcb = txn.get(tdidb)
-            if rsrcb is not None:  # must not be pre-existing
-                raise falcon.HTTPError(falcon.HTTP_412,
-                                       'Preexistence Error',
-                                       'DID already exists')
-            resource = registration + SEPARATOR + ssig
-            txn.put(tdidb, resource.encode("utf-8") )  # keys and values are bytes
+        try:
+            dbing.putSigned(registration, tsig, tdid, clobber=False)
+        except DatabaseError as ex:
+            raise falcon.HTTPError(falcon.HTTP_412,
+                                  'Database Error',
+                                  '{}'.format(ex.args[0]))
 
         if result['hid']:  # add entry to hids table to lookup did by hid
+            dbEnv = dbing.dbEnv
             dbHid2Did = dbEnv.open_db(b'hid2did')  # open named sub db named 'hid2did' within env
             with dbing.dbEnv.begin(db=dbHid2Did, write=True) as txn:  # txn is a Transaction object
-                txn.put(result['hid'].encode("utf-8"), tdidb)  # keys and values are bytes
+                txn.put(result['hid'].encode("utf-8"), tdid.encode("utf-8"))  # keys and values are bytes
 
         didURI = falcon.uri.encode_value(tdid)
         rep.status = falcon.HTTP_201  # post response status with location header
