@@ -14,6 +14,8 @@ import lmdb
 from ioflo.aid.sixing import *
 from ioflo.aid import getConsole
 
+from ..bluepeaing import SEPARATOR, BluepeaError
+
 from ..help.helping import setupTmpBaseDir
 
 console = getConsole()
@@ -25,6 +27,14 @@ ALT_BASE_DIR_PATH = os.path.join('~', '.bluepea')
 
 dbDirPath = None  # database directory location has not been set up yet
 dbEnv = None  # database environment has not been set up yet
+
+class DatabaseError(BluepeaError):
+    """
+    Database related errors
+    Usage:
+        raise DBError("error message")
+    """
+
 
 def setupDbEnv(baseDirPath=None):
     """
@@ -77,6 +87,76 @@ def setupTestDbEnv():
     baseDirPath = os.path.join(baseDirPath, "db/bluepea")
     os.makedirs(baseDirPath)
     return setupDbEnv(baseDirPath=baseDirPath)
+
+def fetchAgentData(did, dbn='core', env=None):
+    """
+    Returns tuple of (dat, ser, sig) corresponding to data resource
+    at did in named dbn of env.
+    If self-signed signature stored in resource does not verify then
+    raises DatabaseError exception
+
+    In return tuple:
+        dat is ODict JSON deserialization of ser
+        ser is JSON serialization of dat
+        sig is signature of resource using private signing key corresponding
+            to did indexed key given by signer field in dat
+
+    Agents data resources are self signing
+
+    Parameters:
+        did is DID str for agent data resource in database
+        dbn is name str of named sub database, Default is 'core'
+        env is main LMDB database environment
+            If env is not provided then use global dbEnv
+    """
+    global dbEnv
+
+    if env is None:
+        env = dbEnv
+
+    if env is None:
+        raise DatabaseError("Database environment not set up")
+
+    # read from database
+    subDb = dbEnv.open_db(dbn.encode("utf-8"))  # open named sub db named dbn within env
+    with dbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
+        rsrcb = txn.get(did.encode("utf-8"))
+        if rsrcb is None:  # does not exist
+            raise DatabaseError("Missing entry at DID")
+
+    rsrc = rsrcb.decode("utf-8")
+    ser, sep, sig = rsrc.partition(SEPARATOR)
+    try:
+        agentRsrc = json.loads(agent, object_pairs_hook=ODict)
+    except ValueError as ex:
+        raise falcon.HTTPError(falcon.HTTP_424,
+                                   'Data Resource Error',
+                                   'Could not decode associated data resource')
+
+    try:
+        adid, aindex = agentRsrc["signer"].rsplit("#", maxsplit=1)
+        aindex = int(aindex)  # get index and sdid from signer field
+    except (AttributeError, ValueError) as ex:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                               'Validation Error',
+                                'Invalid or missing did key index.')   # missing sdid or index
+
+    if adid != agentRsrc['did']:
+        raise falcon.HTTPError(falcon.HTTP_424,
+                               'Data Resource Error',
+                               'Signing did mismatch')
+
+    try:
+        akey = agentRsrc['keys'][aindex]['key']
+    except (IndexError, KeyError) as ex:
+        raise falcon.HTTPError(falcon.HTTP_424,
+                                       'Data Resource Error',
+                                       'Missing signing key')
+
+    if not verify64u(asig, agent, akey):
+        raise falcon.HTTPError(falcon.HTTP_424,
+                                       'Data Resource Error',
+                                       'Invalid signing key')
 
 if __name__ == '__main__':
     env = setupDbEnv()

@@ -35,10 +35,9 @@ from ioflo.aid import timing
 import libnacl
 import libnacl.sign
 
-console = getConsole()
+from ..bluepeaing import SEPARATOR
 
-SEPARATOR =  "\r\n\r\n"
-SEPARATOR_BYTES = SEPARATOR.encode("utf-8")
+console = getConsole()
 
 def setupTmpBaseDir(baseDirPath=""):
     """

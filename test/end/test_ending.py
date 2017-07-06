@@ -33,15 +33,17 @@ import pytest_falcon # declares client fixture
 
     pytest_falcon assumes there is a fixture named 'app'
 """
+from bluepea.bluepeaing import SEPARATOR_BYTES
 
-import bluepea.end.ending as ending
 from bluepea.help.helping import (dumpKeys, loadKeys,
                                   key64uToKey, keyToKey64u, makeDid,
                                   verify, verify64u, parseSignatureHeader,
                                   setupTmpBaseDir, cleanupTmpBaseDir,
                                   makeSignedAgentReg, makeSignedThingReg,
-                                  SEPARATOR_BYTES)
+                                  )
 from bluepea.db.dbing import setupTestDbEnv
+
+import bluepea.end.ending as ending
 
 store = storing.Store(stamp=0.0)
 

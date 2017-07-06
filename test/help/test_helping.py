@@ -22,6 +22,8 @@ from ioflo.aid import timing
 import pytest
 from pytest import approx
 
+from bluepea.bluepeaing import SEPARATOR
+
 from bluepea.help.helping import (SEPARATOR, setupTmpBaseDir, cleanupTmpBaseDir,
                                   dumpKeys, loadKeys,
                                   parseSignatureHeader, verify, makeDid,

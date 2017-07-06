@@ -19,7 +19,9 @@ import falcon
 from ioflo.aid.sixing import *
 from ioflo.aid import getConsole
 
-from ..help.helping import (SEPARATOR, parseSignatureHeader, verify64u,
+from ..bluepeaing import SEPARATOR
+
+from ..help.helping import (parseSignatureHeader, verify64u,
                             validateSignedAgentReg, validateSignedThingReg,
                             validateSignedResource)
 from ..db import dbing
@@ -83,7 +85,7 @@ class AgentRegister:
         # save to database
         dbEnv = dbing.dbEnv  # lmdb database env assumes already setup
         dbCore = dbEnv.open_db(b'core')  # open named sub db named 'core' within env
-        with dbing.dbEnv.begin(db=dbCore, write=True) as txn:  # txn is a Transaction object
+        with dbEnv.begin(db=dbCore, write=True) as txn:  # txn is a Transaction object
             rsrcb = txn.get(didb)
             if rsrcb is not None:  # must not be pre-existing
                 raise falcon.HTTPError(falcon.HTTP_412,
@@ -110,7 +112,7 @@ class AgentRegister:
         # read fromdatabase
         dbEnv = dbing.dbEnv  # lmdb database env assumes already setup
         dbCore = dbEnv.open_db(b'core')  # open named sub db named 'core' within env
-        with dbing.dbEnv.begin(db=dbCore) as txn:  # txn is a Transaction object
+        with dbEnv.begin(db=dbCore) as txn:  # txn is a Transaction object
             rsrcb = txn.get(didb)
             if rsrcb is None:  # does not exist
                 raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
@@ -195,7 +197,7 @@ class ThingRegister:
         # read signer agent from database
         dbEnv = dbing.dbEnv  # lmdb database env assumes already setup
         dbCore = dbEnv.open_db(b'core')  # open named sub db named 'core' within env
-        with dbing.dbEnv.begin(db=dbCore) as txn:  # txn is a Transaction object
+        with dbEnv.begin(db=dbCore) as txn:  # txn is a Transaction object
             rsrcb = txn.get(sdidb)
             if rsrcb is None:  # does not exist
                 raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
@@ -263,7 +265,7 @@ class ThingRegister:
         # save to database core
         dbEnv = dbing.dbEnv  # lmdb database env assumes already setup
         dbCore = dbEnv.open_db(b'core')  # open named sub db named 'core' within env
-        with dbing.dbEnv.begin(db=dbCore, write=True) as txn:  # txn is a Transaction object
+        with dbEnv.begin(db=dbCore, write=True) as txn:  # txn is a Transaction object
             rsrcb = txn.get(tdidb)
             if rsrcb is not None:  # must not be pre-existing
                 raise falcon.HTTPError(falcon.HTTP_412,
@@ -294,7 +296,7 @@ class ThingRegister:
         # read fromdatabase
         dbEnv = dbing.dbEnv  # lmdb database env assumes already setup
         dbCore = dbEnv.open_db(b'core')  # open named sub db named 'core' within env
-        with dbing.dbEnv.begin(db=dbCore, write=True) as txn:  # txn is a Transaction object
+        with dbEnv.begin(db=dbCore, write=True) as txn:  # txn is a Transaction object
             rsrcb = txn.get(didb)
             if rsrcb is None:  # does not exist
                 raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
