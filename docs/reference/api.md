@@ -407,3 +407,186 @@ Date: Tue, 04 Jul 2017 00:02:12 GMT
 }
 ```
 
+## Thing Registration Creation 
+
+The *Thing* Registration creation request (POST) creates a data resource corresponding to a given *Thing*. A Thing resource is controlled or owned by an Agent data resource. Consequently the *signer* field references the controlling Agent's data resource. In other words a *Thing* data resourse is not self-signing. 
+
+In order to create an *Thing* Registration request the client application needs to know the DID of the associated controlling Agent as well have access to the the priviate signing key of that Agent. In other words a Thing can only be created by a client application for an Agent controlled by the client application. 
+
+Each Thing has a unique DID. The Server will also verify that the client application holds the associated private key used to create the Thing's DID. To create a DID the client application will first need to create an EdDSA signing keypair.
+
+To produce a unique EdDSA signing keypair using the libsodium library.
+
+The bluepea python library has a helper function,
+
+```python
+makeSignedThingReg(dvk, dsk, ssk, signer, changed=None, hid=None, **kwa)
+```
+
+in the
+
+```python
+bluepea.help.helping
+```
+
+module.
+
+The example code below shows how to
+create this key pair and the associated agent registration plain text
+using the python libnacl bindings for libsodium and the helper function.
+
+```python
+import libnacl
+from bluepea.help.helping import makeSignedAgentReg
+
+seed = libnacl.randombytes(libnacl.crypto_sign_SEEDBYTES)
+
+dvk, dsk = libnacl.crypto_sign_seed_keypair(seed)
+# dvk is the public verification key
+# dsk is the private signing key
+
+dsignature, ssignature, registration = makeSignedThingReg(dvk, dsk, ssk, signer
+
+# ssk is the controlling agents private signing key
+
+# registration is the json serialized body text for the registration request
+# dsignature is the Base64 URL safe encoding of the EdDSA signature of the registration body text given dsk
+# ssignature is the Base64 URL safe encoding of the EdDSA signature of the registration body text given ssk the controlling agent (signer) private signing key
+
+```
+
+It is the responsibility of the client application to store the private signing
+key for the DID as it will be needed to verify any future challenges as the creator of the thing DID.
+
+The request is made by sending an HTTP POST to ```/thing/Registration```
+
+The request includes a custom "Signature" header whose value has both signatures. The The *tag* value *signer* is the *ssignature* returned above and the *tag* value *did* is the *dsignature* returned above.
+
+The request body is the registration text produced above.
+
+A successful request results in a response with the associated Agent data resource
+in the JSON body of the response is and a location header
+whose value is the URL to access the Agent Data Resource via a GET request.
+This location value has already been URL encoded.
+
+A successful request will return status code 201
+
+An unsuccessful request will return status code 400.
+
+Example requests and responses are shown below.
+
+## Request
+
+```http
+POST /thing/register HTTP/1.1
+Signature: signer="RtlBu9sZgqhfc0QbGe7IHqwsHOARrGNjy4BKJG7gNfNP4GfKDQ8FGdjyv-EzN1OIHYlnMBFB2Kf05KZAj-g2Cg==";did="kWZwPfepoAV9zyt9B9vPlPNGeb_POHlP9LL3H-PH71WWZzVJT1Ce64IKj1GmOXkNo2JaXrnIpQyfm2vynn7mCg=="
+Content-Type: application/json; charset=UTF-8
+Host: localhost:8080
+Connection: close
+User-Agent: Paw/3.1.1 (Macintosh; OS X/10.12.5) GCDHTTPRequest
+Content-Length: 349
+
+{
+  "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
+  "hid": "hid:dns:generic.com#02",
+  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",
+  "changed": "2000-01-01T00:00:00+00:00",
+  "data": {
+    "keywords": [
+      "Canon",
+      "EOS Rebel T6",
+      "251440"
+    ],
+    "message": "If found please return."
+  }
+}
+```
+
+## Response
+
+```http
+HTTP/1.1 201 Created
+Location: /thing/register?did=did%3Aigo%3A4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM%3D
+Content-Length: 301
+Content-Type: application/json; charset=UTF-8
+Server: Ioflo WSGI Server
+Date: Thu, 06 Jul 2017 01:41:58 GMT
+
+{
+  "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
+  "hid": "hid:dns:generic.com#02",
+  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",
+  "changed": "2000-01-01T00:00:00+00:00",
+  "data": {
+    "keywords": [
+      "Canon",
+      "EOS Rebel T6",
+      "251440"
+    ],
+    "message": "If found please return."
+  }
+}
+
+```
+
+## Thing Agent Registration Read 
+
+The *Thing* Registration read request (GET) retrieves a data resource corresponding to a given *Thing* as indicated by the *did* query parameter in the request. A Thing resource is controlled or owned by an Agent data resource. Consequently the signer field references the controlling Agent's data resource. In other words a Thing data resourse is not self-signing. In order to retrieve a Thing registration data resource the client application needs the DID for that resource. This is supplied in the *Location* header of the response to a successful Thing Registration creation request. The signature of the data resource is supplied in the Signature header of the response. The client application can verify that the data resource has not been tampered with by verifing the signature against the response body which contains the data resource which is a JSON serialization of the registration data.
+
+The bluepea python library has a helper function,
+
+```python
+verify64u(signature, message, verkey)
+```
+
+in the
+
+```python
+bluepea.help.helping
+```
+
+module that shows how to verify a signature.
+
+
+The request is made by sending an HTTP Get to ```/Thing/Registration``` with a *did* query parameter whose value is the desired DID. This value needs to be URL encoded.
+A successful request will return status code 201. An unsuccessful request will return an error status code such as 404 Not Found. 
+If successful the response includes a custom "Signature" header whose *signer* field value is the signature.
+
+
+Example requests and responses are shown below.
+
+## Request
+
+```http
+GET /thing/register?did=did%3Aigo%3A4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM%3D HTTP/1.1
+Content-Type: application/json; charset=utf-8
+Host: localhost:8080
+Connection: close
+User-Agent: Paw/3.1.1 (Macintosh; OS X/10.12.5) GCDHTTPRequest
+```
+
+## Response
+
+```http
+HTTP/1.1 200 OK
+Signature: signer="RtlBu9sZgqhfc0QbGe7IHqwsHOARrGNjy4BKJG7gNfNP4GfKDQ8FGdjyv-EzN1OIHYlnMBFB2Kf05KZAj-g2Cg=="
+Content-Type: application/json; charset=UTF-8
+Content-Length: 349
+Server: Ioflo WSGI Server
+Date: Thu, 06 Jul 2017 02:04:21 GMT
+
+{
+  "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
+  "hid": "hid:dns:generic.com#02",
+  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",
+  "changed": "2000-01-01T00:00:00+00:00",
+  "data": {
+    "keywords": [
+      "Canon",
+      "EOS Rebel T6",
+      "251440"
+    ],
+    "message": "If found please return."
+  }
+}
+```
