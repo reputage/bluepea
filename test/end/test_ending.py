@@ -501,12 +501,12 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
 
     assert result
 
+    # verify hid table entry
     dbHid2Did = dbEnv.open_db(b'hid2did')  # open named sub db named 'hid2did' within env
     with dbEnv.begin(db=dbHid2Did) as txn:  # txn is a Transaction object
         tdidb = txn.get(treg['hid'].encode("utf-8"))  # keys are bytes
 
     assert tdidb.decode("utf-8") == tdid
-
 
     print("Testing GET /thing/register?did=....")
 
