@@ -190,7 +190,7 @@ def test_post_IssuerRegisterSigned(client):  # client is a fixture in pytest_fal
             b'\xf2K\x93`')
 
     # creates signing/verification key pair
-    verkey, sigkey = libnacl.crypto_sign_seed_keypair(seed)
+    vk, sk = libnacl.crypto_sign_seed_keypair(seed)
 
     dt = datetime.datetime(2000, 1, 1, tzinfo=datetime.timezone.utc)
     stamp = timing.iso8601(dt, aware=True)
@@ -203,8 +203,8 @@ def test_post_IssuerRegisterSigned(client):  # client is a fixture in pytest_fal
                 validationURL="https://generic.com/indigo")
     hids = [hid]  # list of hids
 
-    signature, registration = makeSignedAgentReg(verkey,
-                                                 sigkey,
+    signature, registration = makeSignedAgentReg(vk,
+                                                 sk,
                                                  changed=stamp,
                                                  hids=hids)
     assert signature == ('f2w1L6XtU8_GS5N8UwX0d77aw2kR0IM5BVdBLOaoIyR9nzra6d4Jg'
@@ -326,7 +326,7 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
             b'\xf2K\x93`')
 
     # creates signing/verification key pair
-    verkey, sigkey = libnacl.crypto_sign_seed_keypair(seed)
+    svk, ssk = libnacl.crypto_sign_seed_keypair(seed)
 
     dt = datetime.datetime(2000, 1, 1, tzinfo=datetime.timezone.utc)
     stamp = timing.iso8601(dt, aware=True)
@@ -339,8 +339,8 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
                 validationURL="https://generic.com/indigo")
     hids = [hidspace]  # list of hids
 
-    signature, registration = makeSignedAgentReg(verkey,
-                                                 sigkey,
+    signature, registration = makeSignedAgentReg(svk,
+                                                 ssk,
                                                  changed=stamp,
                                                  hids=hids)
 
@@ -407,7 +407,6 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
                     b'L\x96\xa9(\x01\xbb\x08\x87\xa5X\x1d\xe7\x90b\xa0#')
 
 
-    ssk = sigkey
     signer = areg['signer']
     hid = "hid:dns:generic.com#02"
     data = ODict(keywords=["Canon", "EOS Rebel T6", "251440"],
@@ -467,9 +466,60 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
 
     rep = client.post('/thing/register', body=body, headers=headers)
     assert rep.status == falcon.HTTP_201
-
     assert treg == rep.json
 
+    location = falcon.uri.decode(rep.headers['location'])
+    assert location == "/thing/register?did=did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM="
+
+    path, query = location.rsplit("?", maxsplit=1)
+    assert query == "did=did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM="
+
+    query = falcon.uri.parse_query_string(query)
+    tdid = query['did']
+    assert tdid == "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM="
+
+    assert rep.headers['content-type'] == "application/json; charset=UTF-8"
+
+    assert treg["did"] == tdid
+
+    dbCore = dbEnv.open_db(b'core')  # open named sub db named 'core' within env
+    with dbEnv.begin(db=dbCore) as txn:  # txn is a Transaction object
+        rsrcb = txn.get(tdid.encode('utf-8'))  # keys are bytes
+
+    assert rsrcb
+    datab, sep, signatureb = rsrcb.partition(SEPARATOR_BYTES)
+    data = json.loads(datab.decode("utf-8"), object_pairs_hook=ODict)
+    datau = datab.decode("utf-8")
+    assert data == treg
+    assert signatureb.decode("utf-8") == ssignature
+    assert datau == tregistration
+    sverkey = keyToKey64u(svk)
+    assert sverkey == 'Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE='
+
+    result = verify64u(signature=ssignature,
+                       message=datau,
+                       verkey=sverkey)
+
+    assert result
+
+    print("Testing GET /thing/register?did=....")
+
+    didURI = falcon.uri.encode_value(tdid)
+    rep = client.get('/thing/register?did={}'.format(didURI))
+
+    assert rep.status == falcon.HTTP_OK
+    assert int(rep.headers['content-length']) == 349
+    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
+    assert rep.headers['signature'] == ('signer="RtlBu9sZgqhfc0QbGe7IHqwsHOARrG'
+                'Njy4BKJG7gNfNP4GfKDQ8FGdjyv-EzN1OIHYlnMBFB2Kf05KZAj-g2Cg=="')
+    sigs = parseSignatureHeader(rep.headers['signature'])
+
+    assert sigs['signer'] == ssignature
+
+    assert rep.body == tregistration
+    assert rep.json == treg
+
+    assert verify64u(ssignature, tregistration, sverkey)
 
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")

@@ -228,12 +228,7 @@ def verify64u(signature, message, verkey):
     sig = key64uToKey(signature)
     vk = key64uToKey(verkey)
     msg = message.encode("utf-8")
-    try:
-        result = verify(sig, msg, vk)
-    except Exception as ex:
-        return False
-
-    return (True if result else False)
+    return (verify(sig, msg, vk))
 
 
 def makeSignedAgentReg(vk, sk, changed=None,  **kwa):
@@ -438,25 +433,20 @@ def makeSignedThingReg(dvk, dsk, ssk, signer, changed=None, hid=None, **kwa):
     return (dsignature, ssignature, registration)
 
 
-def validateSignedThingReg(dsignature, ssignature, registration, sverkey, method="igo"):
+def validateSignedThingReg(signature, registration, method="igo"):
     """
-    Returns dict of deserialized registration if both dsignature and ssignature
-    verify and registration is correctly formed
+    Returns dict of deserialized registration if signature
+    verifies and registration is correctly formed. The registration must also
+    verify with the signer's signature using validateSignedResource for a
+    complete validation.
+
     Otherwise returns None
 
-    dsignatures is base64 url-file safe unicode string signature generated
+    signature is base64 url-file safe unicode string signature generated
         by signing bytes version of registration with privated signing key associated with
         public verification key used to create did in registration
 
-    ssignature is base64 url-file safe unicode string signature generated
-        by signing bytes version of registration with privated signing key associated with
-        public verification key referenced by key indexed signer field in registration
-
     registration is json encoded unicode string of registration record
-
-    sverkey is base64 url-file safe unicode string public verification key referenced
-        by signer field in registration. This is looked up in database from signer's
-        agent data resource
 
     method is the method string used to generate dids in the registration
     """
@@ -498,6 +488,9 @@ def validateSignedThingReg(dsignature, ssignature, registration, sverkey, method
         if pre != "did" or meth != method:
             return None  # did format bad
 
+        if "hid" not in reg:  # hid field required
+            return None
+
         if "did" not in reg:  # did field required
             return None
 
@@ -511,19 +504,96 @@ def validateSignedThingReg(dsignature, ssignature, registration, sverkey, method
         if pre != "did" or meth != method:
             return None  # did format bad
 
-        dverkey = keystr
+        verkey = keystr
 
-        if len(dverkey) != 44:
+        if len(verkey) != 44:
             return None  # invalid length for base64 encoded key
 
-        if not verify64u(dsignature, registration, dverkey):
+        if not verify64u(signature, registration, verkey):
             return None  # signature fails
-
-        if not verify64u(ssignature, registration, sverkey):
-            return None  # signature fails
-
 
     except Exception as ex:  # unknown problem
         return None
 
     return reg
+
+def validateSignedResource(signature, resource, verkey, method="igo"):
+    """
+    Returns dict of deserialized resource if signature verifies for resource given
+    verification key verkey in base64 url safe unicode format
+    Otherwise returns None
+
+
+    signature is base64 url-file safe unicode string signature generated
+        by signing bytes version of resource with privated signing key associated with
+        public verification key referenced by key indexed signer field in resource
+
+    resource is json encoded unicode string of resource record
+
+    verkey is base64 url-file safe unicode string public verification key referenced
+        by signer field in resource. This is looked up in database from signer's
+        agent data resource
+
+    method is the method string used to generate dids in the resource
+    """
+
+    try:
+        try:
+            rsrc = json.loads(resource, object_pairs_hook=ODict)
+        except ValueError as ex:
+            return None  # invalid json
+
+        if not rsrc:  # resource must not be empty
+            return None
+
+        if not isinstance(rsrc, dict):  # must be dict subclass
+            return None
+
+        if "changed" not in rsrc:  # changed field required
+            return None
+
+        try:
+            arrow.get(rsrc["changed"])
+        except arrow.parser.ParserError as ex:  # invalid datetime format
+            return None
+
+        if "signer" not in rsrc:  # signer field required
+            return None
+
+        try:
+            sdid, index = rsrc["signer"].rsplit("#", maxsplit=1)
+            index = int(index)  # get index and sdid from signer field
+        except (AttributeError, ValueError) as ex:
+            return None  # missing sdid or index
+
+        try:  # correct did format  pre:method:keystr
+            pre, meth, keystr = sdid.split(":")
+        except ValueError as ex:
+            return None
+
+        if pre != "did" or meth != method:
+            return None  # did format bad
+
+        if "did" not in rsrc:  # did field required
+            return None
+
+        ddid = rsrc["did"]
+
+        try:  # correct did format  pre:method:keystr
+            pre, meth, keystr = ddid.split(":")
+        except ValueError as ex:
+            return None
+
+        if pre != "did" or meth != method:
+            return None  # did format bad
+
+        if len(verkey) != 44:
+            return None  # invalid length for base64 encoded key
+
+        if not verify64u(signature, resource, verkey):
+            return None  # signature fails
+
+    except Exception as ex:  # unknown problem
+        return None
+
+    return rsrc

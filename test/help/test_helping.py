@@ -27,7 +27,8 @@ from bluepea.help.helping import (SEPARATOR, setupTmpBaseDir, cleanupTmpBaseDir,
                                   parseSignatureHeader, verify, makeDid,
                                   key64uToKey, keyToKey64u,
                                   makeSignedAgentReg, validateSignedAgentReg,
-                                  makeSignedThingReg, validateSignedThingReg)
+                                  makeSignedThingReg, validateSignedThingReg,
+                                  validateSignedResource, )
 
 
 def test_dumpLoadKeys():
@@ -402,9 +403,10 @@ def test_signedThingRegistrationWithData():
                           'Gdjyv-EzN1OIHYlnMBFB2Kf05KZAj-g2Cg==')
 
     # validate
-    sverkey = keyToKey64u(svk)
-    reg = validateSignedThingReg(dsignature, ssignature, tregistration, sverkey)
-
+    reg = validateSignedThingReg(dsignature, tregistration)
     assert reg is not None
+
+    sverkey = keyToKey64u(svk)
+    rsrc = validateSignedResource(ssignature, resource=tregistration, verkey=sverkey)
 
     print("Done Test")
