@@ -107,29 +107,24 @@ class AgentRegister:
 
         """
         did = req.get_param("did")  # already has url-decoded query parameter value
-        didb = did.encode("utf-8")  # bytes version
 
-        # read fromdatabase
-        dbEnv = dbing.dbEnv  # lmdb database env assumes already setup
-        dbCore = dbEnv.open_db(b'core')  # open named sub db named 'core' within env
-        with dbEnv.begin(db=dbCore) as txn:  # txn is a Transaction object
-            rsrcb = txn.get(didb)
-            if rsrcb is None:  # does not exist
-                raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
-                                       'Not Found Error',
-                                       'DID resource does not exist')
+        # read from database
+        try:
+            dat, ser, sig = dbing.getSelfSigned(did)
+        except dbing.DatabaseError as ex:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                            'Resource Verification Error',
+                            'Error verifying resource. {}'.format(ex))
 
-        # should verify that signed at rest is valid by verifying signature
-        # of retrieved resource so do not return if resource was corrupted
+        if dat is None:
+            raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
+                                               'Not Found Error',
+                                               'DID resource does not exist')
 
-        resource = rsrcb.decode("utf-8")
-        registration, sep, signature = resource.partition(SEPARATOR)
-        #reg = json.loads(registration, object_pairs_hook=ODict)
-
-        rep.set_header("Signature", 'signer="{}"'.format(signature))
+        rep.set_header("Signature", 'signer="{}"'.format(sig))
         rep.set_header("Content-Type", "application/json; charset=UTF-8")
         rep.status = falcon.HTTP_200  # This is the default status
-        rep.body = registration
+        rep.body = ser
 
 
 class ThingRegister:
@@ -291,29 +286,25 @@ class ThingRegister:
 
         """
         did = req.get_param("did")  # already has url-decoded query parameter value
-        didb = did.encode("utf-8")  # bytes version
+        #didb = did.encode("utf-8")  # bytes version
 
-        # read fromdatabase
-        dbEnv = dbing.dbEnv  # lmdb database env assumes already setup
-        dbCore = dbEnv.open_db(b'core')  # open named sub db named 'core' within env
-        with dbEnv.begin(db=dbCore, write=True) as txn:  # txn is a Transaction object
-            rsrcb = txn.get(didb)
-            if rsrcb is None:  # does not exist
-                raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
-                                       'Not Found Error',
-                                       'DID resource does not exist')
+        # read from database
+        try:
+            dat, ser, sig = dbing.getSigned(did)
+        except dbing.DatabaseError as ex:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                            'Resource Verification Error',
+                            'Error verifying resource. {}'.format(ex))
 
-        # should verify that signed at rest is valid by verifying signature
-        # of retrieved resource so do not return if resource was corrupted
+        if dat is None:
+            raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
+                                               'Not Found Error',
+                                               'DID resource does not exist')
 
-        resource = rsrcb.decode("utf-8")
-        registration, sep, signature = resource.partition(SEPARATOR)
-        #reg = json.loads(registration, object_pairs_hook=ODict)
-
-        rep.set_header("Signature", 'signer="{}"'.format(signature))
+        rep.set_header("Signature", 'signer="{}"'.format(sig))
         rep.set_header("Content-Type", "application/json; charset=UTF-8")
         rep.status = falcon.HTTP_200  # This is the default status
-        rep.body = registration
+        rep.body = ser
 
 
 def loadEnds(app, store):
