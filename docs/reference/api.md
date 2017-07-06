@@ -105,7 +105,7 @@ Signature: signer="B0Qc72RP5IOodsQRQ_s4MKMNe0PIAqwjKsBl4b6lK9co2XPZHLmzQFHWzjA2P
 Although all resource write requests are signed by the client and therefore can not be created by anyone other than the Keeper of the associated private key, a malicious network device could record and resend prior requests in a different order (replay attack) and thereby change the state of the database. To prevent replay attacks on requests that change data resources a client needs to authenticate in a time sensitive manner with the server.  A simple way to do this is for the client to update the *changed* date time stamp field in the resource in a monotonically increasing manner. This way any replayed but stale write requests can be detected and refused by the Server. In other words the server will deny write requests whose *changed* field date time stamp is not later than the the *changed* field value of the pre-existing resource to be updated.
 
 
-## Agent Registration Creation 
+## *Agent* Registration Creation 
 
 The Agent Registration creation request (POST) creates a data resource corresponding to a given Agent. This
 is a self-signed or self-owned data resource in that the signer field value
@@ -219,7 +219,7 @@ Date: Mon, 03 Jul 2017 22:31:54 GMT
 ```
 
 
-## Agent Registration Read 
+## *Agent* Registration Read 
 
 The Agent Registration read request (GET) retrieves a data resource corresponding to a given Agent as indicated by the *did* query parameter in the request. This
 is a self-signed or self-owned data resource in that the signer field value
@@ -280,7 +280,7 @@ Date: Mon, 03 Jul 2017 22:33:01 GMT
 }
 ```
 
-## *Issuer* Agent Registration Creation 
+## *Issuer* *Agent* Registration Creation 
 
 When the Agent Registration creation request includes an *hids* field then the  data resource represents an *Issuer* agent. The creation request will also validate control of the associated *hid* namespaces.  The *hids* field is a list of one or more HID json objects. Each object contains information about a namespace used by the *Issuer* to generate HIDs:
 
@@ -361,7 +361,7 @@ Date: Tue, 04 Jul 2017 00:00:04 GMT
 }
 ```
 
-## *Issuer* Agent Registration Read 
+## *Issuer* *Agent* Registration Read 
 
 The *Issuer* Agent Registration read request (GET) is the same as the generic Agent read request. The only differece is that an *Issuer* Agent with have an *hids* field in its data resource. 
 Example requests and responses are shown below.
@@ -407,7 +407,7 @@ Date: Tue, 04 Jul 2017 00:02:12 GMT
 }
 ```
 
-## Thing Registration Creation 
+## *Thing* Registration Creation 
 
 The *Thing* Registration creation request (POST) creates a data resource corresponding to a given *Thing*. A Thing resource is controlled or owned by an Agent data resource. Consequently the *signer* field references the controlling Agent's data resource. In other words a *Thing* data resourse is not self-signing. 
 
@@ -460,7 +460,7 @@ key for the DID as it will be needed to verify any future challenges as the crea
 
 The request is made by sending an HTTP POST to ```/thing/Registration```
 
-The request includes a custom "Signature" header whose value has both signatures. The The *tag* value *signer* is the *ssignature* returned above and the *tag* value *did* is the *dsignature* returned above.
+The request includes a custom "Signature" header whose value has both signatures. The *tag* value *signer* is the *ssignature* returned above and the *tag* value *did* is the *dsignature* returned above. Both signatures allows the Server to verify that the client both created the Thing DID and controls the Signing Agent.
 
 The request body is the registration text produced above.
 
@@ -529,7 +529,7 @@ Date: Thu, 06 Jul 2017 01:41:58 GMT
 
 ```
 
-## Thing Agent Registration Read 
+## *Thing* Registration Read 
 
 The *Thing* Registration read request (GET) retrieves a data resource corresponding to a given *Thing* as indicated by the *did* query parameter in the request. A Thing resource is controlled or owned by an Agent data resource. Consequently the signer field references the controlling Agent's data resource. In other words a Thing data resourse is not self-signing. In order to retrieve a Thing registration data resource the client application needs the DID for that resource. This is supplied in the *Location* header of the response to a successful Thing Registration creation request. The signature of the data resource is supplied in the Signature header of the response. The client application can verify that the data resource has not been tampered with by verifing the signature against the response body which contains the data resource which is a JSON serialization of the registration data.
 
