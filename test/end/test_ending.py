@@ -16,7 +16,6 @@ except ImportError:
 import arrow
 
 import libnacl
-import libnacl.sign
 
 from ioflo.base import storing
 from ioflo.aid import timing

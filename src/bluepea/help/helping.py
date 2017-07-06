@@ -33,7 +33,6 @@ from ioflo.aid import filing
 from ioflo.aid import timing
 
 import libnacl
-import libnacl.sign
 
 from ..bluepeaing import SEPARATOR
 

@@ -9,6 +9,12 @@ import os
 from collections import OrderedDict as ODict, deque
 import enum
 
+try:
+    import simplejson as json
+except ImportError:
+    import json
+
+
 import lmdb
 
 from ioflo.aid.sixing import *
@@ -16,7 +22,7 @@ from ioflo.aid import getConsole
 
 from ..bluepeaing import SEPARATOR, BluepeaError
 
-from ..help.helping import setupTmpBaseDir
+from ..help.helping import setupTmpBaseDir, verify64u
 
 console = getConsole()
 
@@ -27,6 +33,7 @@ ALT_BASE_DIR_PATH = os.path.join('~', '.bluepea')
 
 dbDirPath = None  # database directory location has not been set up yet
 dbEnv = None  # database environment has not been set up yet
+
 
 class DatabaseError(BluepeaError):
     """
@@ -88,10 +95,46 @@ def setupTestDbEnv():
     os.makedirs(baseDirPath)
     return setupDbEnv(baseDirPath=baseDirPath)
 
-def fetchAgentData(did, dbn='core', env=None):
+
+def putSigned(ser, sig, did, dbn='core', env=None, clobber=True):
+    """
+    Put signed serialization ser with signature sig at key did in named sub
+    database dbn in lmdb database environment env. If clobber is False then
+    raise DatabaseError exception if entry at key did is already present.
+
+    Parameters:
+        ser is JSON serialization of dat
+        sig is signature of resource using private signing key corresponding
+            to did indexed key given by signer field in dat
+        did is DID str for agent data resource in database
+        dbn is name str of named sub database, Default is 'core'
+        env is main LMDB database environment
+            If env is not provided then use global dbEnv
+        clobber is Boolean If False then raise error if entry at did already
+            exists in database
+    """
+    global dbEnv
+
+    if env is None:
+        env = dbEnv
+
+    if env is None:
+        raise DatabaseError("Database environment not set up")
+
+    didb = did.encode("utf-8")
+    subDb = dbEnv.open_db(dbn.encode("utf-8"))  # open named sub db named dbn within env
+    with dbEnv.begin(db=subDb, write=True) as txn:  # txn is a Transaction object
+        rsrcb = txn.get(didb)
+        if clobber and rsrcb is not None:  # pre-existing
+            raise DatabaseError("Preexisting entry at DID")
+        rsrc = ser + SEPARATOR + sig
+        txn.put(didb, rsrc.encode("utf-8") )  # keys and values are bytes
+
+def getSelfSigned(did, dbn='core', env=None):
     """
     Returns tuple of (dat, ser, sig) corresponding to data resource
     at did in named dbn of env.
+    Returns tuple (None, None, None) if data resource not found
     If self-signed signature stored in resource does not verify then
     raises DatabaseError exception
 
@@ -122,41 +165,33 @@ def fetchAgentData(did, dbn='core', env=None):
     with dbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
         rsrcb = txn.get(did.encode("utf-8"))
         if rsrcb is None:  # does not exist
-            raise DatabaseError("Missing entry at DID")
+            return (None, None, None)
 
     rsrc = rsrcb.decode("utf-8")
     ser, sep, sig = rsrc.partition(SEPARATOR)
     try:
-        agentRsrc = json.loads(agent, object_pairs_hook=ODict)
+        dat = json.loads(ser, object_pairs_hook=ODict)
     except ValueError as ex:
-        raise falcon.HTTPError(falcon.HTTP_424,
-                                   'Data Resource Error',
-                                   'Could not decode associated data resource')
+        raise DatabaseError("Resource failed deserialization. {}".format(ex))
 
     try:
-        adid, aindex = agentRsrc["signer"].rsplit("#", maxsplit=1)
-        aindex = int(aindex)  # get index and sdid from signer field
+        sdid, index = dat["signer"].rsplit("#", maxsplit=1)
+        index = int(index)  # get index and sdid from signer field
     except (AttributeError, ValueError) as ex:
-            raise falcon.HTTPError(falcon.HTTP_400,
-                               'Validation Error',
-                                'Invalid or missing did key index.')   # missing sdid or index
+            raise DatabaseError('Invalid or missing did key index')  # missing sdid or index
 
-    if adid != agentRsrc['did']:
-        raise falcon.HTTPError(falcon.HTTP_424,
-                               'Data Resource Error',
-                               'Signing did mismatch')
+    if sdid != dat['did']:
+        raise DatabaseError('Invalid Self-Signer DID')
 
     try:
-        akey = agentRsrc['keys'][aindex]['key']
+        key = dat['keys'][index]['key']
     except (IndexError, KeyError) as ex:
-        raise falcon.HTTPError(falcon.HTTP_424,
-                                       'Data Resource Error',
-                                       'Missing signing key')
+        raise DatabaseError('Missing verification key')
 
-    if not verify64u(asig, agent, akey):
-        raise falcon.HTTPError(falcon.HTTP_424,
-                                       'Data Resource Error',
-                                       'Invalid signing key')
+    if not verify64u(sig, ser, key):
+        raise DatabaseError('Signature verification failed')
+
+    return (dat, ser, sig)
 
 if __name__ == '__main__':
     env = setupDbEnv()

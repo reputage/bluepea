@@ -15,7 +15,6 @@ except ImportError:
     import json
 
 import libnacl
-import libnacl.sign
 
 from ioflo.aid import timing
 
