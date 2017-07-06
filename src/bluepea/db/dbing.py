@@ -60,6 +60,7 @@ def setupDbEnv(baseDirPath=None):
 
     # create named dbs  (core and tables)
     dbEnv.open_db(b'core')
+    dbEnv.open_db(b'hid2did')  # table of dids keyed by hids
 
     # verify that the server resource is present in the database
     # need to read in saved server signing keys and query database

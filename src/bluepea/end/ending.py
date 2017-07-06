@@ -260,7 +260,7 @@ class ThingRegister:
         tdid = result['did']  # unicode version
         tdidb = tdid.encode("utf-8")  # bytes version
 
-        # save to database
+        # save to database core
         dbEnv = dbing.dbEnv  # lmdb database env assumes already setup
         dbCore = dbEnv.open_db(b'core')  # open named sub db named 'core' within env
         with dbing.dbEnv.begin(db=dbCore, write=True) as txn:  # txn is a Transaction object
@@ -271,6 +271,11 @@ class ThingRegister:
                                        'DID already exists')
             resource = registration + SEPARATOR + ssig
             txn.put(tdidb, resource.encode("utf-8") )  # keys and values are bytes
+
+        if result['hid']:  # add entry to hids table to lookup did by hid
+            dbHid2Did = dbEnv.open_db(b'hid2did')  # open named sub db named 'hid2did' within env
+            with dbing.dbEnv.begin(db=dbHid2Did, write=True) as txn:  # txn is a Transaction object
+                txn.put(result['hid'].encode("utf-8"), tdidb)  # keys and values are bytes
 
         didURI = falcon.uri.encode_value(tdid)
         rep.status = falcon.HTTP_201  # post response status with location header
