@@ -130,9 +130,10 @@ def putSigned(ser, sig, did, dbn='core', env=None, clobber=True):
         rsrc = ser + SEPARATOR + sig
         txn.put(didb, rsrc.encode("utf-8") )  # keys and values are bytes
 
+
 def getSelfSigned(did, dbn='core', env=None):
     """
-    Returns tuple of (dat, ser, sig) corresponding to data resource
+    Returns tuple of (dat, ser, sig) corresponding to self-signed data resource
     at did in named dbn of env.
     Returns tuple (None, None, None) if data resource not found
     If self-signed signature stored in resource does not verify then
@@ -189,9 +190,81 @@ def getSelfSigned(did, dbn='core', env=None):
         raise DatabaseError('Missing verification key')
 
     if not verify64u(sig, ser, key):
+        raise DatabaseError('Self signature verification failed')
+
+    return (dat, ser, sig)
+
+
+def getSigned(did, dbn='core', env=None):
+    """
+    Returns tuple of (dat, ser, sig) corresponding to Non-self-signed data resource
+    at did in named dbn of env.
+    Looks up and verifies signer's data resource and then verfies data resource
+    given verification key provided by signer's data resource.
+
+    Returns tuple (None, None, None) if data resource not found
+    If signatures do not verify then raises DatabaseError exception
+    If signer does not exist then raises DatabaseError exception
+
+    In return tuple:
+        dat is ODict JSON deserialization of ser
+        ser is JSON serialization of dat
+        sig is signature of resource using private signing key corresponding
+            to signer's did indexed key given by signer field in dat
+
+
+    Parameters:
+        did is DID str for agent data resource in database
+        dbn is name str of named sub database, Default is 'core'
+        env is main LMDB database environment
+            If env is not provided then use global dbEnv
+    """
+    global dbEnv
+
+    if env is None:
+        env = dbEnv
+
+    if env is None:
+        raise DatabaseError("Database environment not set up")
+
+    # read from database
+    subDb = dbEnv.open_db(dbn.encode("utf-8"))  # open named sub db named dbn within env
+    with dbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
+        rsrcb = txn.get(did.encode("utf-8"))
+        if rsrcb is None:  # does not exist
+            return (None, None, None)
+
+    rsrc = rsrcb.decode("utf-8")
+    ser, sep, sig = rsrc.partition(SEPARATOR)
+    try:
+        dat = json.loads(ser, object_pairs_hook=ODict)
+    except ValueError as ex:
+        raise DatabaseError("Resource failed deserialization. {}".format(ex))
+
+    try:
+        sdid, index = dat["signer"].rsplit("#", maxsplit=1)
+        index = int(index)  # get index and sdid from signer field
+    except (AttributeError, ValueError) as ex:
+            raise DatabaseError('Invalid or missing did key index')  # missing sdid or index
+
+    try:
+        sdat, sser, ssig = getSelfSigned(sdid)
+    except DatabaseError as ex:
+        raise DatabaseError("Signer errored as {}".format(ex.args[0]))
+
+    if sdat is None:
+        raise DatabaseError("Signer not found")
+
+    try:
+        key = sdat['keys'][index]['key']
+    except (IndexError, KeyError) as ex:
+        raise DatabaseError('Missing verification key')
+
+    if not verify64u(sig, ser, key):
         raise DatabaseError('Signature verification failed')
 
     return (dat, ser, sig)
+
 
 if __name__ == '__main__':
     env = setupDbEnv()
