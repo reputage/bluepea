@@ -60,6 +60,12 @@ def test_setupPrime():
     assert keeping.gKeepDirPath == keepDirPath
     assert dbing.gDbDirPath == dbDirPath
 
+    keeper = keeping.gKeeper
+
+    dat, ser, sig = dbing.getSelfSigned(keeper.did)
+    assert dat
+    assert dat['did'] == keeper.did
+
     cleanupTmpBaseDir(baseDirPath)
     assert not os.path.exists(baseDirPath)
     print("Done Test")
