@@ -44,14 +44,14 @@ def test_setupDbEnv():
     env = dbing.setupDbEnv(baseDirPath=dbDirPath)
     assert env.path() == dbDirPath
 
-    assert dbing.dbDirPath == dbDirPath
-    assert dbing.dbEnv is env
+    assert dbing.DbDirPath == dbDirPath
+    assert dbing.DbEnv is env
 
     data = ODict()
 
-    dbCore = dbing.dbEnv.open_db(b'core')  # open named sub db named 'core' within env
+    dbCore = dbing.DbEnv.open_db(b'core')  # open named sub db named 'core' within env
 
-    with dbing.dbEnv.begin(db=dbCore, write=True) as txn:  # txn is a Transaction object
+    with dbing.DbEnv.begin(db=dbCore, write=True) as txn:  # txn is a Transaction object
         data["name"] = "John Smith"
         data["city"] = "Alta"
         datab = json.dumps(data, indent=2).encode("utf-8")

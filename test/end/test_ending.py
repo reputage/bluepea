@@ -34,8 +34,7 @@ import pytest_falcon # declares client fixture
 """
 from bluepea.bluepeaing import SEPARATOR_BYTES
 
-from bluepea.help.helping import (dumpKeys, loadKeys,
-                                  key64uToKey, keyToKey64u, makeDid,
+from bluepea.help.helping import (key64uToKey, keyToKey64u, makeDid,
                                   verify, verify64u, parseSignatureHeader,
                                   setupTmpBaseDir, cleanupTmpBaseDir,
                                   makeSignedAgentReg, makeSignedThingReg,
@@ -351,9 +350,9 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
     #didb = did.encode("utf-8")  # bytes version
 
     ## save to database
-    #dbEnv = dbing.dbEnv  # lmdb database env assumes already setup
+    #dbEnv = dbing.DbEnv  # lmdb database env assumes already setup
     #dbCore = dbEnv.open_db(b'core')  # open named sub db named 'core' within env
-    #with dbing.dbEnv.begin(db=dbCore, write=True) as txn:  # txn is a Transaction object
+    #with dbEnv.begin(db=dbCore, write=True) as txn:  # txn is a Transaction object
         #rsrcb = txn.get(didb)
         #if rsrcb is not None:  # must not be pre-existing
             #raise falcon.HTTPError(falcon.HTTP_412,

@@ -28,11 +28,11 @@ console = getConsole()
 
 MAX_DB_COUNT = 8
 
-BASE_DIR_PATH = "/var/db/bluepea"  # default
-ALT_BASE_DIR_PATH = os.path.join('~', '.bluepea')
+DATABASE_DIR_PATH = "/var/db/bluepea"  # default
+ALT_DATABASE_DIR_PATH = os.path.join('~', '.bluepea/db')
 
-dbDirPath = None  # database directory location has not been set up yet
-dbEnv = None  # database environment has not been set up yet
+DbDirPath = None  # database directory location has not been set up yet
+DbEnv = None  # database environment has not been set up yet
 
 
 class DatabaseError(BluepeaError):
@@ -45,45 +45,45 @@ class DatabaseError(BluepeaError):
 
 def setupDbEnv(baseDirPath=None):
     """
-    Setup  the module globals dbEnv, dbDirPath using baseDirPath
-    if provided otherwise use BASE_DIR_PATH
+    Setup  the module globals DbEnv, dbDirPath using baseDirPath
+    if provided otherwise use DATABASE_DIR_PATH
 
     """
-    global dbEnv, dbDirPath
+    global DbEnv, DbDirPath
 
     if not baseDirPath:
-        baseDirPath = BASE_DIR_PATH
+        baseDirPath = DATABASE_DIR_PATH
 
     baseDirPath = os.path.abspath(os.path.expanduser(baseDirPath))
     if not os.path.exists(baseDirPath):
         try:
             os.makedirs(baseDirPath)
         except OSError as ex:
-            baseDirPath = ALT_BASE_DIR_PATH
+            baseDirPath = ALT_DATABASE_DIR_PATH
             baseDirPath = os.path.abspath(os.path.expanduser(baseDirPath))
             if not os.path.exists(baseDirPath):
                 os.makedirs(baseDirPath)
     else:
         if not os.access(baseDirPath, os.R_OK | os.W_OK):
-            baseDirPath = ALT_BASE_DIR_PATH
+            baseDirPath = ALT_DATABASE_DIR_PATH
             baseDirPath = os.path.abspath(os.path.expanduser(baseDirPath))
             if not os.path.exists(baseDirPath):
                 os.makedirs(baseDirPath)
 
-    dbDirPath = baseDirPath  # set global
+    DbDirPath = baseDirPath  # set global
 
-    dbEnv = lmdb.open(dbDirPath, max_dbs=MAX_DB_COUNT)
+    DbEnv = lmdb.open(DbDirPath, max_dbs=MAX_DB_COUNT)
     # creates files data.mdb and lock.mdb in dbBaseDirPath
 
     # create named dbs  (core and tables)
-    dbEnv.open_db(b'core')
-    dbEnv.open_db(b'hid2did')  # table of dids keyed by hids
+    DbEnv.open_db(b'core')
+    DbEnv.open_db(b'hid2did')  # table of dids keyed by hids
 
     # verify that the server resource is present in the database
     # need to read in saved server signing keys and query database
     # if not present then create server resource
 
-    return dbEnv
+    return DbEnv
 
 def setupTestDbEnv():
     """
@@ -94,6 +94,11 @@ def setupTestDbEnv():
     baseDirPath = os.path.join(baseDirPath, "db/bluepea")
     os.makedirs(baseDirPath)
     return setupDbEnv(baseDirPath=baseDirPath)
+
+
+def createServerResource(vk, sk, changed=None,  **kwa):
+    """
+    """
 
 
 def putSigned(ser, sig, did, dbn='core', env=None, clobber=True):
@@ -109,21 +114,21 @@ def putSigned(ser, sig, did, dbn='core', env=None, clobber=True):
         did is DID str for agent data resource in database
         dbn is name str of named sub database, Default is 'core'
         env is main LMDB database environment
-            If env is not provided then use global dbEnv
+            If env is not provided then use global DbEnv
         clobber is Boolean If False then raise error if entry at did already
             exists in database
     """
-    global dbEnv
+    global DbEnv
 
     if env is None:
-        env = dbEnv
+        env = DbEnv
 
     if env is None:
         raise DatabaseError("Database environment not set up")
 
     didb = did.encode("utf-8")
-    subDb = dbEnv.open_db(dbn.encode("utf-8"))  # open named sub db named dbn within env
-    with dbEnv.begin(db=subDb, write=True) as txn:  # txn is a Transaction object
+    subDb = DbEnv.open_db(dbn.encode("utf-8"))  # open named sub db named dbn within env
+    with DbEnv.begin(db=subDb, write=True) as txn:  # txn is a Transaction object
         rsrcb = txn.get(didb)
         if clobber and rsrcb is not None:  # pre-existing
             raise DatabaseError("Preexisting entry at DID")
@@ -151,19 +156,19 @@ def getSelfSigned(did, dbn='core', env=None):
         did is DID str for agent data resource in database
         dbn is name str of named sub database, Default is 'core'
         env is main LMDB database environment
-            If env is not provided then use global dbEnv
+            If env is not provided then use global DbEnv
     """
-    global dbEnv
+    global DbEnv
 
     if env is None:
-        env = dbEnv
+        env = DbEnv
 
     if env is None:
         raise DatabaseError("Database environment not set up")
 
     # read from database
-    subDb = dbEnv.open_db(dbn.encode("utf-8"))  # open named sub db named dbn within env
-    with dbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
+    subDb = DbEnv.open_db(dbn.encode("utf-8"))  # open named sub db named dbn within env
+    with DbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
         rsrcb = txn.get(did.encode("utf-8"))
         if rsrcb is None:  # does not exist
             return (None, None, None)
@@ -217,19 +222,19 @@ def getSigned(did, dbn='core', env=None):
         did is DID str for agent data resource in database
         dbn is name str of named sub database, Default is 'core'
         env is main LMDB database environment
-            If env is not provided then use global dbEnv
+            If env is not provided then use global DbEnv
     """
-    global dbEnv
+    global DbEnv
 
     if env is None:
-        env = dbEnv
+        env = DbEnv
 
     if env is None:
         raise DatabaseError("Database environment not set up")
 
     # read from database
-    subDb = dbEnv.open_db(dbn.encode("utf-8"))  # open named sub db named dbn within env
-    with dbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
+    subDb = DbEnv.open_db(dbn.encode("utf-8"))  # open named sub db named dbn within env
+    with DbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
         rsrcb = txn.get(did.encode("utf-8"))
         if rsrcb is None:  # does not exist
             return (None, None, None)
@@ -268,4 +273,4 @@ def getSigned(did, dbn='core', env=None):
 
 if __name__ == '__main__':
     env = setupDbEnv()
-    print("Setup dbEnv")
+    print("Setup DbEnv")
