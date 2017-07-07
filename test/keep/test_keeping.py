@@ -24,9 +24,45 @@ from pytest import approx
 from bluepea.bluepeaing import SEPARATOR
 from bluepea.help.helping import setupTmpBaseDir, cleanupTmpBaseDir
 
-
 from bluepea.keep import keeping
 
+
+def test_setupKeep():
+    """
+    Test setting up keep directory
+    """
+    print("Testing setupKeep")
+
+    baseDirPath = setupTmpBaseDir()
+    assert baseDirPath.startswith("/tmp/bluepea")
+    assert baseDirPath.endswith("test")
+    keepDirPath = os.path.join(baseDirPath, "keep/bluepea")
+    os.makedirs(keepDirPath)
+    assert os.path.exists(keepDirPath)
+
+    gKeepDirPath = keeping.setupKeep(baseDirPath=keepDirPath)
+
+    assert gKeepDirPath == keepDirPath
+    assert gKeepDirPath == keeping.KeepDirPath
+
+    cleanupTmpBaseDir(keepDirPath)
+    assert not os.path.exists(keepDirPath)
+    print("Done Test")
+
+def test_setupTestKeep():
+    """
+    Test setting up test Keep directory
+    """
+    print("Testing setupTestKeep")
+
+    keepDirPath = keeping.setupTestKeep()
+    assert keepDirPath.startswith("/tmp/bluepea")
+    assert keepDirPath.endswith("test/keep/bluepea")
+    assert os.path.exists(keepDirPath)
+    assert keepDirPath == keeping.KeepDirPath
+    cleanupTmpBaseDir(keepDirPath)
+    assert not os.path.exists(keepDirPath)
+    print("Done Test")
 
 def test_dumpLoadKeys():
     """

@@ -26,21 +26,23 @@ from ioflo.aid.sixing import *
 from ioflo.aid import filing
 from ioflo.aid import getConsole
 
+from ..help.helping import setupTmpBaseDir
+
 console = getConsole()
 
 KEEP_DIR_PATH = "/var/keep/bluepea"  # default
 ALT_KEEP_DIR_PATH = os.path.join('~', '.bluepea/keep')
 
-keepDirPath = None  # key directory location has not been set up yet
+KeepDirPath = None  # key directory location has not been set up yet
 
 
 def setupKeep(baseDirPath=None):
     """
-    Setup  the module global keepDirPath using baseDirPath
+    Setup  the module global KeepDirPath using baseDirPath
     if provided otherwise use KEEP_DIR_PATH
 
     """
-    global keepDirPath
+    global KeepDirPath
 
     if not baseDirPath:
         baseDirPath = DATABASE_DIR_PATH
@@ -61,30 +63,19 @@ def setupKeep(baseDirPath=None):
             if not os.path.exists(baseDirPath):
                 os.makedirs(baseDirPath)
 
-    dbDirPath = baseDirPath  # set global
+    KeepDirPath = baseDirPath  # set global
 
-    dbEnv = lmdb.open(dbDirPath, max_dbs=MAX_DB_COUNT)
-    # creates files data.mdb and lock.mdb in dbBaseDirPath
-
-    # create named dbs  (core and tables)
-    dbEnv.open_db(b'core')
-    dbEnv.open_db(b'hid2did')  # table of dids keyed by hids
-
-    # verify that the server resource is present in the database
-    # need to read in saved server signing keys and query database
-    # if not present then create server resource
-
-    return dbEnv
+    return KeepDirPath
 
 def setupTestKeep():
     """
-    Return dbEnv resulting from baseDirpath in temporary directory
-    and then setupDbEnv
+    Return KeepDirPath resulting from baseDirpath in temporary directory
+    and then setupKeep
     """
     baseDirPath = setupTmpBaseDir()
-    baseDirPath = os.path.join(baseDirPath, "db/bluepea")
+    baseDirPath = os.path.join(baseDirPath, "keep/bluepea")
     os.makedirs(baseDirPath)
-    return setupDbEnv(baseDirPath=baseDirPath)
+    return setupKeep(baseDirPath=baseDirPath)
 
 def dumpKeys(data, filepath):
     '''
