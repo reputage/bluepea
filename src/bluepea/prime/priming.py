@@ -32,9 +32,9 @@ console = getConsole()
 def setup(keepDirPath=None, seed=None, prikey=None, dbDirPath=None, changed=None):
     keeper = keeping.setupKeeper(baseDirPath=keepDirPath, seed=seed, prikey=prikey)
     dbEnv = dbing.setupDbEnv(baseDirPath=dbDirPath)
-    dbing.createServerResource(vk=keeper.verkey,
-                               sk=keeper.sigkey,
-                               changed=changed)
+    createServerResource(vk=keeper.verkey,
+                         sk=keeper.sigkey,
+                         changed=changed)
 
 def setupTest():
     seed = (b'\x0c\xaa\xc9\xc6G\x11\xf6nn\xd7\x1b7\xdc^i\xc5\x12O\xe9>\xe1$F\xe1'
@@ -50,4 +50,25 @@ def setupTest():
     os.makedirs(dbDirPath)
 
     setup(keepDirPath=keepDirPath, seed=seed, prikey=prikey, dbDirPath=dbDirPath)
+
+
+def createServerResource(vk, sk, changed=None,  **kwa):
+    """
+    Create and add Server resource to database if not already present
+    given verifier key vk and
+    signing key sk
+    changed is optional dattime stamp if not provided use current datetime
+
+    Assumes that global keeper and dbEnv are already setup
+    """
+    keeper = keeping.gKeeper
+    did = keeper.did
+    dat, ser, sig = dbing.getSelfSigned(did)  # see if valid already exists
+    if dat is None:  # need to create
+        sig, ser = dbing.makeSignedAgentReg(vk=keeper.verkey,
+                                      sk=keeper.sigkey,
+                                      changed=changed)
+        dbing.putSigned(ser, sig, did)  # clobber in case was corrupted to fix
+
+
 

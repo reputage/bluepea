@@ -22,7 +22,7 @@ from ioflo.aid import getConsole
 
 from ..bluepeaing import SEPARATOR, BluepeaError
 
-from ..help.helping import setupTmpBaseDir, verify64u
+from ..help.helping import setupTmpBaseDir, verify64u, makeSignedAgentReg
 
 console = getConsole()
 
@@ -94,16 +94,6 @@ def setupTestDbEnv():
     baseDirPath = os.path.join(baseDirPath, "db/bluepea")
     os.makedirs(baseDirPath)
     return setupDbEnv(baseDirPath=baseDirPath)
-
-
-def createServerResource(vk, sk, changed=None,  **kwa):
-    """
-    Create and add Server resource to database given verifier key vk and
-    signing key sk
-    changed is optional dattime stamp if not provided use current datetime
-
-    Assumes that global keeper and dbEnv are already setup
-    """
 
 
 def putSigned(ser, sig, did, dbn='core', env=None, clobber=True):

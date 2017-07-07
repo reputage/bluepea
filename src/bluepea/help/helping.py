@@ -173,7 +173,7 @@ def verify64u(signature, message, verkey):
     return (verify(sig, msg, vk))
 
 
-def makeSignedAgentReg(vk, sk, changed=None,  **kwa):
+def makeSignedAgentReg(vk, sk, changed=None, **kwa):
     """
     Return duple of (signature,registration) of minimal self-signing
     agent registration record for keypair vk, sk

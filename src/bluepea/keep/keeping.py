@@ -28,7 +28,7 @@ from ioflo.aid.sixing import *
 from ioflo.aid import filing
 from ioflo.aid import getConsole
 
-from ..help.helping import setupTmpBaseDir
+from ..help.helping import setupTmpBaseDir, makeDid
 
 console = getConsole()
 
@@ -106,6 +106,7 @@ class Keeper(object):
                 setattr(self, field, None)
 
         self.setupKeys(seed=seed, prikey=prikey)
+        self.did = makeDid(self.verkey)  # create did
 
     def setupKeys(self, seed, prikey):
         """
