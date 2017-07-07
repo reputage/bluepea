@@ -28,8 +28,8 @@ console = getConsole()
 
 MAX_DB_COUNT = 8
 
-DATABASE_DIR_PATH = "/var/db/bluepea"  # default
-ALT_DATABASE_DIR_PATH = os.path.join('~', '.indigo/db/bluepea')
+DATABASE_DIR_PATH = "/var/bluepea/db"  # default
+ALT_DATABASE_DIR_PATH = os.path.join('~', '.indigo/bluepea/db')
 
 gDbDirPath = None  # database directory location has not been set up yet
 gDbEnv = None  # database environment has not been set up yet
@@ -98,6 +98,11 @@ def setupTestDbEnv():
 
 def createServerResource(vk, sk, changed=None,  **kwa):
     """
+    Create and add Server resource to database given verifier key vk and
+    signing key sk
+    changed is optional dattime stamp if not provided use current datetime
+
+    Assumes that global keeper and dbEnv are already setup
     """
 
 
@@ -270,7 +275,3 @@ def getSigned(did, dbn='core', env=None):
 
     return (dat, ser, sig)
 
-
-if __name__ == '__main__':
-    env = setupDbEnv()
-    print("Setup gDbEnv")

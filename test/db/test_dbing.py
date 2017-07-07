@@ -37,7 +37,7 @@ def test_setupDbEnv():
     baseDirPath = setupTmpBaseDir()
     assert baseDirPath.startswith("/tmp/bluepea")
     assert baseDirPath.endswith("test")
-    dbDirPath = os.path.join(baseDirPath, "db/bluepea")
+    dbDirPath = os.path.join(baseDirPath, "bluepea/db")
     os.makedirs(dbDirPath)
     assert os.path.exists(dbDirPath)
 

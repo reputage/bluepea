@@ -35,7 +35,7 @@ def test_Keeper():
     baseDirPath = setupTmpBaseDir()
     assert baseDirPath.startswith("/tmp/bluepea")
     assert baseDirPath.endswith("test")
-    keepDirPath = os.path.join(baseDirPath, "keep/bluepea")
+    keepDirPath = os.path.join(baseDirPath, "bluepea/keep")
     os.makedirs(keepDirPath)
     assert os.path.exists(keepDirPath)
 
@@ -48,7 +48,7 @@ def test_Keeper():
     keeper = keeping.Keeper(baseDirPath=keepDirPath, seed=seed, prikey=prikey)
 
     assert keeper.baseDirPath == keepDirPath
-    assert keeper.filePath.endswith("/keep/bluepea/key.server.json")
+    assert keeper.filePath.endswith("/bluepea/keep/key.server.json")
 
     assert keeper.seed == seed
     assert keeper.sigkey == (b'\x0c\xaa\xc9\xc6G\x11\xf6nn\xd7\x1b7\xdc^i\xc5\x12O\xe9>\xe1$F\xe1'
@@ -87,7 +87,7 @@ def test_setupKeeper():
     baseDirPath = setupTmpBaseDir()
     assert baseDirPath.startswith("/tmp/bluepea")
     assert baseDirPath.endswith("test")
-    keepDirPath = os.path.join(baseDirPath, "keep/bluepea")
+    keepDirPath = os.path.join(baseDirPath, "bluepea/keep")
     os.makedirs(keepDirPath)
     assert os.path.exists(keepDirPath)
 
@@ -118,7 +118,7 @@ def test_setupTestKeeper():
 
     assert keeper.baseDirPath == keeping.gKeepDirPath
     assert keeper.baseDirPath.startswith("/tmp/bluepea")
-    assert keeper.baseDirPath.endswith("test/keep/bluepea")
+    assert keeper.baseDirPath.endswith("test/bluepea/keep")
     assert os.path.exists(keeper.baseDirPath)
 
     cleanupTmpBaseDir(keeper.baseDirPath)
@@ -135,7 +135,7 @@ def test_setupKeep():
     baseDirPath = setupTmpBaseDir()
     assert baseDirPath.startswith("/tmp/bluepea")
     assert baseDirPath.endswith("test")
-    keepDirPath = os.path.join(baseDirPath, "keep/bluepea")
+    keepDirPath = os.path.join(baseDirPath, "bluepea/keep")
     os.makedirs(keepDirPath)
     assert os.path.exists(keepDirPath)
 
@@ -156,7 +156,7 @@ def test_setupTestKeep():
 
     keepDirPath = keeping.setupTestKeep()
     assert keepDirPath.startswith("/tmp/bluepea")
-    assert keepDirPath.endswith("test/keep/bluepea")
+    assert keepDirPath.endswith("test/bluepea/keep")
     assert os.path.exists(keepDirPath)
     assert keepDirPath == keeping.gKeepDirPath
     cleanupTmpBaseDir(keepDirPath)
@@ -171,13 +171,13 @@ def test_loadAllKeys():
 
     keepDirPath = keeping.setupTestKeep()
     assert keepDirPath.startswith("/tmp/bluepea")
-    assert keepDirPath.endswith("test/keep/bluepea")
+    assert keepDirPath.endswith("test/bluepea/keep")
     assert os.path.exists(keepDirPath)
     assert keepDirPath == keeping.gKeepDirPath
 
     prefix = "server"
     keyFilePath = os.path.join(keepDirPath, "key.{}.json".format(prefix))
-    assert keyFilePath.endswith("/keep/bluepea/key.{}.json".format(prefix))
+    assert keyFilePath.endswith("/bluepea/keep/key.{}.json".format(prefix))
 
     # random seed used to generate private signing key
     #seed = libnacl.randombytes(libnacl.crypto_sign_SEEDBYTES)

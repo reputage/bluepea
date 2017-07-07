@@ -32,8 +32,8 @@ from ..help.helping import setupTmpBaseDir
 
 console = getConsole()
 
-KEEP_DIR_PATH = "/var/keep/bluepea"  # default
-ALT_KEEP_DIR_PATH = os.path.join('~', '.indigo/keep/bluepea')
+KEEP_DIR_PATH = "/var/bluepea/keep"  # default
+ALT_KEEP_DIR_PATH = os.path.join('~', '.indigo/bluepea/keep')
 
 gKeepDirPath = None  # key directory location has not been set up yet
 gKeeper = None  # Keeper instance has not been set up yet
@@ -42,8 +42,8 @@ class Keeper(object):
     """
     Keeper Class to manage or hold cryptographic Keys
     """
-    KeepDir = os.path.join("/var", "keep", "bluepea")
-    AltKeepDir = os.path.join("~", ".indigo", "keep", "bluepea")
+    KeepDir = os.path.join("/var", "bluepea", "keep", )
+    AltKeepDir = os.path.join("~", ".indigo", "bluepea", "keep")
     Prefix = "key"
     Role = "server"
     Ext = "json" # default serialization type of json and msgpack
@@ -328,7 +328,7 @@ def setupTestKeeper():
               b'\xd9\xe6\x99%')
 
     baseDirPath = setupTmpBaseDir()
-    baseDirPath = os.path.join(baseDirPath, "keep/bluepea")
+    baseDirPath = os.path.join(baseDirPath, "bluepea/keep")
     os.makedirs(baseDirPath)
     return setupKeeper(baseDirPath=baseDirPath, seed=seed, prikey=prikey)
 
@@ -369,7 +369,7 @@ def setupTestKeep():
     and then setupKeep
     """
     baseDirPath = setupTmpBaseDir()
-    baseDirPath = os.path.join(baseDirPath, "keep/bluepea")
+    baseDirPath = os.path.join(baseDirPath, "bluepea/keep")
     os.makedirs(baseDirPath)
     return setupKeep(baseDirPath=baseDirPath)
 
