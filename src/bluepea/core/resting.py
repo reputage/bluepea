@@ -80,7 +80,7 @@ def bluepeaServerOpen(self, buffer=False, **kwa):
         dbDirPath = os.path.abspath(os.path.expanduser(dbDirPath))
         dbing.setupDbEnv(baseDirPath=dbDirPath)
 
-    self.dbDirPath.value = dbing.DbDirPath
+    self.dbDirPath.value = dbing.gDbDirPath
 
     app = falcon.API()  # falcon.API instances are callable WSGI apps
     ending.loadEnds(app, store=self.store)

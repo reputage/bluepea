@@ -217,9 +217,9 @@ class ThingRegister:
                                   '{}'.format(ex.args[0]))
 
         if result['hid']:  # add entry to hids table to lookup did by hid
-            dbEnv = dbing.DbEnv
+            dbEnv = dbing.gDbEnv
             dbHid2Did = dbEnv.open_db(b'hid2did')  # open named sub db named 'hid2did' within env
-            with dbing.DbEnv.begin(db=dbHid2Did, write=True) as txn:  # txn is a Transaction object
+            with dbing.gDbEnv.begin(db=dbHid2Did, write=True) as txn:  # txn is a Transaction object
                 txn.put(result['hid'].encode("utf-8"), tdid.encode("utf-8"))  # keys and values are bytes
 
         didURI = falcon.uri.encode_value(tdid)

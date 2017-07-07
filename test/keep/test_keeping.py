@@ -26,6 +26,105 @@ from bluepea.help.helping import setupTmpBaseDir, cleanupTmpBaseDir
 
 from bluepea.keep import keeping
 
+def test_Keeper():
+    """
+    Test Keeper class
+    """
+    print("Testing Keeper Class")
+
+    baseDirPath = setupTmpBaseDir()
+    assert baseDirPath.startswith("/tmp/bluepea")
+    assert baseDirPath.endswith("test")
+    keepDirPath = os.path.join(baseDirPath, "keep/bluepea")
+    os.makedirs(keepDirPath)
+    assert os.path.exists(keepDirPath)
+
+    seed = (b'\x0c\xaa\xc9\xc6G\x11\xf6nn\xd7\x1b7\xdc^i\xc5\x12O\xe9>\xe1$F\xe1'
+            b'\xa4z\xd4\xb6P\xdd\x86\x1d')
+
+    prikey = (b'\xd9\xc8<$\x03\xb9%\x03c\xb3*6g\xa7m\xd8\x8d\x08j\xd4^4\x88\xcac\xba\xd1\xe9'
+              b'\xd9\xe6\x99%')
+
+    keeper = keeping.Keeper(baseDirPath=keepDirPath, seed=seed, prikey=prikey)
+
+    assert keeper.baseDirPath == keepDirPath
+    assert keeper.filePath.endswith("/keep/bluepea/key.server.json")
+
+    assert keeper.seed == seed
+    assert keeper.sigkey == (b'\x0c\xaa\xc9\xc6G\x11\xf6nn\xd7\x1b7\xdc^i\xc5\x12O\xe9>\xe1$F\xe1'
+                             b'\xa4z\xd4\xb6P\xdd\x86\x1d^\xaeX\xa9\xa2\xfa/\x8f)\x7fG\xee\xec\x85!/BQiM'
+                             b"\xbfG\x11O\xd0\x02\xf8\xdf\x06'\xd7\x8f")
+    assert keeper.sigkey[:32] == keeper.seed
+    assert keeper.verkey == (b'^\xaeX\xa9\xa2\xfa/\x8f)\x7fG\xee\xec\x85!/BQiM\xbfG\x11O\xd0\x02\xf8\xdf'
+                             b"\x06'\xd7\x8f")
+
+
+    keys = keeper.loadAllRoles(keeper.baseDirPath)
+    assert "server" in keys
+    assert keys['server']['seed'] == '0caac9c64711f66e6ed71b37dc5e69c5124fe93ee12446e1a47ad4b650dd861d'
+    assert keys['server']['prikey'] == 'd9c83c2403b9250363b32a3667a76dd88d086ad45e3488ca63bad1e9d9e69925'
+
+    keeper.clearBaseDir()
+    assert not os.path.exists(keepDirPath)
+
+    cleanupTmpBaseDir(os.path.dirname(keepDirPath))
+    assert not os.path.exists(os.path.dirname(keepDirPath))
+    print("Done Test")
+
+
+def test_setupKeeper():
+    """
+    Test setting up keep directory
+    """
+    print("Testing setupKeeper")
+
+    seed = (b'\x0c\xaa\xc9\xc6G\x11\xf6nn\xd7\x1b7\xdc^i\xc5\x12O\xe9>\xe1$F\xe1'
+            b'\xa4z\xd4\xb6P\xdd\x86\x1d')
+
+    prikey = (b'\xd9\xc8<$\x03\xb9%\x03c\xb3*6g\xa7m\xd8\x8d\x08j\xd4^4\x88\xcac\xba\xd1\xe9'
+              b'\xd9\xe6\x99%')
+
+    baseDirPath = setupTmpBaseDir()
+    assert baseDirPath.startswith("/tmp/bluepea")
+    assert baseDirPath.endswith("test")
+    keepDirPath = os.path.join(baseDirPath, "keep/bluepea")
+    os.makedirs(keepDirPath)
+    assert os.path.exists(keepDirPath)
+
+    keeper = keeping.setupKeeper(baseDirPath=keepDirPath, seed=seed, prikey=prikey)
+
+    assert keeper == keeping.gKeeper
+    assert keeper.baseDirPath == keeping.gKeepDirPath
+
+    cleanupTmpBaseDir(keepDirPath)
+    assert not os.path.exists(keepDirPath)
+    print("Done Test")
+
+def test_setupTestKeeper():
+    """
+    Test setting up test Keep directory
+    """
+    print("Testing setupTestKeep")
+
+    keeper = keeping.setupTestKeeper()
+    assert keeper == keeping.gKeeper
+
+    assert keeper.seed == (b'\x0c\xaa\xc9\xc6G\x11\xf6nn\xd7\x1b7\xdc^i\xc5\x12O\xe9>\xe1$F\xe1'
+            b'\xa4z\xd4\xb6P\xdd\x86\x1d')
+
+    assert keeper.prikey == (b'\xd9\xc8<$\x03\xb9%\x03c\xb3*6g\xa7m\xd8\x8d\x08j\xd4^4\x88\xcac\xba\xd1\xe9'
+              b'\xd9\xe6\x99%')
+
+
+    assert keeper.baseDirPath == keeping.gKeepDirPath
+    assert keeper.baseDirPath.startswith("/tmp/bluepea")
+    assert keeper.baseDirPath.endswith("test/keep/bluepea")
+    assert os.path.exists(keeper.baseDirPath)
+
+    cleanupTmpBaseDir(keeper.baseDirPath)
+    assert not os.path.exists(keeper.baseDirPath)
+    print("Done Test")
+
 
 def test_setupKeep():
     """
@@ -43,7 +142,7 @@ def test_setupKeep():
     gKeepDirPath = keeping.setupKeep(baseDirPath=keepDirPath)
 
     assert gKeepDirPath == keepDirPath
-    assert gKeepDirPath == keeping.KeepDirPath
+    assert gKeepDirPath == keeping.gKeepDirPath
 
     cleanupTmpBaseDir(keepDirPath)
     assert not os.path.exists(keepDirPath)
@@ -59,7 +158,7 @@ def test_setupTestKeep():
     assert keepDirPath.startswith("/tmp/bluepea")
     assert keepDirPath.endswith("test/keep/bluepea")
     assert os.path.exists(keepDirPath)
-    assert keepDirPath == keeping.KeepDirPath
+    assert keepDirPath == keeping.gKeepDirPath
     cleanupTmpBaseDir(keepDirPath)
     assert not os.path.exists(keepDirPath)
     print("Done Test")
@@ -74,7 +173,7 @@ def test_loadAllKeys():
     assert keepDirPath.startswith("/tmp/bluepea")
     assert keepDirPath.endswith("test/keep/bluepea")
     assert os.path.exists(keepDirPath)
-    assert keepDirPath == keeping.KeepDirPath
+    assert keepDirPath == keeping.gKeepDirPath
 
     prefix = "server"
     keyFilePath = os.path.join(keepDirPath, "key.{}.json".format(prefix))
@@ -186,3 +285,4 @@ def test_dumpLoadKeys():
     cleanupTmpBaseDir(baseDirPath)
     assert not os.path.exists(keyFilePath)
     print("Done Test")
+

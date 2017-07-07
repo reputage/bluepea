@@ -31,8 +31,8 @@ MAX_DB_COUNT = 8
 DATABASE_DIR_PATH = "/var/db/bluepea"  # default
 ALT_DATABASE_DIR_PATH = os.path.join('~', '.indigo/db/bluepea')
 
-DbDirPath = None  # database directory location has not been set up yet
-DbEnv = None  # database environment has not been set up yet
+gDbDirPath = None  # database directory location has not been set up yet
+gDbEnv = None  # database environment has not been set up yet
 
 
 class DatabaseError(BluepeaError):
@@ -45,11 +45,11 @@ class DatabaseError(BluepeaError):
 
 def setupDbEnv(baseDirPath=None):
     """
-    Setup  the module globals DbEnv, dbDirPath using baseDirPath
+    Setup  the module globals gDbEnv, gDbDirPath using baseDirPath
     if provided otherwise use DATABASE_DIR_PATH
 
     """
-    global DbEnv, DbDirPath
+    global gDbEnv, gDbDirPath
 
     if not baseDirPath:
         baseDirPath = DATABASE_DIR_PATH
@@ -70,20 +70,20 @@ def setupDbEnv(baseDirPath=None):
             if not os.path.exists(baseDirPath):
                 os.makedirs(baseDirPath)
 
-    DbDirPath = baseDirPath  # set global
+    gDbDirPath = baseDirPath  # set global
 
-    DbEnv = lmdb.open(DbDirPath, max_dbs=MAX_DB_COUNT)
+    gDbEnv = lmdb.open(gDbDirPath, max_dbs=MAX_DB_COUNT)
     # creates files data.mdb and lock.mdb in dbBaseDirPath
 
     # create named dbs  (core and tables)
-    DbEnv.open_db(b'core')
-    DbEnv.open_db(b'hid2did')  # table of dids keyed by hids
+    gDbEnv.open_db(b'core')
+    gDbEnv.open_db(b'hid2did')  # table of dids keyed by hids
 
     # verify that the server resource is present in the database
     # need to read in saved server signing keys and query database
     # if not present then create server resource
 
-    return DbEnv
+    return gDbEnv
 
 def setupTestDbEnv():
     """
@@ -114,21 +114,21 @@ def putSigned(ser, sig, did, dbn='core', env=None, clobber=True):
         did is DID str for agent data resource in database
         dbn is name str of named sub database, Default is 'core'
         env is main LMDB database environment
-            If env is not provided then use global DbEnv
+            If env is not provided then use global gDbEnv
         clobber is Boolean If False then raise error if entry at did already
             exists in database
     """
-    global DbEnv
+    global gDbEnv
 
     if env is None:
-        env = DbEnv
+        env = gDbEnv
 
     if env is None:
         raise DatabaseError("Database environment not set up")
 
     didb = did.encode("utf-8")
-    subDb = DbEnv.open_db(dbn.encode("utf-8"))  # open named sub db named dbn within env
-    with DbEnv.begin(db=subDb, write=True) as txn:  # txn is a Transaction object
+    subDb = gDbEnv.open_db(dbn.encode("utf-8"))  # open named sub db named dbn within env
+    with gDbEnv.begin(db=subDb, write=True) as txn:  # txn is a Transaction object
         rsrcb = txn.get(didb)
         if clobber and rsrcb is not None:  # pre-existing
             raise DatabaseError("Preexisting entry at DID")
@@ -156,19 +156,19 @@ def getSelfSigned(did, dbn='core', env=None):
         did is DID str for agent data resource in database
         dbn is name str of named sub database, Default is 'core'
         env is main LMDB database environment
-            If env is not provided then use global DbEnv
+            If env is not provided then use global gDbEnv
     """
-    global DbEnv
+    global gDbEnv
 
     if env is None:
-        env = DbEnv
+        env = gDbEnv
 
     if env is None:
         raise DatabaseError("Database environment not set up")
 
     # read from database
-    subDb = DbEnv.open_db(dbn.encode("utf-8"))  # open named sub db named dbn within env
-    with DbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
+    subDb = gDbEnv.open_db(dbn.encode("utf-8"))  # open named sub db named dbn within env
+    with gDbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
         rsrcb = txn.get(did.encode("utf-8"))
         if rsrcb is None:  # does not exist
             return (None, None, None)
@@ -222,19 +222,19 @@ def getSigned(did, dbn='core', env=None):
         did is DID str for agent data resource in database
         dbn is name str of named sub database, Default is 'core'
         env is main LMDB database environment
-            If env is not provided then use global DbEnv
+            If env is not provided then use global gDbEnv
     """
-    global DbEnv
+    global gDbEnv
 
     if env is None:
-        env = DbEnv
+        env = gDbEnv
 
     if env is None:
         raise DatabaseError("Database environment not set up")
 
     # read from database
-    subDb = DbEnv.open_db(dbn.encode("utf-8"))  # open named sub db named dbn within env
-    with DbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
+    subDb = gDbEnv.open_db(dbn.encode("utf-8"))  # open named sub db named dbn within env
+    with gDbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
         rsrcb = txn.get(did.encode("utf-8"))
         if rsrcb is None:  # does not exist
             return (None, None, None)
@@ -273,4 +273,4 @@ def getSigned(did, dbn='core', env=None):
 
 if __name__ == '__main__':
     env = setupDbEnv()
-    print("Setup DbEnv")
+    print("Setup gDbEnv")
