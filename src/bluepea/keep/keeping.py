@@ -31,7 +31,7 @@ from ..help.helping import setupTmpBaseDir
 console = getConsole()
 
 KEEP_DIR_PATH = "/var/keep/bluepea"  # default
-ALT_KEEP_DIR_PATH = os.path.join('~', '.bluepea/keep')
+ALT_KEEP_DIR_PATH = os.path.join('~', '.indigo/keep/bluepea')
 
 KeepDirPath = None  # key directory location has not been set up yet
 
@@ -64,6 +64,11 @@ def setupKeep(baseDirPath=None):
                 os.makedirs(baseDirPath)
 
     KeepDirPath = baseDirPath  # set global
+
+    # restore keys if any
+
+    # keys = loadAllKeys(KeepDirPath)
+
 
     return KeepDirPath
 
@@ -133,3 +138,40 @@ def loadKeys(filepath):
     except ValueError:
         return None
     return it
+
+def loadAllKeyRoles(dirpath, prefix="key", role=""):
+    """
+    Load and Return the keys dict indexed by role for all key data files with
+    prefix in  directory at dirpath  both .json and .msgpack file extensions
+    are supported
+
+    If role is not empty then loads last keyfile that matches both prefix and role
+
+    key files names of form:
+    prefix.role.json
+    prefix.role.msgpack
+
+    (when prefix is the default "key" )
+    key.server.json
+    key.server.msgpack
+
+    key fields in keyfiles should be in:
+    ('seed', 'sigkey', 'verkey', 'prikey', 'pubkey')
+
+    values are bytes of binary key value
+
+    """
+    roles = ODict()
+    for filename in os.listdir(dirpath):  # filenames without directory
+        filepath = os.path.join(dirpath, filename)  # need full path for isfile
+        if not os.path.isfile(filepath):
+            continue
+        root, ext = os.path.splitext(filename)
+        if ext not in ['.json', '.msgpack']:
+            continue
+        pre, sep, rol = root.partition('.')
+        if not rol or pre != prefix or (role and rol != role):
+            continue
+        roles[rol] = loadKeys(filepath)
+    return roles
+

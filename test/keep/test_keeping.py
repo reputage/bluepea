@@ -64,6 +64,65 @@ def test_setupTestKeep():
     assert not os.path.exists(keepDirPath)
     print("Done Test")
 
+def test_loadAllKeys():
+    """
+    Test loading all key files from directory
+    """
+    print("Testing loadAllKeys")
+
+    keepDirPath = keeping.setupTestKeep()
+    assert keepDirPath.startswith("/tmp/bluepea")
+    assert keepDirPath.endswith("test/keep/bluepea")
+    assert os.path.exists(keepDirPath)
+    assert keepDirPath == keeping.KeepDirPath
+
+    prefix = "server"
+    keyFilePath = os.path.join(keepDirPath, "key.{}.json".format(prefix))
+    assert keyFilePath.endswith("/keep/bluepea/key.{}.json".format(prefix))
+
+    # random seed used to generate private signing key
+    #seed = libnacl.randombytes(libnacl.crypto_sign_SEEDBYTES)
+    seed = (b'PTi\x15\xd5\xd3`\xf1u\x15}^r\x9bfH\x02l\xc6\x1b\x1d\x1c\x0b9\xd7{\xc0_'
+            b'\xf2K\x93`')
+
+    # creates signing/verification key pair
+    verkey, sigkey = libnacl.crypto_sign_seed_keypair(seed)
+
+    assert seed == sigkey[:32]
+    assert verkey == (b'B\xdd\xbb}8V\xa0\xd6lk\xcf\x15\xad9\x1e\xa7\xa1\xfe\xe0p<\xb6\xbex'
+                      b'\xb0s\x8d\xd6\xf5\xa5\xe8Q')
+    assert sigkey == (b'PTi\x15\xd5\xd3`\xf1u\x15}^r\x9bfH\x02l\xc6\x1b\x1d\x1c\x0b9\xd7{\xc0_'
+                      b'\xf2K\x93`B\xdd\xbb}8V\xa0\xd6lk\xcf\x15\xad9\x1e\xa7\xa1\xfe\xe0p<\xb6\xbex'
+                      b'\xb0s\x8d\xd6\xf5\xa5\xe8Q')
+
+
+    keys = ODict(seed=binascii.hexlify(seed).decode('utf-8'),
+                    sigkey=binascii.hexlify(sigkey).decode('utf-8'),
+                    verkey=binascii.hexlify(verkey).decode('utf-8'))
+
+    assert keys == ODict([
+        ('seed',
+         '50546915d5d360f175157d5e729b6648026cc61b1d1c0b39d77bc05ff24b9360'),
+        ('sigkey',
+         ('50546915d5d360f175157d5e729b6648026cc61b1d1c0b39d77bc05ff24b93604'
+             '2ddbb7d3856a0d66c6bcf15ad391ea7a1fee0703cb6be78b0738dd6f5a5e851')),
+        ('verkey',
+         '42ddbb7d3856a0d66c6bcf15ad391ea7a1fee0703cb6be78b0738dd6f5a5e851')
+    ])
+
+    keeping.dumpKeys(keys, keyFilePath)
+    assert os.path.exists(keyFilePath)
+    mode = stat.filemode(os.stat(keyFilePath).st_mode)
+    assert mode == "-rw-------"
+
+    roles = keeping.loadAllKeyRoles(keepDirPath)
+    assert prefix in roles
+    assert roles[prefix] == keys  # round trip
+
+    cleanupTmpBaseDir(keepDirPath)
+    assert not os.path.exists(keepDirPath)
+    print("Done Test")
+
 def test_dumpLoadKeys():
     """
 

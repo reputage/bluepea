@@ -29,7 +29,7 @@ console = getConsole()
 MAX_DB_COUNT = 8
 
 DATABASE_DIR_PATH = "/var/db/bluepea"  # default
-ALT_DATABASE_DIR_PATH = os.path.join('~', '.bluepea/db')
+ALT_DATABASE_DIR_PATH = os.path.join('~', '.indigo/db/bluepea')
 
 DbDirPath = None  # database directory location has not been set up yet
 DbEnv = None  # database environment has not been set up yet
