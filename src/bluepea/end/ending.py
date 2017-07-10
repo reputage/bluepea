@@ -25,11 +25,52 @@ from ..help.helping import (parseSignatureHeader, verify64u,
                             validateSignedAgentReg, validateSignedThingReg,
                             validateSignedResource)
 from ..db import dbing
+from ..keep import keeping
 
 console = getConsole()
 
 AGENT_BASE_PATH = "/agent"
 THING_BASE_PATH = "/thing"
+
+class AgentServer:
+    """
+    Agent Server Resource
+
+    Attributes:
+        .store is reference to ioflo data store
+
+    """
+    def  __init__(self, store=None, **kwa):
+        """
+        Parameters:
+            store is reference to ioflo data store
+        """
+        super(**kwa)
+        self.store = store
+
+    def on_get(self, req, rep):
+        """
+        Handles GET request for the Server Agent
+        """
+        did = keeping.gKeeper.did
+
+        # read from database
+        try:
+            dat, ser, sig = dbing.getSelfSigned(did)
+        except dbing.DatabaseError as ex:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                            'Resource Verification Error',
+                            'Error verifying resource. {}'.format(ex))
+
+        if dat is None:
+            raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
+                                               'Not Found Error',
+                                               'DID resource does not exist')
+
+        rep.set_header("Signature", 'signer="{}"'.format(sig))
+        rep.set_header("Content-Type", "application/json; charset=UTF-8")
+        rep.status = falcon.HTTP_200  # This is the default status
+        rep.body = ser
 
 class AgentRegister:
     """
@@ -261,6 +302,9 @@ def loadEnds(app, store):
     This function provides the endpoint resource instances
     with a reference to the data store
     """
+    agentServer = AgentServer(store=store)
+    app.add_route('{}/server'.format(AGENT_BASE_PATH), agentServer)
+
     agentRegister = AgentRegister(store=store)
     app.add_route('{}/register'.format(AGENT_BASE_PATH), agentRegister)
 

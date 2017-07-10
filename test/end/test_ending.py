@@ -41,6 +41,9 @@ from bluepea.help.helping import (key64uToKey, keyToKey64u, makeDid,
                                   )
 from bluepea.db.dbing import setupTestDbEnv
 
+import bluepea.db.dbing as dbing
+import bluepea.keep.keeping as keeping
+import bluepea.prime.priming as priming
 import bluepea.end.ending as ending
 
 store = storing.Store(stamp=0.0)
@@ -526,6 +529,87 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
     assert rep.json == treg
 
     assert verify64u(ssignature, tregistration, sverkey)
+
+    cleanupTmpBaseDir(dbEnv.path())
+    print("Done Test")
+
+
+def test_get_AgentServer(client):  # client is a fixture in pytest_falcon
+    """
+    Test GET to retrieve precreated server agent.
+    """
+    print("Testing GET /agent/register with signature")
+
+    priming.setupTest()
+    dbEnv = dbing.gDbEnv
+    keeper = keeping.gKeeper
+    did = keeper.did
+
+    print("Testing GET /agent/server")
+
+    rep = client.get('/agent/server')
+
+    assert rep.status == falcon.HTTP_OK
+    assert int(rep.headers['content-length']) == 291
+    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
+    assert rep.headers['signature'] == ('signer="u72j9aKHgz99f0K8pSkMnyqwvEr_3r'
+                'pS_z2034L99sTWrMIIJGQPbVuIJ1cupo6cfIf_KCB5ecVRYoFRzAPnAQ=="')
+    sigs = parseSignatureHeader(rep.headers['signature'])
+
+    assert sigs['signer'] == ('u72j9aKHgz99f0K8pSkMnyqwvEr_3rpS_z2034L99sTWrMII'
+                              'JGQPbVuIJ1cupo6cfIf_KCB5ecVRYoFRzAPnAQ==')
+
+    assert rep.body == (
+        '{\n'
+        '  "did": "did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=",\n'
+        '  "signer": "did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=#0",\n'
+        '  "changed": "2000-01-01T00:00:00+00:00",\n'
+        '  "keys": [\n'
+        '    {\n'
+        '      "key": "Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=",\n'
+        '      "kind": "EdDSA"\n'
+        '    }\n'
+        '  ]\n'
+        '}')
+
+    assert rep.json == {
+        'did': 'did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=',
+        'signer': 'did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=#0',
+        'changed': '2000-01-01T00:00:00+00:00',
+        'keys':
+        [
+            {
+                'key': 'Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=',
+                'kind': 'EdDSA'
+            }
+        ],
+    }
+
+    assert rep.json['did'] == did
+
+    assert verify64u(sigs['signer'], rep.body, rep.json['keys'][0]['key'])
+
+    dat, ser, sig = dbing.getSigned(did)
+
+    assert dat == rep.json
+    assert ser == rep.body
+    assert sig == sigs['signer']
+
+    print("Testing get server using GET /agent/registration?did=")
+
+    didURI = falcon.uri.encode_value(did)
+    rep = client.get('/agent/register?did={}'.format(didURI))
+
+    assert rep.status == falcon.HTTP_OK
+    assert int(rep.headers['content-length']) == 291
+    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
+    assert rep.headers['signature'] == ('signer="u72j9aKHgz99f0K8pSkMnyqwvEr_3r'
+                    'pS_z2034L99sTWrMIIJGQPbVuIJ1cupo6cfIf_KCB5ecVRYoFRzAPnAQ=="')
+    sigs = parseSignatureHeader(rep.headers['signature'])
+
+    assert sigs['signer'] == sig
+    assert rep.body == ser
+    assert rep.json == dat
 
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")

@@ -34,6 +34,10 @@ def test_setupPrime():
     """
     print("Testing setup")
 
+    dt = datetime.datetime(2000, 1, 1, tzinfo=datetime.timezone.utc)
+    stamp = timing.iso8601(dt, aware=True)
+    assert  stamp == "2000-01-01T00:00:00+00:00"
+
     baseDirPath = setupTmpBaseDir()
 
     assert baseDirPath.startswith("/tmp/bluepea")
@@ -53,9 +57,11 @@ def test_setupPrime():
     os.makedirs(dbDirPath)
     assert os.path.exists(dbDirPath)
 
-    priming.setup(keepDirPath=keepDirPath, seed=seed, prikey=prikey,
+    priming.setup(keepDirPath=keepDirPath,
+                  seed=seed,
+                  prikey=prikey,
                   dbDirPath=dbDirPath,
-                  changed=None)
+                  changed=stamp)
 
     assert keeping.gKeepDirPath == keepDirPath
     assert dbing.gDbDirPath == dbDirPath
@@ -65,6 +71,7 @@ def test_setupPrime():
     dat, ser, sig = dbing.getSelfSigned(keeper.did)
     assert dat
     assert dat['did'] == keeper.did
+    assert dat['changed'] == stamp
 
     cleanupTmpBaseDir(baseDirPath)
     assert not os.path.exists(baseDirPath)
