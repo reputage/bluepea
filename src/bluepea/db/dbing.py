@@ -96,7 +96,7 @@ def setupTestDbEnv():
     return setupDbEnv(baseDirPath=baseDirPath)
 
 
-def putSigned(ser, sig, did, dbn='core', env=None, clobber=True):
+def putSigned(ser, sig, did, dbn="core", env=None, clobber=True):
     """
     Put signed serialization ser with signature sig at key did in named sub
     database dbn in lmdb database environment env. If clobber is False then
@@ -122,13 +122,33 @@ def putSigned(ser, sig, did, dbn='core', env=None, clobber=True):
         raise DatabaseError("Database environment not set up")
 
     didb = did.encode("utf-8")
-    subDb = gDbEnv.open_db(dbn.encode("utf-8"))  # open named sub db named dbn within env
-    with gDbEnv.begin(db=subDb, write=True) as txn:  # txn is a Transaction object
-        rsrcb = txn.get(didb)
-        if clobber and rsrcb is not None:  # pre-existing
+    subDb = env.open_db(dbn.encode("utf-8"))  # open named sub db named dbn within env
+    with env.begin(db=subDb, write=True) as txn:  # txn is a Transaction object
+        rsrcb = (ser + SEPARATOR + sig).encode("utf-8")  # keys and values must be bytes
+        result = txn.put(didb, rsrcb, overwrite=clobber )
+        if not result:
             raise DatabaseError("Preexisting entry at DID")
-        rsrc = ser + SEPARATOR + sig
-        txn.put(didb, rsrc.encode("utf-8") )  # keys and values are bytes
+
+def putHid(hid, did, dbn="hid2did", env=None):
+    """
+    Put entry in HID to DID table
+    assumes the each HID is unique so just overwrites
+
+    Could make this better by using db .replace and checking that previous value
+    is the same
+    """
+    global gDbEnv
+
+    if env is None:
+        env = gDbEnv
+
+    if env is None:
+        raise DatabaseError("Database environment not set up")
+
+    subDb = env.open_db(dbn.encode("utf-8"))  # open named sub dbn within env
+    with env.begin(db=subDb, write=True) as txn:  # txn is a Transaction object
+        # will overwrite by default
+        result = txn.put(hid.encode("utf-8"), did.encode("utf-8"))  # keys and values are bytes
 
 
 def getSelfSigned(did, dbn='core', env=None):

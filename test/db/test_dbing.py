@@ -82,7 +82,7 @@ def test_putSigned_getSelfSigned():
     """
     Test putSigned and getSelfSigned
     """
-    print("Testing utSigned and getSelfSigned")
+    print("Testing putSigned and getSelfSigned")
 
     dbEnv = dbing.setupTestDbEnv()
 
@@ -134,11 +134,11 @@ def test_putSigned_getSelfSigned():
     print("Done Test")
 
 
-def test_putSigned_getSelfSigned():
+def test_putSigned_getSigned():
     """
-    Test putSigned and getSelfSigned
+    Test putSigned and getSigned
     """
-    print("Testing utSigned and getSelfSigned")
+    print("Testing putSigned and getSigned")
 
     dbEnv = dbing.setupTestDbEnv()
 
@@ -258,6 +258,14 @@ def test_putSigned_getSelfSigned():
     assert gdat == tdat
     assert gser == tser
     assert gsig == tsig
+
+    dbing.putHid(hid, tdid)
+    # verify hid table entry
+    dbHid2Did = dbEnv.open_db(b'hid2did')  # open named sub db named 'hid2did' within env
+    with dbEnv.begin(db=dbHid2Did) as txn:  # txn is a Transaction object
+        tdidb = txn.get(hid.encode("utf-8"))  # keys are bytes
+
+    assert tdidb.decode("utf-8") == tdid
 
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")
