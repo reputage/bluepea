@@ -132,6 +132,22 @@ class ExamplePauseResource:
         rep.content_type = "application/json"
         rep.stream = jsonGenerator()
 
+class ExampleDidResource:
+    def  __init__(self, **kwa):
+        super(**kwa)
+
+    def on_get(self, req, rep, did):
+        """
+        Handles GET requests
+
+        So falcon automatically url decodes path components
+        """
+        message = "\nHello World {} from path\n{}\n\n".format(did, req.path)
+        rep.status = falcon.HTTP_200  # This is the default status
+        rep.content_type = "text/html"
+        rep.body = message
+
+
 app = falcon.API() # falcon.API instances are callable WSGI apps
 
 example = ExampleResource()  # Resources are represented by long-lived class instances
@@ -145,6 +161,9 @@ app.add_route('/example/async', exampleAsync)
 
 examplePause = ExamplePauseResource()
 app.add_route('/example/pause', examplePause)
+
+exampleDid = ExampleDidResource()
+app.add_route('/example/did/{did}', exampleDid)
 
 if __name__ == '__main__':
     from wsgiref import simple_server

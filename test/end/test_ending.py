@@ -319,7 +319,7 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
 
     Does an Agent registration to setup database
     """
-    print("Testing Thing creation POST /agent/register with signature ")
+    print("Testing Thing creation POST /thing/register with signature ")
 
     dbEnv = setupTestDbEnv()
 
@@ -364,6 +364,8 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
         #resource = registration + SEPARATOR + signer
         #txn.put(didb, resource.encode("utf-8") )  # keys and values are bytes
 
+    # First create the controlling agent for thing
+
     headers = {"Content-Type": "text/html; charset=utf-8",
                "Signature": 'signer="{}"'.format(signature), }
 
@@ -396,6 +398,7 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
          ]
     }
 
+    # Now create the thing
     # creates signing/verification key pair thing DID
     #seed = libnacl.randombytes(libnacl.crypto_sign_SEEDBYTES)
     seed = (b'\xba^\xe4\xdd\x81\xeb\x8b\xfa\xb1k\xe2\xfd6~^\x86tC\x9c\xa7\xe3\x1d2\x9d'
@@ -546,6 +549,88 @@ def test_get_AgentServer(client):  # client is a fixture in pytest_falcon
     did = keeper.did
 
     print("Testing GET /agent/server")
+
+    rep = client.get('/agent/server')
+
+    assert rep.status == falcon.HTTP_OK
+    assert int(rep.headers['content-length']) == 291
+    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
+    assert rep.headers['signature'] == ('signer="u72j9aKHgz99f0K8pSkMnyqwvEr_3r'
+                'pS_z2034L99sTWrMIIJGQPbVuIJ1cupo6cfIf_KCB5ecVRYoFRzAPnAQ=="')
+    sigs = parseSignatureHeader(rep.headers['signature'])
+
+    assert sigs['signer'] == ('u72j9aKHgz99f0K8pSkMnyqwvEr_3rpS_z2034L99sTWrMII'
+                              'JGQPbVuIJ1cupo6cfIf_KCB5ecVRYoFRzAPnAQ==')
+
+    assert rep.body == (
+        '{\n'
+        '  "did": "did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=",\n'
+        '  "signer": "did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=#0",\n'
+        '  "changed": "2000-01-01T00:00:00+00:00",\n'
+        '  "keys": [\n'
+        '    {\n'
+        '      "key": "Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=",\n'
+        '      "kind": "EdDSA"\n'
+        '    }\n'
+        '  ]\n'
+        '}')
+
+    assert rep.json == {
+        'did': 'did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=',
+        'signer': 'did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=#0',
+        'changed': '2000-01-01T00:00:00+00:00',
+        'keys':
+        [
+            {
+                'key': 'Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=',
+                'kind': 'EdDSA'
+            }
+        ],
+    }
+
+    assert rep.json['did'] == did
+
+    assert verify64u(sigs['signer'], rep.body, rep.json['keys'][0]['key'])
+
+    dat, ser, sig = dbing.getSigned(did)
+
+    assert dat == rep.json
+    assert ser == rep.body
+    assert sig == sigs['signer']
+
+    print("Testing get server using GET /agent/registration?did=")
+
+    didURI = falcon.uri.encode_value(did)
+    rep = client.get('/agent/register?did={}'.format(didURI))
+
+    assert rep.status == falcon.HTTP_OK
+    assert int(rep.headers['content-length']) == 291
+    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
+    assert rep.headers['signature'] == ('signer="u72j9aKHgz99f0K8pSkMnyqwvEr_3r'
+                    'pS_z2034L99sTWrMIIJGQPbVuIJ1cupo6cfIf_KCB5ecVRYoFRzAPnAQ=="')
+    sigs = parseSignatureHeader(rep.headers['signature'])
+
+    assert sigs['signer'] == sig
+    assert rep.body == ser
+    assert rep.json == dat
+
+    cleanupTmpBaseDir(dbEnv.path())
+    print("Done Test")
+
+def test_post_thingMessage(client):  # client is a fixture in pytest_falcon
+    """
+    Test POST to add message to Thing message queue.
+    """
+    print("Testing Post /thing/message with signature")
+
+    priming.setupTest()
+    dbEnv = dbing.gDbEnv
+    keeper = keeping.gKeeper
+    did = keeper.did
+
+    print("Testing POST /thing/message")
+
+
 
     rep = client.get('/agent/server')
 
