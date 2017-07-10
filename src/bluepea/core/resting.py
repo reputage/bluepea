@@ -27,7 +27,9 @@ import falcon
 
 from ..end import ending, exampling
 from ..db import dbing
+from ..keep import keeping
 from ..help import helping
+from ..prime import priming
 
 console = getConsole()
 
@@ -45,6 +47,7 @@ frame server
 @doify('BluepeaServerOpen', ioinits=odict(valet="",
                                           port=odict(inode="", ival=8080),
                                           dbDirPath="",
+                                          keepDirPath="",
                                           test="",))
 def bluepeaServerOpen(self, buffer=False, **kwa):
     """
@@ -74,13 +77,19 @@ def bluepeaServerOpen(self, buffer=False, **kwa):
 
 
     if test:
-        dbing.setupTestDbEnv()
+        #dbing.setupTestDbEnv()
+        priming.setupTest()
     else:
+        keepDirPath = self.keepDirPath.value if self.keepDirPath.value else None  # None is default
+        keepDirPath = os.path.abspath(os.path.expanduser(keepDirPath))
         dbDirPath = self.dbDirPath.value if self.dbDirPath.value else None  # None is default
         dbDirPath = os.path.abspath(os.path.expanduser(dbDirPath))
-        dbing.setupDbEnv(baseDirPath=dbDirPath)
+
+        #dbing.setupDbEnv(baseDirPath=dbDirPath)
+        priming.setup(keepDirPath=keepDirPath, dbDirPath=dbDirPath)
 
     self.dbDirPath.value = dbing.gDbDirPath
+    self.keepDirPath.value = keeping.gKeepDirPath
 
     app = falcon.API()  # falcon.API instances are callable WSGI apps
     ending.loadEnds(app, store=self.store)
