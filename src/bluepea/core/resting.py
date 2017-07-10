@@ -77,15 +77,12 @@ def bluepeaServerOpen(self, buffer=False, **kwa):
 
 
     if test:
-        #dbing.setupTestDbEnv()
         priming.setupTest()
     else:
         keepDirPath = self.keepDirPath.value if self.keepDirPath.value else None  # None is default
         keepDirPath = os.path.abspath(os.path.expanduser(keepDirPath))
         dbDirPath = self.dbDirPath.value if self.dbDirPath.value else None  # None is default
         dbDirPath = os.path.abspath(os.path.expanduser(dbDirPath))
-
-        #dbing.setupDbEnv(baseDirPath=dbDirPath)
         priming.setup(keepDirPath=keepDirPath, dbDirPath=dbDirPath)
 
     self.dbDirPath.value = dbing.gDbDirPath
