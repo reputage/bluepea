@@ -241,7 +241,7 @@ module that shows how to verify a signature.
 
 
 The request is made by sending an HTTP Get to ```/Agent/Registration``` with a *did* query parameter whose value is the desired DID. This value needs to be URL encoded.
-A successful request will return status code 201. An unsuccessful request will return an error status code such as 404 Not Found.
+A successful request will return status code 200. An unsuccessful request will return an error status code such as 404 Not Found.
 If successful the response includes a custom "Signature" header whose *signer* field value is the signature.
 
 
@@ -279,6 +279,68 @@ Date: Mon, 03 Jul 2017 22:33:01 GMT
   ]
 }
 ```
+
+## *Server* *Agent* Read 
+
+A special *Agent* is the *Server* *Agent*. This Agent is created automatically by the Indigo *Server* and acts as a trusted party in various exchanges between other Agents. This endpoint allows clients to get the DID and verification key for the Server Agent. The Agent Server read request (GET) retrieves a data resource corresponding to a Server Agent. This is a self-signed or self-owned data resource in that the signer field value references is the self-same data resource. The signature of the data resource is supplied in the Signature header of the response. The client application can verify that the data resource has not been tampered with by verifing the signature against the response body which contains the data resource which is a JSON serialization of the registration data.
+
+The bluepea python library has a helper function,
+
+```python
+verify64u(signature, message, verkey)
+```
+
+in the
+
+```python
+bluepea.help.helping
+```
+
+module that shows how to verify a signature.
+
+
+The request is made by sending an HTTP Get to ```/Agent/Server```.
+A successful request will return status code 200. An unsuccessful request will return an error status code such as 404 Not Found.
+If successful the response includes a custom "Signature" header whose *signer* field value is the signature.
+
+
+Example requests and responses are shown below.
+
+## Request
+
+```http
+GET /agent/server HTTP/1.1
+Content-Type: application/json; charset=utf-8
+Host: localhost:8080
+Connection: close
+User-Agent: Paw/3.1.1 (Macintosh; OS X/10.12.5) GCDHTTPRequest
+```
+
+## Response
+
+```http
+HTTP/1.1 200 OK
+Signature: signer="u72j9aKHgz99f0K8pSkMnyqwvEr_3rpS_z2034L99sTWrMIIJGQPbVuIJ1cupo6cfIf_KCB5ecVRYoFRzAPnAQ=="
+Content-Type: application/json; charset=UTF-8
+Content-Length: 291
+Server: Ioflo WSGI Server
+Date: Mon, 10 Jul 2017 20:16:19 GMT
+
+{
+  "did": "did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=",
+  "signer": "did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=#0",
+  "changed": "2000-01-01T00:00:00+00:00",
+  "keys": [
+    {
+      "key": "Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=",
+      "kind": "EdDSA"
+    }
+  ]
+}
+```
+
+
+
 
 ## *Issuer* *Agent* Registration Creation 
 
@@ -549,7 +611,7 @@ module that shows how to verify a signature.
 
 
 The request is made by sending an HTTP Get to ```/Thing/Registration``` with a *did* query parameter whose value is the desired DID. This value needs to be URL encoded.
-A successful request will return status code 201. An unsuccessful request will return an error status code such as 404 Not Found. 
+A successful request will return status code 200. An unsuccessful request will return an error status code such as 404 Not Found. 
 If successful the response includes a custom "Signature" header whose *signer* field value is the signature.
 
 
