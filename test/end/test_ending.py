@@ -106,12 +106,12 @@ def test_post_AgentRegisterSigned(client):  # client is a fixture in pytest_falc
 
     body = registration  # client.post encodes the body
 
-    rep = client.post('/agent/register', body=body, headers=headers)
+    rep = client.post('/agent', body=body, headers=headers)
 
     assert rep.status == falcon.HTTP_201
 
     location = falcon.uri.decode(rep.headers['location'])
-    assert location == "/agent/register?did=did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE="
+    assert location == "/agent?did=did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE="
 
     path, query = location.rsplit("?", maxsplit=1)
     assert query == "did=did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE="
@@ -155,10 +155,10 @@ def test_post_AgentRegisterSigned(client):  # client is a fixture in pytest_falc
                      verkey=reg["keys"][0]["key"])
 
 
-    print("Testing GET /agent/register?did=....")
+    print("Testing GET /agent?did=....")
 
     didURI = falcon.uri.encode_value(did)
-    rep = client.get('/agent/register?did={}'.format(didURI))
+    rep = client.get('/agent?did={}'.format(didURI))
 
     assert rep.status == falcon.HTTP_OK
     assert int(rep.headers['content-length']) == 291
@@ -243,12 +243,12 @@ def test_post_IssuerRegisterSigned(client):  # client is a fixture in pytest_fal
 
     body = registration  # client.post encodes the body
 
-    rep = client.post('/agent/register', body=body, headers=headers)
+    rep = client.post('/agent', body=body, headers=headers)
 
     assert rep.status == falcon.HTTP_201
 
     location = falcon.uri.decode(rep.headers['location'])
-    assert location == "/agent/register?did=did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE="
+    assert location == "/agent?did=did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE="
 
     path, query = location.rsplit("?", maxsplit=1)
     assert query == "did=did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE="
@@ -289,10 +289,10 @@ def test_post_IssuerRegisterSigned(client):  # client is a fixture in pytest_fal
                      verkey=reg["keys"][0]["key"])
 
 
-    print("Testing GET /agent/register?did=....")
+    print("Testing GET /agent?did=....")
 
     didURI = falcon.uri.encode_value(did)
-    rep = client.get('/agent/register?did={}'.format(didURI))
+    rep = client.get('/agent?did={}'.format(didURI))
 
     assert rep.status == falcon.HTTP_OK
     assert int(rep.headers['content-length']) == 473
@@ -319,7 +319,7 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
 
     Does an Agent registration to setup database
     """
-    print("Testing Thing creation POST /thing/register with signature ")
+    print("Testing Thing creation POST /thing with signature ")
 
     dbEnv = setupTestDbEnv()
 
@@ -371,7 +371,7 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
 
     body = registration  # client.post encodes the body
 
-    rep = client.post('/agent/register', body=body, headers=headers)
+    rep = client.post('/agent', body=body, headers=headers)
     assert rep.status == falcon.HTTP_201
 
     areg = rep.json
@@ -470,12 +470,12 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
 
     body = tregistration  # client.post encodes the body
 
-    rep = client.post('/thing/register', body=body, headers=headers)
+    rep = client.post('/thing', body=body, headers=headers)
     assert rep.status == falcon.HTTP_201
     assert treg == rep.json
 
     location = falcon.uri.decode(rep.headers['location'])
-    assert location == "/thing/register?did=did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM="
+    assert location == "/thing?did=did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM="
 
     path, query = location.rsplit("?", maxsplit=1)
     assert query == "did=did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM="
@@ -514,10 +514,10 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
 
     assert tdidb.decode("utf-8") == tdid
 
-    print("Testing GET /thing/register?did=....")
+    print("Testing GET /thing?did=....")
 
     didURI = falcon.uri.encode_value(tdid)
-    rep = client.get('/thing/register?did={}'.format(didURI))
+    rep = client.get('/thing?did={}'.format(didURI))
 
     assert rep.status == falcon.HTTP_OK
     assert int(rep.headers['content-length']) == 349
@@ -548,9 +548,9 @@ def test_get_AgentServer(client):  # client is a fixture in pytest_falcon
     keeper = keeping.gKeeper
     did = keeper.did
 
-    print("Testing GET /agent/server")
+    print("Testing GET /server")
 
-    rep = client.get('/agent/server')
+    rep = client.get('/server')
 
     assert rep.status == falcon.HTTP_OK
     assert int(rep.headers['content-length']) == 291
@@ -601,7 +601,7 @@ def test_get_AgentServer(client):  # client is a fixture in pytest_falcon
     print("Testing get server using GET /agent/registration?did=")
 
     didURI = falcon.uri.encode_value(did)
-    rep = client.get('/agent/register?did={}'.format(didURI))
+    rep = client.get('/agent?did={}'.format(didURI))
 
     assert rep.status == falcon.HTTP_OK
     assert int(rep.headers['content-length']) == 291
@@ -617,7 +617,7 @@ def test_get_AgentServer(client):  # client is a fixture in pytest_falcon
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")
 
-def test_post_thingMessage(client):  # client is a fixture in pytest_falcon
+def test_post_message(client):  # client is a fixture in pytest_falcon
     """
     Test POST to add message to Thing message queue.
     """
@@ -630,9 +630,7 @@ def test_post_thingMessage(client):  # client is a fixture in pytest_falcon
 
     print("Testing POST /thing/message")
 
-
-
-    rep = client.get('/agent/server')
+    rep = client.get('/server')
 
     assert rep.status == falcon.HTTP_OK
     assert int(rep.headers['content-length']) == 291
@@ -683,7 +681,7 @@ def test_post_thingMessage(client):  # client is a fixture in pytest_falcon
     print("Testing get server using GET /agent/registration?did=")
 
     didURI = falcon.uri.encode_value(did)
-    rep = client.get('/agent/register?did={}'.format(didURI))
+    rep = client.get('/agent?did={}'.format(didURI))
 
     assert rep.status == falcon.HTTP_OK
     assert int(rep.headers['content-length']) == 291

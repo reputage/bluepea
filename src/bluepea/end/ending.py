@@ -30,11 +30,12 @@ from ..keep import keeping
 console = getConsole()
 
 AGENT_BASE_PATH = "/agent"
+SERVER_BASE_PATH = "/server"
 THING_BASE_PATH = "/thing"
 
-class AgentServer:
+class ServerResource:
     """
-    Agent Server Resource
+    Server Agent Resource
 
     Attributes:
         .store is reference to ioflo data store
@@ -72,9 +73,9 @@ class AgentServer:
         rep.status = falcon.HTTP_200  # This is the default status
         rep.body = ser
 
-class AgentRegister:
+class AgentResource:
     """
-    Agent Register Resource
+    Agent Resource
 
     Attributes:
         .store is reference to ioflo data store
@@ -124,14 +125,14 @@ class AgentRegister:
         # save to database
         try:
             dbing.putSigned(registration, sig, did, clobber=False)
-        except DatabaseError as ex:
+        except dbing.DatabaseError as ex:
             raise falcon.HTTPError(falcon.HTTP_412,
                                   'Database Error',
                                   '{}'.format(ex.args[0]))
 
         didURI = falcon.uri.encode_value(did)
         rep.status = falcon.HTTP_201  # post response status with location header
-        rep.location = "{}/register?did={}".format(AGENT_BASE_PATH, didURI)
+        rep.location = "{}?did={}".format(AGENT_BASE_PATH, didURI)
         rep.body = json.dumps(result)
 
     def on_get(self, req, rep):
@@ -162,9 +163,9 @@ class AgentRegister:
         rep.body = ser
 
 
-class ThingRegister:
+class ThingResource:
     """
-    Thing Register Resource
+    Thing Resource
 
     Attributes:
         .store is reference to ioflo data store
@@ -267,7 +268,7 @@ class ThingRegister:
 
         didURI = falcon.uri.encode_value(tdid)
         rep.status = falcon.HTTP_201  # post response status with location header
-        rep.location = "{}/register?did={}".format(THING_BASE_PATH, didURI)
+        rep.location = "{}?did={}".format(THING_BASE_PATH, didURI)
         rep.body = json.dumps(result)
 
     def on_get(self, req, rep):
@@ -304,11 +305,11 @@ def loadEnds(app, store):
     This function provides the endpoint resource instances
     with a reference to the data store
     """
-    agentServer = AgentServer(store=store)
-    app.add_route('{}/server'.format(AGENT_BASE_PATH), agentServer)
+    server = ServerResource(store=store)
+    app.add_route('{}'.format(SERVER_BASE_PATH), server)
 
-    agentRegister = AgentRegister(store=store)
-    app.add_route('{}/register'.format(AGENT_BASE_PATH), agentRegister)
+    agent = AgentResource(store=store)
+    app.add_route('{}'.format(AGENT_BASE_PATH), agent)
 
-    thingRegister = ThingRegister(store=store)
-    app.add_route('{}/register'.format(THING_BASE_PATH), thingRegister)
+    thing = ThingResource(store=store)
+    app.add_route('{}'.format(THING_BASE_PATH), thing)

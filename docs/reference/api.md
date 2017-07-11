@@ -104,12 +104,86 @@ Signature: signer="B0Qc72RP5IOodsQRQ_s4MKMNe0PIAqwjKsBl4b6lK9co2XPZHLmzQFHWzjA2P
 
 Although all resource write requests are signed by the client and therefore can not be created by anyone other than the Keeper of the associated private key, a malicious network device could record and resend prior requests in a different order (replay attack) and thereby change the state of the database. To prevent replay attacks on requests that change data resources a client needs to authenticate in a time sensitive manner with the server.  A simple way to do this is for the client to update the *changed* date time stamp field in the resource in a monotonically increasing manner. This way any replayed but stale write requests can be detected and refused by the Server. In other words the server will deny write requests whose *changed* field date time stamp is not later than the the *changed* field value of the pre-existing resource to be updated.
 
+## Endpoint URL Summary
 
-## *Agent* Registration Creation 
+The API consists of several ReST endpoints grouped according to the type of data resource that is being manipulated by the API. Each resource has HTTP verbs that do the manipulation.
 
-The Agent Registration creation request (POST) creates a data resource corresponding to a given Agent. This
+```http
+\server GET
+
+\agent  POST
+\agent?did=... GET
+
+\thing  POST
+\thing?did=... GET
+
+
+```
+
+## *Server* *Agent* Read 
+
+A special *Agent* is the *Server* *Agent*. This Agent is created automatically by the Indigo *Server* and acts as a trusted party in various exchanges between other Agents. This endpoint allows clients to get the DID and verification key for the Server Agent. The Agent Server read request (GET) retrieves a data resource corresponding to a Server Agent. This is a self-signed or self-owned data resource in that the signer field value references is the self-same data resource. The signature of the data resource is supplied in the Signature header of the response. The client application can verify that the data resource has not been tampered with by verifing the signature against the response body which contains the data resource which is a JSON serialization of the registration data.
+
+The bluepea python library has a helper function,
+
+```python
+verify64u(signature, message, verkey)
+```
+
+in the
+
+```python
+bluepea.help.helping
+```
+
+module that shows how to verify a signature.
+
+
+The request is made by sending an HTTP Get to ```/server```.
+A successful request will return status code 200. An unsuccessful request will return an error status code such as 404 Not Found.
+If successful the response includes a custom "Signature" header whose *signer* field value is the signature.
+
+
+Example requests and responses are shown below.
+
+## Request
+
+```http
+GET /server HTTP/1.1
+Content-Type: application/json; charset=utf-8
+Host: localhost:8080
+Connection: close
+User-Agent: Paw/3.1.1 (Macintosh; OS X/10.12.5) GCDHTTPRequest
+```
+
+## Response
+
+```http
+HTTP/1.1 200 OK
+Signature: signer="u72j9aKHgz99f0K8pSkMnyqwvEr_3rpS_z2034L99sTWrMIIJGQPbVuIJ1cupo6cfIf_KCB5ecVRYoFRzAPnAQ=="
+Content-Type: application/json; charset=UTF-8
+Content-Length: 291
+Server: Ioflo WSGI Server
+Date: Tue, 11 Jul 2017 01:07:56 GMT
+
+{
+  "did": "did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=",
+  "signer": "did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=#0",
+  "changed": "2000-01-01T00:00:00+00:00",
+  "keys": [
+    {
+      "key": "Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=",
+      "kind": "EdDSA"
+    }
+  ]
+}
+```
+
+## *Agent* Creation 
+
+The Agent creation request (POST) creates a data resource corresponding to a given Agent. This
 is a self-signed or self-owned data resource in that the signer field value
-references is the self-same data resource.
+references is the self-same data resource. This registers the Agent with the Indigo service.
 
 In order to create an Agent Registration request the client application needs
 to produce a unique EdDSA signing keypair using the libsodium library.
@@ -153,7 +227,7 @@ It is the responsibility of the client application to store the private signing
 key as it will be needed to make any future changes to the resultant agent data
 resource.
 
-The request is made by sending an HTTP POST to ```/Agent/Registration```
+The request is made by sending an HTTP POST to ```/agent```
 
 The request includes a custom "Signature" header whose value is the signature
 produced above. The *tag* value is *signer*.  
@@ -174,7 +248,7 @@ Example requests and responses are shown below.
 ## Request
 
 ```http
-POST /agent/register HTTP/1.1
+POST /agent HTTP/1.1
 Signature: signer="AeYbsHot0pmdWAcgTo5sD8iAuSQAfnH5U6wiIGpVNJQQoYKBYrPPxAoIc1i5SHCIDS8KFFgf8i0tDq8XGizaCg=="
 Content-Type: application/json; charset=UTF-8
 Host: localhost:8080
@@ -199,11 +273,11 @@ Content-Length: 291
 
 ```http
 HTTP/1.1 201 Created
-Location: /agent/register?did=did%3Aigo%3AQt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE%3D
+Location: /agent?did=did%3Aigo%3AQt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE%3D
 Content-Length: 255
 Content-Type: application/json; charset=UTF-8
 Server: Ioflo WSGI Server
-Date: Mon, 03 Jul 2017 22:31:54 GMT
+Date: Tue, 11 Jul 2017 01:14:58 GMT
 
 {
   "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
@@ -219,9 +293,9 @@ Date: Mon, 03 Jul 2017 22:31:54 GMT
 ```
 
 
-## *Agent* Registration Read 
+## *Agent* Read 
 
-The Agent Registration read request (GET) retrieves a data resource corresponding to a given Agent as indicated by the *did* query parameter in the request. This
+The Agent read request (GET) retrieves a data resource corresponding to a given Agent as indicated by the *did* query parameter in the request. This
 is a self-signed or self-owned data resource in that the signer field value
 references is the self-same data resource. In order to retrieve an agent registration data resource the client application needs the DID for that resource. This is supplied in the *Location* header of the response to a successful Agent Registration creation request. The signature of the data resource is supplied in the Signature header of the response. The client application can verify that the data resource has not been tampered with by verifing the signature against the response body which contains the data resource which is a JSON serialization of the registration data.
 
@@ -240,7 +314,7 @@ bluepea.help.helping
 module that shows how to verify a signature.
 
 
-The request is made by sending an HTTP Get to ```/Agent/Registration``` with a *did* query parameter whose value is the desired DID. This value needs to be URL encoded.
+The request is made by sending an HTTP Get to ```/agent``` with a *did* query parameter whose value is the desired DID. This value needs to be URL encoded.
 A successful request will return status code 200. An unsuccessful request will return an error status code such as 404 Not Found.
 If successful the response includes a custom "Signature" header whose *signer* field value is the signature.
 
@@ -250,7 +324,7 @@ Example requests and responses are shown below.
 ## Request
 
 ```http
-GET /agent/register?did=did%3Aigo%3AQt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE%3D HTTP/1.1
+GET /agent?did=did%3Aigo%3AQt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE%3D HTTP/1.1
 Content-Type: application/json; charset=utf-8
 Host: localhost:8080
 Connection: close
@@ -265,7 +339,7 @@ Signature: signer="AeYbsHot0pmdWAcgTo5sD8iAuSQAfnH5U6wiIGpVNJQQoYKBYrPPxAoIc1i5S
 Content-Type: application/json; charset=UTF-8
 Content-Length: 291
 Server: Ioflo WSGI Server
-Date: Mon, 03 Jul 2017 22:33:01 GMT
+Date: Tue, 11 Jul 2017 01:17:11 GMT
 
 {
   "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
@@ -280,71 +354,9 @@ Date: Mon, 03 Jul 2017 22:33:01 GMT
 }
 ```
 
-## *Server* *Agent* Read 
+## *Issuer* *Agent* Creation 
 
-A special *Agent* is the *Server* *Agent*. This Agent is created automatically by the Indigo *Server* and acts as a trusted party in various exchanges between other Agents. This endpoint allows clients to get the DID and verification key for the Server Agent. The Agent Server read request (GET) retrieves a data resource corresponding to a Server Agent. This is a self-signed or self-owned data resource in that the signer field value references is the self-same data resource. The signature of the data resource is supplied in the Signature header of the response. The client application can verify that the data resource has not been tampered with by verifing the signature against the response body which contains the data resource which is a JSON serialization of the registration data.
-
-The bluepea python library has a helper function,
-
-```python
-verify64u(signature, message, verkey)
-```
-
-in the
-
-```python
-bluepea.help.helping
-```
-
-module that shows how to verify a signature.
-
-
-The request is made by sending an HTTP Get to ```/Agent/Server```.
-A successful request will return status code 200. An unsuccessful request will return an error status code such as 404 Not Found.
-If successful the response includes a custom "Signature" header whose *signer* field value is the signature.
-
-
-Example requests and responses are shown below.
-
-## Request
-
-```http
-GET /agent/server HTTP/1.1
-Content-Type: application/json; charset=utf-8
-Host: localhost:8080
-Connection: close
-User-Agent: Paw/3.1.1 (Macintosh; OS X/10.12.5) GCDHTTPRequest
-```
-
-## Response
-
-```http
-HTTP/1.1 200 OK
-Signature: signer="u72j9aKHgz99f0K8pSkMnyqwvEr_3rpS_z2034L99sTWrMIIJGQPbVuIJ1cupo6cfIf_KCB5ecVRYoFRzAPnAQ=="
-Content-Type: application/json; charset=UTF-8
-Content-Length: 291
-Server: Ioflo WSGI Server
-Date: Mon, 10 Jul 2017 20:16:19 GMT
-
-{
-  "did": "did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=",
-  "signer": "did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=#0",
-  "changed": "2000-01-01T00:00:00+00:00",
-  "keys": [
-    {
-      "key": "Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=",
-      "kind": "EdDSA"
-    }
-  ]
-}
-```
-
-
-
-
-## *Issuer* *Agent* Registration Creation 
-
-When the Agent Registration creation request includes an *hids* field then the  data resource represents an *Issuer* agent. The creation request will also validate control of the associated *hid* namespaces.  The *hids* field is a list of one or more HID json objects. Each object contains information about a namespace used by the *Issuer* to generate HIDs:
+When the Agent Registration creation request includes an *hids* field then the  data resource represents an *Issuer* agent. This effectively registers the *Issuer* with the Indigo service. The creation request will also validate control of the associated *hid* namespaces.  The *hids* field is a list of one or more HID json objects. Each object contains information about a namespace used by the *Issuer* to generate HIDs:
 
 ```json
 "hids":
@@ -363,7 +375,7 @@ Example requests and responses are shown below.
 ## Request
 
 ```http
-POST /agent/register HTTP/1.1
+POST /agent HTTP/1.1
 Signature: signer="f2w1L6XtU8_GS5N8UwX0d77aw2kR0IM5BVdBLOaoIyR9nzra6d4JgVV7TlJrEx8WhJlgBRpyInRZgdnSf_WQAg=="
 Content-Type: application/json; charset=UTF-8
 Host: localhost:8080
@@ -396,11 +408,11 @@ Content-Length: 473
 
 ```http
 HTTP/1.1 201 Created
-Location: /agent/register?did=did%3Aigo%3AQt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE%3D
+Location: /agent?did=did%3Aigo%3AQt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE%3D
 Content-Length: 397
 Content-Type: application/json; charset=UTF-8
 Server: Ioflo WSGI Server
-Date: Tue, 04 Jul 2017 00:00:04 GMT
+Date: Tue, 11 Jul 2017 01:07:26 GMT
 
 {
   "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
@@ -423,7 +435,7 @@ Date: Tue, 04 Jul 2017 00:00:04 GMT
 }
 ```
 
-## *Issuer* *Agent* Registration Read 
+## *Issuer* *Agent* Read 
 
 The *Issuer* Agent Registration read request (GET) is the same as the generic Agent read request. The only differece is that an *Issuer* Agent with have an *hids* field in its data resource. 
 Example requests and responses are shown below.
@@ -431,7 +443,7 @@ Example requests and responses are shown below.
 ## Request
 
 ```http
-GET /agent/register?did=did%3Aigo%3AQt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE%3D HTTP/1.1
+GET /agent?did=did%3Aigo%3AQt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE%3D HTTP/1.1
 Content-Type: application/json; charset=utf-8
 Host: localhost:8080
 Connection: close
@@ -446,7 +458,7 @@ Signature: signer="f2w1L6XtU8_GS5N8UwX0d77aw2kR0IM5BVdBLOaoIyR9nzra6d4JgVV7TlJrE
 Content-Type: application/json; charset=UTF-8
 Content-Length: 473
 Server: Ioflo WSGI Server
-Date: Tue, 04 Jul 2017 00:02:12 GMT
+Date: Tue, 11 Jul 2017 01:19:04 GMT
 
 {
   "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
@@ -469,9 +481,9 @@ Date: Tue, 04 Jul 2017 00:02:12 GMT
 }
 ```
 
-## *Thing* Registration Creation 
+## *Thing* Creation 
 
-The *Thing* Registration creation request (POST) creates a data resource corresponding to a given *Thing*. A Thing resource is controlled or owned by an Agent data resource. Consequently the *signer* field references the controlling Agent's data resource. In other words a *Thing* data resourse is not self-signing. 
+The *Thing* Registration creation request (POST) creates a data resource corresponding to a given *Thing*. This effectively registers the *Thing* with the Indigo service. A Thing resource is controlled or owned by an Agent data resource. Consequently the *signer* field references the controlling Agent's data resource. In other words a *Thing* data resourse is not self-signing. 
 
 In order to create an *Thing* Registration request the client application needs to know the DID of the associated controlling Agent as well have access to the the priviate signing key of that Agent. In other words a Thing can only be created by a client application for an Agent controlled by the client application. 
 
@@ -520,7 +532,7 @@ dsignature, ssignature, registration = makeSignedThingReg(dvk, dsk, ssk, signer
 It is the responsibility of the client application to store the private signing
 key for the DID as it will be needed to verify any future challenges as the creator of the thing DID.
 
-The request is made by sending an HTTP POST to ```/thing/Registration```
+The request is made by sending an HTTP POST to ```/thing```
 
 The request includes a custom "Signature" header whose value has both signatures. The *tag* value *signer* is the *ssignature* returned above and the *tag* value *did* is the *dsignature* returned above. Both signatures allows the Server to verify that the client both created the Thing DID and controls the Signing Agent.
 
@@ -540,7 +552,7 @@ Example requests and responses are shown below.
 ## Request
 
 ```http
-POST /thing/register HTTP/1.1
+POST /thing HTTP/1.1
 Signature: signer="RtlBu9sZgqhfc0QbGe7IHqwsHOARrGNjy4BKJG7gNfNP4GfKDQ8FGdjyv-EzN1OIHYlnMBFB2Kf05KZAj-g2Cg==";did="kWZwPfepoAV9zyt9B9vPlPNGeb_POHlP9LL3H-PH71WWZzVJT1Ce64IKj1GmOXkNo2JaXrnIpQyfm2vynn7mCg=="
 Content-Type: application/json; charset=UTF-8
 Host: localhost:8080
@@ -568,11 +580,11 @@ Content-Length: 349
 
 ```http
 HTTP/1.1 201 Created
-Location: /thing/register?did=did%3Aigo%3A4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM%3D
+Location: /thing?did=did%3Aigo%3A4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM%3D
 Content-Length: 301
 Content-Type: application/json; charset=UTF-8
 Server: Ioflo WSGI Server
-Date: Thu, 06 Jul 2017 01:41:58 GMT
+Date: Tue, 11 Jul 2017 01:07:39 GMT
 
 {
   "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
@@ -588,7 +600,6 @@ Date: Thu, 06 Jul 2017 01:41:58 GMT
     "message": "If found please return."
   }
 }
-
 ```
 
 ## *Thing* Registration Read 
@@ -610,7 +621,7 @@ bluepea.help.helping
 module that shows how to verify a signature.
 
 
-The request is made by sending an HTTP Get to ```/Thing/Registration``` with a *did* query parameter whose value is the desired DID. This value needs to be URL encoded.
+The request is made by sending an HTTP Get to ```/thing``` with a *did* query parameter whose value is the desired DID. This value needs to be URL encoded.
 A successful request will return status code 200. An unsuccessful request will return an error status code such as 404 Not Found. 
 If successful the response includes a custom "Signature" header whose *signer* field value is the signature.
 
@@ -620,7 +631,7 @@ Example requests and responses are shown below.
 ## Request
 
 ```http
-GET /thing/register?did=did%3Aigo%3A4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM%3D HTTP/1.1
+GET /thing?did=did%3Aigo%3A4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM%3D HTTP/1.1
 Content-Type: application/json; charset=utf-8
 Host: localhost:8080
 Connection: close
@@ -635,7 +646,7 @@ Signature: signer="RtlBu9sZgqhfc0QbGe7IHqwsHOARrGNjy4BKJG7gNfNP4GfKDQ8FGdjyv-EzN
 Content-Type: application/json; charset=UTF-8
 Content-Length: 349
 Server: Ioflo WSGI Server
-Date: Thu, 06 Jul 2017 02:04:21 GMT
+Date: Tue, 11 Jul 2017 01:07:47 GMT
 
 {
   "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
