@@ -162,6 +162,92 @@ class AgentResource:
         rep.status = falcon.HTTP_200  # This is the default status
         rep.body = ser
 
+class AgentDidResource:
+    """
+    Agent Did Resource
+    Access agent by DID
+
+    /agent/{did}
+
+    Attributes:
+        .store is reference to ioflo data store
+
+    """
+    def  __init__(self, store=None, **kwa):
+        """
+        Parameters:
+            store is reference to ioflo data store
+        """
+        super(**kwa)
+        self.store = store
+
+    def on_put(self, req, rep, did):
+        """
+        Handles PUT requests
+
+        /agent/{did}
+
+        Falcon url decodes path parameters such as {did}
+        """
+        signature = req.get_header("Signature")
+        sigs = parseSignatureHeader(signature)
+        sig = sigs.get('signer')  # str not bytes
+        if not sig:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                           'Validation Error',
+                                           'Invalid or missing Signature header.')
+
+        try:
+            resb = req.stream.read()  # bytes
+        except Exception:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                       'Read Error',
+                                       'Could not read the request body.')
+
+        res = resb.decode("utf-8")
+
+        # validate signature here. Get current resource from database
+        # verify same signer as in request
+
+        # save to database
+        try:
+            dbing.putSigned(res, sig, did, clobber=True)
+        except dbing.DatabaseError as ex:
+            raise falcon.HTTPError(falcon.HTTP_412,
+                                  'Database Error',
+                                  '{}'.format(ex.args[0]))
+
+        rep.set_header("Signature", 'signer="{}"'.format(sig))
+        rep.set_header("Content-Type", "application/json; charset=UTF-8")
+        rep.status = falcon.HTTP_200  # This is the default status
+        rep.body = res
+
+    def on_get(self, req, rep, did):
+        """
+        Handles GET request for an Agent Resource by did
+
+        /agent/{did}
+
+        Falcon url decodes path parameters such as {did}
+        """
+        # read from database
+        try:
+            dat, ser, sig = dbing.getSelfSigned(did)
+        except dbing.DatabaseError as ex:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                            'Resource Verification Error',
+                            'Error verifying resource. {}'.format(ex))
+
+        if dat is None:
+            raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
+                                               'Not Found Error',
+                                               'DID resource does not exist')
+
+        rep.set_header("Signature", 'signer="{}"'.format(sig))
+        rep.set_header("Content-Type", "application/json; charset=UTF-8")
+        rep.status = falcon.HTTP_200  # This is the default status
+        rep.body = ser
+
 
 class ThingResource:
     """
@@ -310,6 +396,9 @@ def loadEnds(app, store):
 
     agent = AgentResource(store=store)
     app.add_route('{}'.format(AGENT_BASE_PATH), agent)
+
+    agentDid = AgentDidResource(store=store)
+    app.add_route('{}/{{did}}'.format(AGENT_BASE_PATH), agentDid)
 
     thing = ThingResource(store=store)
     app.add_route('{}'.format(THING_BASE_PATH), thing)

@@ -189,8 +189,8 @@ def test_post_IssuerRegisterSigned(client):  # client is a fixture in pytest_fal
 
     # random seed used to generate private signing key
     #seed = libnacl.randombytes(libnacl.crypto_sign_SEEDBYTES)
-    seed = (b'PTi\x15\xd5\xd3`\xf1u\x15}^r\x9bfH\x02l\xc6\x1b\x1d\x1c\x0b9\xd7{\xc0_'
-            b'\xf2K\x93`')
+    seed = (b"\xb2PK\xad\x9b\x92\xa4\x07\xc6\xfa\x0f\x13\xd7\xe4\x08\xaf\xc7'~\x86"
+            b'\xd2\x92\x93rA|&9\x16Bdi')
 
     # creates signing/verification key pair
     vk, sk = libnacl.crypto_sign_seed_keypair(seed)
@@ -210,17 +210,17 @@ def test_post_IssuerRegisterSigned(client):  # client is a fixture in pytest_fal
                                                  sk,
                                                  changed=stamp,
                                                  hids=hids)
-    assert signature == ('f2w1L6XtU8_GS5N8UwX0d77aw2kR0IM5BVdBLOaoIyR9nzra6d4Jg'
-                         'VV7TlJrEx8WhJlgBRpyInRZgdnSf_WQAg==')
+    assert signature == ('4isnDoL8RVcsdVRmR9n3t-VmBE7jvBv02Hh_rSuLJZ40SejBzFkno'
+                         'l8-b-hTI9uNqJra5EK5-YSaE-aBRQ-uDQ==')
 
     assert registration == (
         '{\n'
-        '  "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",\n'
-        '  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",\n'
+        '  "did": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",\n'
+        '  "signer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#0",\n'
         '  "changed": "2000-01-01T00:00:00+00:00",\n'
         '  "keys": [\n'
         '    {\n'
-        '      "key": "Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",\n'
+        '      "key": "dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",\n'
         '      "kind": "EdDSA"\n'
         '    }\n'
         '  ],\n'
@@ -238,8 +238,8 @@ def test_post_IssuerRegisterSigned(client):  # client is a fixture in pytest_fal
     headers = {"Content-Type": "text/html; charset=utf-8",
                "Signature": 'signer="{}"'.format(signature), }
 
-    assert headers['Signature'] == ('signer="f2w1L6XtU8_GS5N8UwX0d77aw2kR0IM5BV'
-                    'dBLOaoIyR9nzra6d4JgVV7TlJrEx8WhJlgBRpyInRZgdnSf_WQAg=="')
+    assert headers['Signature'] == ('signer="4isnDoL8RVcsdVRmR9n3t-VmBE7jvBv02H'
+                    'h_rSuLJZ40SejBzFknol8-b-hTI9uNqJra5EK5-YSaE-aBRQ-uDQ=="')
 
     body = registration  # client.post encodes the body
 
@@ -248,28 +248,28 @@ def test_post_IssuerRegisterSigned(client):  # client is a fixture in pytest_fal
     assert rep.status == falcon.HTTP_201
 
     location = falcon.uri.decode(rep.headers['location'])
-    assert location == "/agent?did=did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE="
+    assert location == "/agent?did=did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY="
 
     path, query = location.rsplit("?", maxsplit=1)
-    assert query == "did=did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE="
+    assert query == "did=did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY="
 
     query = falcon.uri.parse_query_string(query)
     did = query['did']
-    assert did == "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE="
+    assert did == "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY="
 
     assert rep.headers['content-type'] == "application/json; charset=UTF-8"
 
     reg = rep.json
     assert reg["did"] == did
     assert reg == {'changed': '2000-01-01T00:00:00+00:00',
-                    'did': 'did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=',
+                    'did': 'did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=',
                     'hids': [{'issuer': 'generic.com',
                               'kind': 'dns',
                               'registered': '2000-01-01T00:00:00+00:00',
                               'validationURL': 'https://generic.com/indigo'}],
-                    'keys': [{'key': 'Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=',
+                    'keys': [{'key': 'dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=',
                               'kind': 'EdDSA'}],
-                    'signer': 'did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0'}
+                    'signer': 'did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#0'}
 
     dbCore = dbEnv.open_db(b'core')  # open named sub db named 'core' within env
 
@@ -297,8 +297,8 @@ def test_post_IssuerRegisterSigned(client):  # client is a fixture in pytest_fal
     assert rep.status == falcon.HTTP_OK
     assert int(rep.headers['content-length']) == 473
     assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
-    assert rep.headers['signature'] == ('signer="f2w1L6XtU8_GS5N8UwX0d77aw2kR0IM5BV'
-                    'dBLOaoIyR9nzra6d4JgVV7TlJrEx8WhJlgBRpyInRZgdnSf_WQAg=="')
+    assert rep.headers['signature'] == ('signer="4isnDoL8RVcsdVRmR9n3t-VmBE7jvBv02H'
+                    'h_rSuLJZ40SejBzFknol8-b-hTI9uNqJra5EK5-YSaE-aBRQ-uDQ=="')
     sigs = parseSignatureHeader(rep.headers['signature'])
 
     assert sigs['signer'] == signature
@@ -325,8 +325,8 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
 
     # random seed used to generate private signing key
     #seed = libnacl.randombytes(libnacl.crypto_sign_SEEDBYTES)
-    seed = (b'PTi\x15\xd5\xd3`\xf1u\x15}^r\x9bfH\x02l\xc6\x1b\x1d\x1c\x0b9\xd7{\xc0_'
-            b'\xf2K\x93`')
+    seed = (b"\xb2PK\xad\x9b\x92\xa4\x07\xc6\xfa\x0f\x13\xd7\xe4\x08\xaf\xc7'~\x86"
+            b'\xd2\x92\x93rA|&9\x16Bdi')
 
     # creates signing/verification key pair
     svk, ssk = libnacl.crypto_sign_seed_keypair(seed)
@@ -377,13 +377,13 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
     areg = rep.json
 
     assert areg ==  {
-        'did': 'did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=',
-        'signer': 'did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0',
+        'did': 'did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=',
+        'signer': 'did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#0',
         'changed': '2000-01-01T00:00:00+00:00',
         'keys':
         [
             {
-                'key': 'Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=',
+                'key': 'dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=',
                 'kind': 'EdDSA'
             }
         ],
@@ -431,7 +431,7 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
         '{\n'
         '  "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",\n'
         '  "hid": "hid:dns:generic.com#02",\n'
-        '  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",\n'
+        '  "signer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#0",\n'
         '  "changed": "2000-01-01T00:00:00+00:00",\n'
         '  "data": {\n'
         '    "keywords": [\n'
@@ -443,18 +443,18 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
         '  }\n'
         '}')
 
-    assert dsignature == ('kWZwPfepoAV9zyt9B9vPlPNGeb_POHlP9LL3H-PH71WWZzVJT1Ce'
-                          '64IKj1GmOXkNo2JaXrnIpQyfm2vynn7mCg==')
+    assert dsignature == ('3VUjzx_5uigvwFAv0FNYl9rlZL1g5KKSqPAIAOENXdwW14vigTxc'
+                          'tQnQgHlfF4JBvyIha43WiDrb45Gspa2RDA==')
 
-    assert ssignature == ('RtlBu9sZgqhfc0QbGe7IHqwsHOARrGNjy4BKJG7gNfNP4GfKDQ8F'
-                          'Gdjyv-EzN1OIHYlnMBFB2Kf05KZAj-g2Cg==')
+    assert ssignature == ('bNUB37pBC5KuSVx4SKw8qQGR405wH7qNI2pjv2MhmyqsJ8ofTTS2'
+                          'WYs3ZaU7aDyoJGSIfwJcadmcok9tntdkDA==')
 
     treg = json.loads(tregistration, object_pairs_hook=ODict)
 
     assert treg == {
       "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
       "hid": "hid:dns:generic.com#02",
-      "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",
+      "signer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#0",
       "changed": "2000-01-01T00:00:00+00:00",
       "data":
       {
@@ -499,7 +499,7 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
     assert signatureb.decode("utf-8") == ssignature
     assert datau == tregistration
     sverkey = keyToKey64u(svk)
-    assert sverkey == 'Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE='
+    assert sverkey == 'dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY='
 
     result = verify64u(signature=ssignature,
                        message=datau,
@@ -522,8 +522,8 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
     assert rep.status == falcon.HTTP_OK
     assert int(rep.headers['content-length']) == 349
     assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
-    assert rep.headers['signature'] == ('signer="RtlBu9sZgqhfc0QbGe7IHqwsHOARrG'
-                'Njy4BKJG7gNfNP4GfKDQ8FGdjyv-EzN1OIHYlnMBFB2Kf05KZAj-g2Cg=="')
+    assert rep.headers['signature'] == ('signer="bNUB37pBC5KuSVx4SKw8qQGR405wH7'
+                    'qNI2pjv2MhmyqsJ8ofTTS2WYs3ZaU7aDyoJGSIfwJcadmcok9tntdkDA=="')
     sigs = parseSignatureHeader(rep.headers['signature'])
 
     assert sigs['signer'] == ssignature
