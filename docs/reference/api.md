@@ -404,7 +404,8 @@ Date: Tue, 11 Jul 2017 19:58:06 GMT
 ## *Agent* Write (PUT) by DID
 
 This Agent write request (PUT) overwrites a data resource corresponding to a given Agent as indicated by the *did* in the URL.
-The request is made by sending an HTTP PUT to ```/agent/{did}``` with a *did* whose value is the desired DID. The brackets indicate substitution. This value needs to be URL encoded.
+The request is made by sending an HTTP PUT to ```/agent/{did}``` with a *did* whose value is the desired DID. The brackets indicate substitution. This value needs to be URL encoded. Because a PUT can change the signer field in the data resource, the PUT request Signature header must have two signatures. The tag 'signer' signature is the signature using the key indicated by the new value that the data resource will have once the PUT is successful. The tag 'current' signature is the signature using the key indicated by the current value of the data resource before it is overwritten. This allows to server to verify that the request was made by the current signer and that the new signer signature is provided so that the resource is signed at rest.
+
 A successful request will return status code 200. An unsuccessful request will return an error status code such as 404 Not Found.
 
 
