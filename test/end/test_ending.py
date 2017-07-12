@@ -541,7 +541,7 @@ def test_get_AgentServer(client):  # client is a fixture in pytest_falcon
     """
     Test GET to retrieve precreated server agent.
     """
-    print("Testing GET /agent/register with signature")
+    print("Testing GET /server with signature")
 
     priming.setupTest()
     dbEnv = dbing.gDbEnv
@@ -617,6 +617,215 @@ def test_get_AgentServer(client):  # client is a fixture in pytest_falcon
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")
 
+
+def test_get_AgentDid(client):  # client is a fixture in pytest_falcon
+    """
+    Test GET to agent at did.
+    """
+    print("Testing GET /agent/{did}")
+
+    priming.setupTest()
+    dbEnv = dbing.gDbEnv
+    keeper = keeping.gKeeper
+    did = keeper.did
+
+    # put agent into database
+    # random seed used to generate private signing key
+    #seed = libnacl.randombytes(libnacl.crypto_sign_SEEDBYTES)
+    seed = (b'PTi\x15\xd5\xd3`\xf1u\x15}^r\x9bfH\x02l\xc6\x1b\x1d\x1c\x0b9\xd7{\xc0_'
+            b'\xf2K\x93`')
+
+    # creates signing/verification key pair
+    vk, sk = libnacl.crypto_sign_seed_keypair(seed)
+
+    dt = datetime.datetime(2000, 1, 1, tzinfo=datetime.timezone.utc)
+    stamp = timing.iso8601(dt, aware=True)
+
+    sig, res = makeSignedAgentReg(vk, sk, changed=stamp)
+
+    reg = json.loads(res, object_pairs_hook=ODict)
+    did = reg['did']
+
+    dbing.putSigned(res, sig, did, clobber=False)
+
+
+    didURI = falcon.uri.encode_value(did)
+    rep = client.get('/agent/{}'.format(didURI))
+
+    assert rep.status == falcon.HTTP_OK
+    assert int(rep.headers['content-length']) == 291
+    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
+    assert rep.headers['signature'] == ('signer="{}"'.format(sig))
+    sigs = parseSignatureHeader(rep.headers['signature'])
+
+    assert sigs['signer'] == ('AeYbsHot0pmdWAcgTo5sD8iAuSQAfnH5U6wiIGpVNJQQoYKB'
+                              'YrPPxAoIc1i5SHCIDS8KFFgf8i0tDq8XGizaCg==')
+
+    assert rep.body == (
+        '{\n'
+        '  "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",\n'
+        '  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",\n'
+        '  "changed": "2000-01-01T00:00:00+00:00",\n'
+        '  "keys": [\n'
+        '    {\n'
+        '      "key": "Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",\n'
+        '      "kind": "EdDSA"\n'
+        '    }\n'
+        '  ]\n'
+        '}')
+
+
+    assert rep.json['did'] == did
+    assert verify64u(sigs['signer'], rep.body, rep.json['keys'][0]['key'])
+
+    cleanupTmpBaseDir(dbEnv.path())
+    print("Done Test")
+
+def test_put_AgentDid(client):  # client is a fixture in pytest_falcon
+    """
+    Test PUT to agent at did.
+    Overwrites existing agent data resource with new data
+    """
+    print("Testing put /agent/{did}")
+
+    priming.setupTest()
+    dbEnv = dbing.gDbEnv
+    keeper = keeping.gKeeper
+    did = keeper.did
+
+    # put an agent into database so we can update it
+    # random seed used to generate private signing key
+    #seed = libnacl.randombytes(libnacl.crypto_sign_SEEDBYTES)
+    seed = (b'PTi\x15\xd5\xd3`\xf1u\x15}^r\x9bfH\x02l\xc6\x1b\x1d\x1c\x0b9\xd7{\xc0_'
+            b'\xf2K\x93`')
+
+    # creates signing/verification key pair
+    vk, sk = libnacl.crypto_sign_seed_keypair(seed)
+
+    dt = datetime.datetime(2000, 1, 1, tzinfo=datetime.timezone.utc)
+    stamp = timing.iso8601(dt, aware=True)
+
+    sig, res = makeSignedAgentReg(vk, sk, changed=stamp)
+
+    reg = json.loads(res, object_pairs_hook=ODict)
+    did = reg['did']
+
+    dbing.putSigned(res, sig, did, clobber=False)
+
+    rdat, rser, rsig = dbing.getSelfSigned(did)
+
+    assert rdat == reg
+    assert rser == res
+    assert rsig == sig
+
+    # change signer and key fields
+    #seed = libnacl.randombytes(libnacl.crypto_sign_SEEDBYTES)
+    seed = (b'\xd2\'\x87\x0fs\xd7\xf5\xba\xc1\xff!\x85j\xf5\xe4"\x87\x1c8\n[\xe9\x8e\x0b'
+            b'\x11\xf55\x8b\xb8\x0c\x19\x13')
+
+    # creates signing/verification key pair
+    nvk, nsk = libnacl.crypto_sign_seed_keypair(seed)
+
+    ndt = datetime.datetime(2000, 1, 2, tzinfo=datetime.timezone.utc)
+    nstamp = timing.iso8601(ndt, aware=True)
+
+    index = 1
+    signer = "{}#{}".format(did, index)  # signer field value key at index
+    nverkey = keyToKey64u(nvk)  # make key index field value
+    assert nverkey == 'FsSQTQnp_W-6RPkuvULH8h8G5u_4qYl61ec9-k-2hKc='
+    kind = "EdDSA"
+
+    reg["signer"] = signer
+    reg["changed"] = nstamp
+    reg["keys"].append(ODict(key=nverkey, kind=kind))
+    assert reg["keys"][1] == {'key': 'FsSQTQnp_W-6RPkuvULH8h8G5u_4qYl61ec9-k-2hKc=',
+                              'kind': 'EdDSA'}
+    assert reg['signer'] == "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#1"
+
+    nres = json.dumps(reg, indent=2)
+    nsig = keyToKey64u(libnacl.crypto_sign(nres.encode("utf-8"), nsk)[:libnacl.crypto_sign_BYTES])
+    csig = keyToKey64u(libnacl.crypto_sign(nres.encode("utf-8"), sk)[:libnacl.crypto_sign_BYTES])
+
+    assert nsig == ("Y5xTb0_jTzZYrf5SSEK2f3LSLwIwhOX7GEj6YfRWmGViKAesa08UkNWukUk"
+                    "PGuKuu-EAH5U-sdFPPboBAsjRBw==")
+    assert csig == ("Xhh6WWGJGgjU5V-e57gj4HcJ87LLOhQr2Sqg5VToTSg-SI1W3A8lgISxOj"
+                    "AI5pa2qnonyz3tpGvC2cmf1VTpBg==")
+
+    # now overwrite with new one
+
+    headers = {"Content-Type": "text/html; charset=utf-8",
+               "Signature": 'signer="{}";current="{}"'.format(nsig, csig)}
+
+    body = nres  # client.post encodes the body
+
+    didURI = falcon.uri.encode_value(did)
+    rep = client.put('/agent/{}'.format(didURI), body=body, headers=headers)
+    assert rep.status == falcon.HTTP_200
+    assert rep.json == reg
+    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
+    sigs = parseSignatureHeader(rep.headers['signature'])
+    assert sigs['signer'] == nsig
+    assert sigs['signer'] == ('Y5xTb0_jTzZYrf5SSEK2f3LSLwIwhOX7GEj6YfRWmGViKAes'
+                              'a08UkNWukUkPGuKuu-EAH5U-sdFPPboBAsjRBw==')
+    assert rep.body == (
+        '{\n'
+        '  "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",\n'
+        '  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#1",\n'
+        '  "changed": "2000-01-02T00:00:00+00:00",\n'
+        '  "keys": [\n'
+        '    {\n'
+        '      "key": "Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",\n'
+        '      "kind": "EdDSA"\n'
+        '    },\n'
+        '    {\n'
+        '      "key": "FsSQTQnp_W-6RPkuvULH8h8G5u_4qYl61ec9-k-2hKc=",\n'
+        '      "kind": "EdDSA"\n'
+        '    }\n'
+        '  ]\n'
+        '}')
+
+    # verify that its in database
+
+    ddat, dser, dsig = dbing.getSigned(did)
+
+    assert ddat == reg
+    assert dser == nres
+    assert dsig == nsig
+
+    # now get it
+
+    rep = client.get('/agent/{}'.format(didURI))
+
+    assert rep.status == falcon.HTTP_OK
+    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
+    sigs = parseSignatureHeader(rep.headers['signature'])
+    assert sigs['signer'] == nsig
+    assert sigs['signer'] == ('Y5xTb0_jTzZYrf5SSEK2f3LSLwIwhOX7GEj6YfRWmGViKAes'
+                              'a08UkNWukUkPGuKuu-EAH5U-sdFPPboBAsjRBw==')
+
+    assert rep.body == (
+        '{\n'
+        '  "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",\n'
+        '  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#1",\n'
+        '  "changed": "2000-01-02T00:00:00+00:00",\n'
+        '  "keys": [\n'
+        '    {\n'
+        '      "key": "Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",\n'
+        '      "kind": "EdDSA"\n'
+        '    },\n'
+        '    {\n'
+        '      "key": "FsSQTQnp_W-6RPkuvULH8h8G5u_4qYl61ec9-k-2hKc=",\n'
+        '      "kind": "EdDSA"\n'
+        '    }\n'
+        '  ]\n'
+        '}')
+
+    assert rep.json['did'] == did
+    assert verify64u(sigs['signer'], rep.body, rep.json['keys'][1]['key'])
+
+    cleanupTmpBaseDir(dbEnv.path())
+    print("Done Test")
+
 def test_post_message(client):  # client is a fixture in pytest_falcon
     """
     Test POST to add message to Thing message queue.
@@ -678,7 +887,7 @@ def test_post_message(client):  # client is a fixture in pytest_falcon
     assert ser == rep.body
     assert sig == sigs['signer']
 
-    print("Testing get server using GET /agent/registration?did=")
+    print("Testing get server using GET /agent?did=")
 
     didURI = falcon.uri.encode_value(did)
     rep = client.get('/agent?did={}'.format(didURI))

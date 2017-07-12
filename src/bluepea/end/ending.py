@@ -23,7 +23,7 @@ from ..bluepeaing import SEPARATOR
 
 from ..help.helping import (parseSignatureHeader, verify64u,
                             validateSignedAgentReg, validateSignedThingReg,
-                            validateSignedResource)
+                            validateSignedResource, validateSignedAgentWrite)
 from ..db import dbing
 from ..keep import keeping
 
@@ -162,6 +162,7 @@ class AgentResource:
         rep.status = falcon.HTTP_200  # This is the default status
         rep.body = ser
 
+
 class AgentDidResource:
     """
     Agent Did Resource
@@ -196,22 +197,42 @@ class AgentDidResource:
             raise falcon.HTTPError(falcon.HTTP_400,
                                            'Validation Error',
                                            'Invalid or missing Signature header.')
+        csig = sigs.get('current')  # str not bytes
+        if not csig:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                           'Validation Error',
+                                           'Invalid or missing Signature header.')
 
         try:
-            resb = req.stream.read()  # bytes
+            serb = req.stream.read()  # bytes
         except Exception:
             raise falcon.HTTPError(falcon.HTTP_400,
                                        'Read Error',
                                        'Could not read the request body.')
+        ser = serb.decode("utf-8")
 
-        res = resb.decode("utf-8")
+        # Get validated current resource from database
+        try:
+            rdat, rser, rsig = dbing.getSelfSigned(did)
+        except dbing.DatabaseError as ex:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                            'Resource Verification Error',
+                            'Error verifying signer resource. {}'.format(ex))
 
-        # validate signature here. Get current resource from database
-        # verify same signer as in request
+
+        # validate request
+        dat = validateSignedAgentWrite(cdat=rdat, csig=csig, sig=sig, ser=ser)
+        if not dat:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                               'Validation Error',
+                                           'Could not validate the request body.')
+
+        if "hids" in dat:
+            pass  # validate hid namespaces here
 
         # save to database
         try:
-            dbing.putSigned(res, sig, did, clobber=True)
+            dbing.putSigned(ser, sig, did, clobber=True)
         except dbing.DatabaseError as ex:
             raise falcon.HTTPError(falcon.HTTP_412,
                                   'Database Error',
@@ -220,7 +241,7 @@ class AgentDidResource:
         rep.set_header("Signature", 'signer="{}"'.format(sig))
         rep.set_header("Content-Type", "application/json; charset=UTF-8")
         rep.status = falcon.HTTP_200  # This is the default status
-        rep.body = res
+        rep.body = ser
 
     def on_get(self, req, rep, did):
         """

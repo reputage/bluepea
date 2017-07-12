@@ -539,3 +539,109 @@ def validateSignedResource(signature, resource, verkey, method="igo"):
         return None
 
     return rsrc
+
+
+def validateSignedAgentWrite(cdat, csig, sig, ser,  method="igo"):
+    """
+    Returns deserialized version of serialization ser which is resource to be written
+    if signature sig verifies and resource is correctly formed.
+    Otherwise returns None
+
+    cdat is current record dict in database
+
+    csig is signature using current signer field in resource to be overwritten
+
+    sig is base64 url-file safe unicode string signature generated
+        by signing bytes version of registration with new privated signing key
+        associated with public verification key in signer field in updated resourse
+
+    ser is json encoded unicode string of registration record
+
+
+
+    method is the method string used to generate dids in the registration
+    """
+
+    try:
+
+        # get signer key from read data. assumes that resource is valed
+        try:
+            cdid, index = cdat["signer"].rsplit("#", maxsplit=1)
+            index = int(index)  # get index and sdid from signer field
+        except (AttributeError, ValueError) as ex:
+            return None  # missing sdid or index
+
+        try:  # correct did format  pre:method:keystr
+            pre, meth, keystr = cdid.split(":")
+        except ValueError as ex:
+            return None
+
+        cverkey = keystr  # existing resources verify key
+
+        # verify request using existing resources signer verify key
+        if not verify64u(csig, ser, cverkey):
+            return None  # signature fails
+
+        # now validate updated resource
+        try:
+            dat = json.loads(ser, object_pairs_hook=ODict)
+        except ValueError as ex:
+            return None  # invalid json
+
+        if not dat:  # registration must not be empty
+            return None
+
+        if not isinstance(dat, dict):  # must be dict subclass
+            return None
+
+        if "changed" not in dat:  # changed field required
+            return None
+
+        try:
+            dt = arrow.get(dat["changed"])
+        except arrow.parser.ParserError as ex:  # invalid datetime format
+            return None
+
+        # Compare changed
+        cdt = arrow.get(cdat["changed"])
+        if dt <= cdt:  # not later
+            return None
+
+        if "signer" not in dat:  # signer field required
+            return None
+
+        try:
+            sdid, index = dat["signer"].rsplit("#", maxsplit=1)
+            index = int(index)  # get index and sdid from signer field
+        except (AttributeError, ValueError) as ex:
+            return None  # missing sdid or index
+
+        try:  # correct did format  pre:method:keystr
+            pre, meth, keystr = sdid.split(":")
+        except ValueError as ex:
+            return None
+
+        if pre != "did" or meth != method:
+            return None  # did format bad
+
+        if "did" not in dat:  # did field required
+            return None
+
+        if dat['did'] != sdid:  # not self signed
+            return None
+
+        if sdid != cdid:  # not same resource
+            return None
+
+        verkey = dat['keys'][index]['key']
+
+        if len(verkey) != 44:
+            return None  # invalid length for base64 encoded key
+
+        if not verify64u(sig, ser, verkey):  # verify with new signer verify key
+            return None  # signature fails
+
+    except Exception as ex:  # unknown problem
+        return None
+
+    return dat

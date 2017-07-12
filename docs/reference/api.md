@@ -109,15 +109,19 @@ Although all resource write requests are signed by the client and therefore can 
 The API consists of several ReST endpoints grouped according to the type of data resource that is being manipulated by the API. Each resource has HTTP verbs that do the manipulation.
 
 ```http
-\server GET
+/server GET
 
-\agent  POST
-\agent?did=... GET
+/agent  POST
+/agent?did={did} GET
 
-\thing  POST
-\thing?did=... GET
+/agent/{did}  GET
+/agent/{did}  PUT
 
+/thing  POST
+/thing?did={did} GET
 
+/thing/{did}  GET
+/thing/{did}  PUT
 ```
 
 ## *Server* *Agent* Read 
@@ -348,6 +352,113 @@ Date: Tue, 11 Jul 2017 01:17:11 GMT
   "keys": [
     {
       "key": "Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+      "kind": "EdDSA"
+    }
+  ]
+}
+```
+
+## *Agent* Read (GET) by DID
+
+This Agent read request (GET) retrieves a data resource corresponding to a given Agent as indicated by the *did* in the URL. This is functionally the same as the Agent Read above except that it at a different endpoint.
+The request is made by sending an HTTP Get to ```/agent/{did}``` with a *did* whose value is the desired DID. The brackets indicate substitution. This value needs to be URL encoded.
+A successful request will return status code 200. An unsuccessful request will return an error status code such as 404 Not Found.
+If successful the response includes a custom "Signature" header whose *signer* field value is the signature.
+
+
+Example requests and responses are shown below.
+
+## Request
+
+```http
+GET /agent/did%3Aigo%3AQt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE%3D HTTP/1.1
+Content-Type: application/json; charset=utf-8
+Host: localhost:8080
+Connection: close
+User-Agent: Paw/3.1.1 (Macintosh; OS X/10.12.5) GCDHTTPRequest
+```
+
+## Response
+
+```http
+HTTP/1.1 200 OK
+Signature: signer="AeYbsHot0pmdWAcgTo5sD8iAuSQAfnH5U6wiIGpVNJQQoYKBYrPPxAoIc1i5SHCIDS8KFFgf8i0tDq8XGizaCg=="
+Content-Type: application/json; charset=UTF-8
+Content-Length: 291
+Server: Ioflo WSGI Server
+Date: Tue, 11 Jul 2017 19:58:06 GMT
+
+{
+  "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",
+  "changed": "2000-01-01T00:00:00+00:00",
+  "keys": [
+    {
+      "key": "Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+      "kind": "EdDSA"
+    }
+  ]
+}
+```
+
+## *Agent* Write (PUT) by DID
+
+This Agent write request (PUT) overwrites a data resource corresponding to a given Agent as indicated by the *did* in the URL.
+The request is made by sending an HTTP PUT to ```/agent/{did}``` with a *did* whose value is the desired DID. The brackets indicate substitution. This value needs to be URL encoded.
+A successful request will return status code 200. An unsuccessful request will return an error status code such as 404 Not Found.
+
+
+Example request and response are shown below for adding another key and changing the signer field to reference the new key.
+
+## Request
+
+```http
+PUT /agent/did%3Aigo%3AQt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE%3D HTTP/1.1
+Signature: signer="Y5xTb0_jTzZYrf5SSEK2f3LSLwIwhOX7GEj6YfRWmGViKAesa08UkNWukUkPGuKuu-EAH5U-sdFPPboBAsjRBw=="; current="Xhh6WWGJGgjU5V-e57gj4HcJ87LLOhQr2Sqg5VToTSg-SI1W3A8lgISxOjAI5pa2qnonyz3tpGvC2cmf1VTpBg=="
+Content-Type: application/json; charset=UTF-8
+Host: localhost:8080
+Connection: close
+User-Agent: Paw/3.1.1 (Macintosh; OS X/10.12.5) GCDHTTPRequest
+Content-Length: 387
+
+{
+  "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#1",
+  "changed": "2000-01-02T00:00:00+00:00",
+  "keys": [
+    {
+      "key": "Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+      "kind": "EdDSA"
+    },
+    {
+      "key": "FsSQTQnp_W-6RPkuvULH8h8G5u_4qYl61ec9-k-2hKc=",
+      "kind": "EdDSA"
+    }
+  ]
+}
+```
+
+## Response
+
+```http
+HTTP/1.1 200 OK
+Signature: signer="Y5xTb0_jTzZYrf5SSEK2f3LSLwIwhOX7GEj6YfRWmGViKAesa08UkNWukUkPGuKuu-EAH5U-sdFPPboBAsjRBw=="
+Content-Type: application/json; charset=UTF-8
+Content-Length: 387
+Server: Ioflo WSGI Server
+Date: Wed, 12 Jul 2017 00:47:00 GMT
+
+{
+  "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#1",
+  "changed": "2000-01-02T00:00:00+00:00",
+  "keys": [
+    {
+      "key": "Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+      "kind": "EdDSA"
+    },
+    {
+      "key": "FsSQTQnp_W-6RPkuvULH8h8G5u_4qYl61ec9-k-2hKc=",
       "kind": "EdDSA"
     }
   ]
