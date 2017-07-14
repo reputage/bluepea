@@ -23,7 +23,8 @@ from ..bluepeaing import SEPARATOR
 
 from ..help.helping import (parseSignatureHeader, verify64u,
                             validateSignedAgentReg, validateSignedThingReg,
-                            validateSignedResource, validateSignedAgentWrite)
+                            validateSignedResource, validateSignedAgentWrite,
+                            validateSignedThingWrite)
 from ..db import dbing
 from ..keep import keeping
 
