@@ -839,7 +839,7 @@ def test_put_IssuerDid(client):  # client is a fixture in pytest_falcon
                 validationURL="https://generic.com/indigo")
     hids = [hid]  # list of hids
 
-    sig, res = makeSignedAgentReg(vk, sk, changed=stamp, hid=hids)
+    sig, res = makeSignedAgentReg(vk, sk, changed=stamp, hids=hids)
 
     reg = json.loads(res, object_pairs_hook=ODict)
     did = reg['did']
@@ -881,8 +881,8 @@ def test_put_IssuerDid(client):  # client is a fixture in pytest_falcon
     nsig = keyToKey64u(libnacl.crypto_sign(nres.encode("utf-8"), nsk)[:libnacl.crypto_sign_BYTES])
     csig = keyToKey64u(libnacl.crypto_sign(nres.encode("utf-8"), sk)[:libnacl.crypto_sign_BYTES])
 
-    assert nsig == ("NrdvM4_0DhdHCGUbo2fHPymkwNyU1X1GuqdX_oiud96RanlZlKN7WK5VJvw8aPZXZ_eRtCMfpKfCm0vewn7fBA==")
-    assert csig == ("Vb9SDff5XeO7Exmn0A0zA2K4pxYHWZvD1rVkVPqv64WcrIt_G47IvC0K1XiYMyuJPDtR5kqaYBz5p66ov9zbAQ==")
+    assert nsig == ("1eOnymJR0eAnyWig-cAzLlCXYYnzanMUbhgkCnNCYzOI0FWwRk8ZF5YvpfOLUge2F-NcR071YO5rbfDDltcXCg==")
+    assert csig == ("vmW5JeXuj7zI71lt18LYZomV_V9J1CP68MkJVd_M2ahsnetlj0U4qjGFKHNjhDjEtrYfxUYAn2BWFyx_e99aBg==")
 
 
     # now overwrite with new one using web service
@@ -898,7 +898,6 @@ def test_put_IssuerDid(client):  # client is a fixture in pytest_falcon
     assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
     sigs = parseSignatureHeader(rep.headers['signature'])
     assert sigs['signer'] == nsig
-    assert sigs['signer'] == "NrdvM4_0DhdHCGUbo2fHPymkwNyU1X1GuqdX_oiud96RanlZlKN7WK5VJvw8aPZXZ_eRtCMfpKfCm0vewn7fBA=="
     assert rep.body == (
         '{\n'
         '  "did": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",\n'
@@ -914,7 +913,7 @@ def test_put_IssuerDid(client):  # client is a fixture in pytest_falcon
         '      "kind": "EdDSA"\n'
         '    }\n'
         '  ],\n'
-        '  "hid": [\n'
+        '  "hids": [\n'
         '    {\n'
         '      "kind": "dns",\n'
         '      "issuer": "generic.com",\n'
