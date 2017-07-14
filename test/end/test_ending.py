@@ -902,33 +902,34 @@ def test_get_ThingDid(client):  # client is a fixture in pytest_falcon
 
     # now get it from web service
     didURI = falcon.uri.encode_value(tdid)
-    rep = client.get('/agent/{}'.format(didURI))
+    rep = client.get('/thing/{}'.format(didURI))
 
     assert rep.status == falcon.HTTP_OK
-    assert int(rep.headers['content-length']) == 291
     assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
-    assert rep.headers['signature'] == ('signer="{}"'.format(sig))
+    assert rep.headers['signature'] == ('signer="{}"'.format(ssig))
     sigs = parseSignatureHeader(rep.headers['signature'])
 
-    assert sigs['signer'] == ('AeYbsHot0pmdWAcgTo5sD8iAuSQAfnH5U6wiIGpVNJQQoYKB'
-                              'YrPPxAoIc1i5SHCIDS8KFFgf8i0tDq8XGizaCg==')
+    assert sigs['signer'] == 'bNUB37pBC5KuSVx4SKw8qQGR405wH7qNI2pjv2MhmyqsJ8ofTTS2WYs3ZaU7aDyoJGSIfwJcadmcok9tntdkDA=='
 
     assert rep.body == (
         '{\n'
-        '  "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",\n'
-        '  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",\n'
+        '  "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",\n'
+        '  "hid": "hid:dns:generic.com#02",\n'
+        '  "signer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#0",\n'
         '  "changed": "2000-01-01T00:00:00+00:00",\n'
-        '  "keys": [\n'
-        '    {\n'
-        '      "key": "Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",\n'
-        '      "kind": "EdDSA"\n'
-        '    }\n'
-        '  ]\n'
+        '  "data": {\n'
+        '    "keywords": [\n'
+        '      "Canon",\n'
+        '      "EOS Rebel T6",\n'
+        '      "251440"\n'
+        '    ],\n'
+        '    "message": "If found please return."\n'
+        '  }\n'
         '}')
 
 
     assert rep.json['did'] == tdid
-    assert verify64u(sigs['signer'], rep.body, rep.json['keys'][0]['key'])
+    assert verify64u(sigs['signer'], rep.body, adat['keys'][0]['key'])
 
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")
