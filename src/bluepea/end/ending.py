@@ -405,6 +405,113 @@ class ThingResource:
         rep.status = falcon.HTTP_200  # This is the default status
         rep.body = ser
 
+class ThingDidResource:
+    """
+    Thing Did Resource
+    Access Thing resource by DID
+
+    /thing/{did}
+
+    Attributes:
+        .store is reference to ioflo data store
+
+    """
+    def  __init__(self, store=None, **kwa):
+        """
+        Parameters:
+            store is reference to ioflo data store
+        """
+        super(**kwa)
+        self.store = store
+
+    def on_put(self, req, rep, did):
+        """
+        Handles PUT requests
+
+        /thing/{did}
+
+        Falcon url decodes path parameters such as {did}
+        """
+        signature = req.get_header("Signature")
+        sigs = parseSignatureHeader(signature)
+        sig = sigs.get('signer')  # str not bytes
+        if not sig:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                           'Validation Error',
+                                           'Invalid or missing Signature header.')
+        csig = sigs.get('current')  # str not bytes
+        if not csig:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                           'Validation Error',
+                                           'Invalid or missing Signature header.')
+
+        try:
+            serb = req.stream.read()  # bytes
+        except Exception:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                       'Read Error',
+                                       'Could not read the request body.')
+        ser = serb.decode("utf-8")
+
+        # Get validated current resource from database
+        try:
+            rdat, rser, rsig = dbing.getSigned(did)
+        except dbing.DatabaseError as ex:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                            'Resource Verification Error',
+                            'Error verifying signer resource. {}'.format(ex))
+
+
+        # validate request
+        dat = validateSignedThingWrite(cdat=rdat, csig=csig, sig=sig, ser=ser)
+        if not dat:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                               'Validation Error',
+                                           'Could not validate the request body.')
+
+        if "hid" in dat:
+            pass  # validate hid namespace here
+
+        # save to database
+        try:
+            dbing.putSigned(ser, sig, did, clobber=True)
+        except dbing.DatabaseError as ex:
+            raise falcon.HTTPError(falcon.HTTP_412,
+                                  'Database Error',
+                                  '{}'.format(ex.args[0]))
+
+        rep.set_header("Signature", 'signer="{}"'.format(sig))
+        rep.set_header("Content-Type", "application/json; charset=UTF-8")
+        rep.status = falcon.HTTP_200  # This is the default status
+        rep.body = ser
+
+    def on_get(self, req, rep, did):
+        """
+        Handles GET request for an Thing Resource by did
+
+        /thing/{did}
+
+        Falcon url decodes path parameters such as {did}
+        """
+        # read from database
+        try:
+            dat, ser, sig = dbing.getSigned(did)
+        except dbing.DatabaseError as ex:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                            'Resource Verification Error',
+                            'Error verifying resource. {}'.format(ex))
+
+        if dat is None:
+            raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
+                                               'Not Found Error',
+                                               'DID resource does not exist')
+
+        rep.set_header("Signature", 'signer="{}"'.format(sig))
+        rep.set_header("Content-Type", "application/json; charset=UTF-8")
+        rep.status = falcon.HTTP_200  # This is the default status
+        rep.body = ser
+
+
 
 def loadEnds(app, store):
     """
