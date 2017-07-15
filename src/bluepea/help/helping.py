@@ -172,6 +172,29 @@ def verify64u(signature, message, verkey):
     msg = message.encode("utf-8")
     return (verify(sig, msg, vk))
 
+def extractSignerParts(dat, method="igo"):
+    """
+    Parses and returns did index keystr from signer field value of dat
+    as tuple (did, index, keystr)
+    raises ValueError if fails parsing
+    """
+    # get signer key from read data. assumes that resource is valid
+    try:
+        did, index = dat["signer"].rsplit("#", maxsplit=1)
+        index = int(index)  # get index and sdid from signer field
+    except (KeyError, ValueError) as ex:
+        raise ValueError("Missing signer field or invalid indexed signer value")
+
+    try:  # correct did format  pre:method:keystr
+        pre, meth, keystr = did.split(":")
+    except ValueError as ex:
+        raise ValueError("Malformed DID value")
+
+    if pre != "did" or meth != method:
+        raise ValueError("Invalid DID value")
+
+    return (did, index, keystr)
+
 
 def makeSignedAgentReg(vk, sk, changed=None, **kwa):
     """
@@ -256,7 +279,7 @@ def validateSignedAgentReg(signature, registration, method="igo"):
         try:
             sdid, index = reg["signer"].rsplit("#", maxsplit=1)
             index = int(index)  # get index and sdid from signer field
-        except (AttributeError, ValueError) as ex:
+        except (KeyError, ValueError) as ex:
             return None  # missing sdid or index
 
         try:  # correct did format  pre:method:keystr
@@ -419,7 +442,7 @@ def validateSignedThingReg(signature, registration, method="igo"):
         try:
             sdid, index = reg["signer"].rsplit("#", maxsplit=1)
             index = int(index)  # get index and sdid from signer field
-        except (AttributeError, ValueError) as ex:
+        except (KeyError, ValueError) as ex:
             return None  # missing sdid or index
 
         try:  # correct did format  pre:method:keystr
@@ -568,7 +591,7 @@ def validateSignedAgentWrite(cdat, csig, sig, ser,  method="igo"):
         try:
             cdid, index = cdat["signer"].rsplit("#", maxsplit=1)
             index = int(index)  # get index and sdid from signer field
-        except (AttributeError, ValueError) as ex:
+        except (KeyError, ValueError) as ex:
             return None  # missing sdid or index
 
         try:  # correct did format  pre:method:keystr
@@ -633,7 +656,10 @@ def validateSignedAgentWrite(cdat, csig, sig, ser,  method="igo"):
         if sdid != cdid:  # not same resource
             return None
 
-        verkey = dat['keys'][index]['key']
+        try:
+            verkey = dat['keys'][index]['key']
+        except (KeyError, IndexError) as ex:
+            return None
 
         if len(verkey) != 44:
             return None  # invalid length for base64 encoded key
@@ -647,13 +673,15 @@ def validateSignedAgentWrite(cdat, csig, sig, ser,  method="igo"):
     return dat
 
 
-def validateSignedThingWrite(cdat, csig, sig, ser,  method="igo"):
+def validateSignedThingWrite(sdat, cdat, csig, sig, ser,  method="igo"):
     """
     Returns deserialized version of serialization ser which is resource to be written
     if signature sig verifies and resource is correctly formed.
     Otherwise returns None
 
-    cdat is current record dict in database
+    sdat is current signer dict converted from database
+
+    cdat is current record dict converted from database
 
     csig is signature using current signer field in resource to be overwritten
 
@@ -669,23 +697,23 @@ def validateSignedThingWrite(cdat, csig, sig, ser,  method="igo"):
     """
 
     try:
-
-        # get signer key from read data. assumes that resource is valid
+        # get signer key index from signer field in cdat
         try:
-            cdid, index = cdat["signer"].rsplit("#", maxsplit=1)
-            index = int(index)  # get index and sdid from signer field
-        except (AttributeError, ValueError) as ex:
-            return None  # missing sdid or index
-
-        try:  # correct did format  pre:method:keystr
-            pre, meth, keystr = cdid.split(":")
+            (sdid, index, akey) = extractSignerParts(cdat)
         except ValueError as ex:
             return None
 
-        cverkey = keystr  # existing resources verify key
+        # get signer key from signer data. assumes that resource is valid
+        try:
+            sverkey = sdat["keys"][index]["key"]
+        except (KeyError, IndexError) as ex:
+            return None
+
+        if len(sverkey) != 44:
+            return None  # invalid length for base64 encoded key
 
         # verify request using existing resources signer verify key
-        if not verify64u(csig, ser, cverkey):
+        if not verify64u(csig, ser, sverkey):
             return None  # signature fails
 
         # now validate updated resource
@@ -713,38 +741,27 @@ def validateSignedThingWrite(cdat, csig, sig, ser,  method="igo"):
         if dt <= cdt:  # not later
             return None
 
-        if "signer" not in dat:  # signer field required
-            return None
-
-        try:
-            sdid, index = dat["signer"].rsplit("#", maxsplit=1)
-            index = int(index)  # get index and sdid from signer field
-        except (AttributeError, ValueError) as ex:
-            return None  # missing sdid or index
-
-        try:  # correct did format  pre:method:keystr
-            pre, meth, keystr = sdid.split(":")
-        except ValueError as ex:
-            return None
-
-        if pre != "did" or meth != method:
-            return None  # did format bad
-
         if "did" not in dat:  # did field required
             return None
 
-        if dat['did'] != sdid:  # not self signed
+        if dat['did'] != cdat['did']:  # not same resource
             return None
 
-        if sdid != cdid:  # not same resource
+        # validate new signer
+        try:
+            (sdid, nindex, akey) = extractSignerParts(dat)
+        except ValueError as ex:
             return None
 
-        verkey = dat['keys'][index]['key']
+        try:
+            nverkey = sdat['keys'][nindex]['key']  # new index
+        except (KeyError, IndexError) as ex:
+            return None
 
-        if len(verkey) != 44:
+        if len(nverkey) != 44:
             return None  # invalid length for base64 encoded key
 
-        if not verify64u(sig, ser, verkey):  # verify with new signer verify key
+        if not verify64u(sig, ser, nverkey):  # verify with new signer verify key
             return None  # signature fails
 
     except Exception as ex:  # unknown problem

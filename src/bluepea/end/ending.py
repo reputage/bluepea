@@ -22,6 +22,7 @@ from ioflo.aid import getConsole
 from ..bluepeaing import SEPARATOR
 
 from ..help.helping import (parseSignatureHeader, verify64u,
+                            extractSignerParts,
                             validateSignedAgentReg, validateSignedThingReg,
                             validateSignedResource, validateSignedAgentWrite,
                             validateSignedThingWrite)
@@ -454,17 +455,32 @@ class ThingDidResource:
                                        'Could not read the request body.')
         ser = serb.decode("utf-8")
 
-        # Get validated current resource from database
+        # Get validated existing resource from database
         try:
-            rdat, rser, rsig = dbing.getSigned(did)
+            cdat, cser, psig = dbing.getSigned(did)
         except dbing.DatabaseError as ex:
             raise falcon.HTTPError(falcon.HTTP_400,
                             'Resource Verification Error',
-                            'Error verifying signer resource. {}'.format(ex))
+                            'Error verifying current thing resource. {}'.format(ex))
 
+        # extract sdid and keystr from signer field
+        try:
+            (sdid, index, akey) = extractSignerParts(cdat)
+        except ValueError as ex:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                           'Resource Verification Error',
+                                'Missing or Invalid signer field. {}'.format(ex))
+
+       # Get validated signer resource from database
+        try:
+            sdat, sser, ssig = dbing.getSelfSigned(sdid)
+        except dbing.DatabaseError as ex:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                       'Resource Verification Error',
+                                       'Error verifying signer resource. {}'.format(ex))
 
         # validate request
-        dat = validateSignedThingWrite(cdat=rdat, csig=csig, sig=sig, ser=ser)
+        dat = validateSignedThingWrite(sdat=sdat, cdat=cdat, csig=csig, sig=sig, ser=ser)
         if not dat:
             raise falcon.HTTPError(falcon.HTTP_400,
                                                'Validation Error',

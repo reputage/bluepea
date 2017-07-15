@@ -1096,22 +1096,44 @@ def test_put_ThingDid(client):  # client is a fixture in pytest_falcon
     dt = datetime.datetime(2000, 1, 1, tzinfo=datetime.timezone.utc)
     stamp = timing.iso8601(dt, aware=True)
 
-    asig, aser = makeSignedAgentReg(svk, ssk, changed=stamp)
+    hid = ODict(kind="dns",
+                issuer="generic.com",
+                registered=stamp,
+                validationURL="https://generic.com/indigo")
+    hids = [hid]  # list of hids
+
+    asig, aser = makeSignedAgentReg(svk, ssk, changed=stamp,  hids=hid)
 
     adat = json.loads(aser, object_pairs_hook=ODict)
     adid = adat['did']
 
-    # modify agent so second signature
+    # modify agent so has another key in keys
+    #seed = libnacl.randombytes(libnacl.crypto_sign_SEEDBYTES)
+    seed = (b'Z\xda?\x93M\xf8|\xe2!d\x16{s\x9d\x07\xd2\x98\xf2!\xff\xb8\xb6\xf9Z'
+            b'\xe5I\xbc\x97}IFV')
 
+    # creates signing/verification key pair
+    nvk, nsk = libnacl.crypto_sign_seed_keypair(seed)
+    nverkey = keyToKey64u(nvk)  # make key index field value
+    assert nverkey == '0UX5tP24WPEmAbROdXdygGAM3oDcvrqb3foX4EyayYI='
+    kind = "EdDSA"
+    adat["keys"].append(ODict(key=nverkey, kind=kind))
+    assert adat["keys"][1] == {'key': '0UX5tP24WPEmAbROdXdygGAM3oDcvrqb3foX4EyayYI=',
+                              'kind': 'EdDSA'}
 
-    dbing.putSigned(aser, asig, adid, clobber=False)
+    nser = json.dumps(adat, indent=2)
+    # did not change signer so sign with prior signer
+    nsig = keyToKey64u(libnacl.crypto_sign(nser.encode("utf-8"), ssk)[:libnacl.crypto_sign_BYTES])
+    assert nsig == ('36F8kuQQVLf6hOoa0jOQ18DFZo5PXiVMJxJvamG0DI2TtTIJv6iPOixzV0vq0eQPkbIPANwHoqj0kNlv8D-RCQ==')
+
+    dbing.putSigned(nser, nsig, adid, clobber=False)
 
     # verify that its in database
-    vdat, vser, vsig = dbing.getSigned(adid)
+    vdat, vser, vsig = dbing.getSelfSigned(adid)
 
     assert vdat == adat
-    assert vser == aser
-    assert vsig == asig
+    assert vser == nser
+    assert vsig == nsig
 
     # create thing signed by agent and put into database
     # creates signing/verification key pair thing DID
@@ -1165,8 +1187,59 @@ def test_put_ThingDid(client):  # client is a fixture in pytest_falcon
     assert vser == tser
     assert vsig == ssig
 
-    # now create changed copy to PUT with web service
-    #
+    # now change signer field and changed field
+    index = 1
+    signer = "{}#{}".format(adid, index)  # signer field value key at index
+    assert signer == 'did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#1'
+    tdat['signer'] = signer
+
+    dt = datetime.datetime(2000, 1, 2, tzinfo=datetime.timezone.utc)
+    stamp = timing.iso8601(dt, aware=True)
+    tdat['changed'] = stamp
+
+    # now double sign and put to web service
+    ntser = json.dumps(tdat, indent=2)
+
+    ntsig = keyToKey64u(libnacl.crypto_sign(ntser.encode("utf-8"), nsk)[:libnacl.crypto_sign_BYTES])
+    ctsig = keyToKey64u(libnacl.crypto_sign(ntser.encode("utf-8"), ssk)[:libnacl.crypto_sign_BYTES])
+
+    assert ntsig == ("5SwnZroMIcOpx1vEYkcSajnU3BhrqBpovq0NnCwL43kuEs-GTfwd6bpQJ_L5bMhfRAZZEgkjVqFx4HCGGLc9DA==")
+    assert ctsig == ("3GhKWYXFL0JGTnhK3vB0087Rib4nhjfts12KjJMr5EOa2AO6uqyBZyziKVfa7WUK5mvFPyo-Hxjx4GPTV5AGBw==")
+
+    # now overwrite with new one using web service
+    headers = {"Content-Type": "text/html; charset=utf-8",
+               "Signature": 'signer="{}";current="{}"'.format(ntsig, ctsig)}
+    body = ntser  # client.post encodes the body
+    didURI = falcon.uri.encode_value(tdid)
+    rep = client.put('/thing/{}'.format(didURI), body=body, headers=headers)
+    assert rep.status == falcon.HTTP_200
+    assert rep.json == tdat
+    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
+    sigs = parseSignatureHeader(rep.headers['signature'])
+    assert sigs['signer'] == ntsig
+    assert rep.body == (
+        '{\n'
+        '  "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",\n'
+        '  "hid": "hid:dns:generic.com#02",\n'
+        '  "signer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#1",\n'
+        '  "changed": "2000-01-02T00:00:00+00:00",\n'
+        '  "data": {\n'
+        '    "keywords": [\n'
+        '      "Canon",\n'
+        '      "EOS Rebel T6",\n'
+        '      "251440"\n'
+        '    ],\n'
+        '    "message": "If found please return."\n'
+        '  }\n'
+        '}')
+
+    # verify that its in database
+
+    vdat, vser, vsig = dbing.getSigned(tdid)
+
+    assert vdat == tdat
+    assert vser == ntser
+    assert vsig == ntsig
 
 
     # now get it from web service
@@ -1175,17 +1248,16 @@ def test_put_ThingDid(client):  # client is a fixture in pytest_falcon
 
     assert rep.status == falcon.HTTP_OK
     assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
-    assert rep.headers['signature'] == ('signer="{}"'.format(ssig))
     sigs = parseSignatureHeader(rep.headers['signature'])
 
-    assert sigs['signer'] == 'bNUB37pBC5KuSVx4SKw8qQGR405wH7qNI2pjv2MhmyqsJ8ofTTS2WYs3ZaU7aDyoJGSIfwJcadmcok9tntdkDA=='
+    assert sigs['signer'] == ntsig
 
     assert rep.body == (
         '{\n'
         '  "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",\n'
         '  "hid": "hid:dns:generic.com#02",\n'
-        '  "signer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#0",\n'
-        '  "changed": "2000-01-01T00:00:00+00:00",\n'
+        '  "signer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#1",\n'
+        '  "changed": "2000-01-02T00:00:00+00:00",\n'
         '  "data": {\n'
         '    "keywords": [\n'
         '      "Canon",\n'
@@ -1198,7 +1270,7 @@ def test_put_ThingDid(client):  # client is a fixture in pytest_falcon
 
 
     assert rep.json['did'] == tdid
-    assert verify64u(sigs['signer'], rep.body, adat['keys'][0]['key'])
+    assert verify64u(sigs['signer'], rep.body, adat['keys'][1]['key'])
 
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")
@@ -1255,11 +1327,11 @@ def test_post_message(client):  # client is a fixture in pytest_falcon
         ],
     }
 
-    assert rep.json['did'] == did
+    assert rep.json['did'] == kdid
 
     assert verify64u(sigs['signer'], rep.body, rep.json['keys'][0]['key'])
 
-    dat, ser, sig = dbing.getSigned(did)
+    dat, ser, sig = dbing.getSigned(kdid)
 
     assert dat == rep.json
     assert ser == rep.body
@@ -1267,7 +1339,7 @@ def test_post_message(client):  # client is a fixture in pytest_falcon
 
     print("Testing get server using GET /agent?did=")
 
-    didURI = falcon.uri.encode_value(did)
+    didURI = falcon.uri.encode_value(kdid)
     rep = client.get('/agent?did={}'.format(didURI))
 
     assert rep.status == falcon.HTTP_OK
