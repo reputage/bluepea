@@ -658,7 +658,7 @@ def validateSignedAgentWrite(cdat, csig, sig, ser,  method="igo"):
 
         try:
             verkey = dat['keys'][index]['key']
-        except (KeyError, IndexError) as ex:
+        except (TypeError, KeyError, IndexError) as ex:
             return None
 
         if len(verkey) != 44:
@@ -706,7 +706,7 @@ def validateSignedThingWrite(sdat, cdat, csig, sig, ser,  method="igo"):
         # get signer key from signer data. assumes that resource is valid
         try:
             sverkey = sdat["keys"][index]["key"]
-        except (KeyError, IndexError) as ex:
+        except (TypeError, KeyError, IndexError) as ex:
             return None
 
         if len(sverkey) != 44:

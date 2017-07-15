@@ -340,10 +340,15 @@ class ThingResource:
                             'Resource Verification Error',
                             'Error verifying signer resource. {}'.format(ex))
 
+        if sdat is None:
+            raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
+                                               'Not Found Error',
+                                               'DID resource does not exist')
+
         # now use signer agents key indexed for thing signer to verify thing resource
         try:
             tkey = sdat['keys'][index]['key']
-        except (IndexError, KeyError) as ex:
+        except (TypeError, IndexError, KeyError) as ex:
             raise falcon.HTTPError(falcon.HTTP_424,
                                            'Data Resource Error',
                                            'Missing signing key')
@@ -478,6 +483,11 @@ class ThingDidResource:
             raise falcon.HTTPError(falcon.HTTP_400,
                                        'Resource Verification Error',
                                        'Error verifying signer resource. {}'.format(ex))
+
+        if sdat is None:
+            raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
+                                               'Not Found Error',
+                                               'DID resource does not exist')
 
         # validate request
         dat = validateSignedThingWrite(sdat=sdat, cdat=cdat, csig=csig, sig=sig, ser=ser)

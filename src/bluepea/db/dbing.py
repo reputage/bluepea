@@ -198,7 +198,7 @@ def getSelfSigned(did, dbn='core', env=None):
     try:
         sdid, index = dat["signer"].rsplit("#", maxsplit=1)
         index = int(index)  # get index and sdid from signer field
-    except (AttributeError, ValueError) as ex:
+    except (KeyError, ValueError) as ex:
             raise DatabaseError('Invalid or missing did key index')  # missing sdid or index
 
     if sdid != dat['did']:
@@ -206,7 +206,7 @@ def getSelfSigned(did, dbn='core', env=None):
 
     try:
         key = dat['keys'][index]['key']
-    except (IndexError, KeyError) as ex:
+    except (TypeError, IndexError, KeyError) as ex:
         raise DatabaseError('Missing verification key')
 
     if not verify64u(sig, ser, key):
