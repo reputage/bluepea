@@ -1,5 +1,7 @@
 # Indigo Service API
 
+2017/07/14
+
 ## Installing Service
 
 The sourcecode for the Indigo service is in the GitHub repo
@@ -48,7 +50,16 @@ Headervalue:
   tag = "signature"
 or
   tag = "signature"; tag = "signature"  ...
+  
+where tag is replaced with a unique string for each signature value
 ```
+
+An example is shown below where one *tag* is the string *signer* and the other *tag* is the string *current*.
+
+```http
+Signature: signer="Y5xTb0_jTzZYrf5SSEK2f3LSLwIwhOX7GEj6YfRWmGViKAesa08UkNWukUkPGuKuu-EAH5U-sdFPPboBAsjRBw=="; current="Xhh6WWGJGgjU5V-e57gj4HcJ87LLOhQr2Sqg5VToTSg-SI1W3A8lgISxOjAI5pa2qnonyz3tpGvC2cmf1VTpBg=="
+```
+
 
 Where tag is the name of a field in the body of the request whose value
 is a DID from which the public key for the signature can be obtained.
@@ -57,7 +68,7 @@ If the same tag appears multiple times then only the last occurrence is used.
 Each signature value is a doubly quoted string ```""``` that contains the actual signature
 in Base64 url safe format. By default the signatures are 64 byte EdDSA (Ed25519) signatures that have been encoded into BASE64 url-file safe format. The encoded signatures are 88 characters in length and include two trailing pad characters ```=```.
 
-An optional tag name = *kind* with values *EdDSA* or *Ed25519* may be present.
+An optional *tag* name = *kind* with values *EdDSA* or *Ed25519* may be present.
 The *kind* tag field value specifies the type of signature. All signatures within the header
 must be of the same kind.
 
@@ -358,113 +369,6 @@ Date: Tue, 11 Jul 2017 01:17:11 GMT
 }
 ```
 
-## *Agent* Read (GET) by DID
-
-This Agent read request (GET) retrieves a data resource corresponding to a given Agent as indicated by the *did* in the URL. This is functionally the same as the Agent Read above except that it at a different endpoint.
-The request is made by sending an HTTP Get to ```/agent/{did}``` with a *did* whose value is the desired DID. The brackets indicate substitution. This value needs to be URL encoded.
-A successful request will return status code 200. An unsuccessful request will return an error status code such as 404 Not Found.
-If successful the response includes a custom "Signature" header whose *signer* field value is the signature.
-
-
-Example requests and responses are shown below.
-
-## Request
-
-```http
-GET /agent/did%3Aigo%3AQt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE%3D HTTP/1.1
-Content-Type: application/json; charset=utf-8
-Host: localhost:8080
-Connection: close
-User-Agent: Paw/3.1.1 (Macintosh; OS X/10.12.5) GCDHTTPRequest
-```
-
-## Response
-
-```http
-HTTP/1.1 200 OK
-Signature: signer="AeYbsHot0pmdWAcgTo5sD8iAuSQAfnH5U6wiIGpVNJQQoYKBYrPPxAoIc1i5SHCIDS8KFFgf8i0tDq8XGizaCg=="
-Content-Type: application/json; charset=UTF-8
-Content-Length: 291
-Server: Ioflo WSGI Server
-Date: Tue, 11 Jul 2017 19:58:06 GMT
-
-{
-  "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
-  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",
-  "changed": "2000-01-01T00:00:00+00:00",
-  "keys": [
-    {
-      "key": "Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
-      "kind": "EdDSA"
-    }
-  ]
-}
-```
-
-## *Agent* Write (PUT) by DID
-
-This Agent write request (PUT) overwrites a data resource corresponding to a given Agent as indicated by the *did* in the URL.
-The request is made by sending an HTTP PUT to ```/agent/{did}``` with a *did* whose value is the desired DID. The brackets indicate substitution. This value needs to be URL encoded. Because a PUT can change the signer field in the data resource, the PUT request Signature header must have two signatures. The tag 'signer' signature is the signature using the key indicated by the new value that the data resource will have once the PUT is successful. The tag 'current' signature is the signature using the key indicated by the current value of the data resource before it is overwritten. This allows to server to verify that the request was made by the current signer and that the new signer signature is provided so that the resource is signed at rest.
-
-A successful request will return status code 200. An unsuccessful request will return an error status code such as 404 Not Found.
-
-
-Example request and response are shown below for adding another key and changing the signer field to reference the new key.
-
-## Request
-
-```http
-PUT /agent/did%3Aigo%3AQt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE%3D HTTP/1.1
-Signature: signer="Y5xTb0_jTzZYrf5SSEK2f3LSLwIwhOX7GEj6YfRWmGViKAesa08UkNWukUkPGuKuu-EAH5U-sdFPPboBAsjRBw=="; current="Xhh6WWGJGgjU5V-e57gj4HcJ87LLOhQr2Sqg5VToTSg-SI1W3A8lgISxOjAI5pa2qnonyz3tpGvC2cmf1VTpBg=="
-Content-Type: application/json; charset=UTF-8
-Host: localhost:8080
-Connection: close
-User-Agent: Paw/3.1.1 (Macintosh; OS X/10.12.5) GCDHTTPRequest
-Content-Length: 387
-
-{
-  "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
-  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#1",
-  "changed": "2000-01-02T00:00:00+00:00",
-  "keys": [
-    {
-      "key": "Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
-      "kind": "EdDSA"
-    },
-    {
-      "key": "FsSQTQnp_W-6RPkuvULH8h8G5u_4qYl61ec9-k-2hKc=",
-      "kind": "EdDSA"
-    }
-  ]
-}
-```
-
-## Response
-
-```http
-HTTP/1.1 200 OK
-Signature: signer="Y5xTb0_jTzZYrf5SSEK2f3LSLwIwhOX7GEj6YfRWmGViKAesa08UkNWukUkPGuKuu-EAH5U-sdFPPboBAsjRBw=="
-Content-Type: application/json; charset=UTF-8
-Content-Length: 387
-Server: Ioflo WSGI Server
-Date: Wed, 12 Jul 2017 00:47:00 GMT
-
-{
-  "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
-  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#1",
-  "changed": "2000-01-02T00:00:00+00:00",
-  "keys": [
-    {
-      "key": "Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
-      "kind": "EdDSA"
-    },
-    {
-      "key": "FsSQTQnp_W-6RPkuvULH8h8G5u_4qYl61ec9-k-2hKc=",
-      "kind": "EdDSA"
-    }
-  ]
-}
-```
 
 ## *Issuer* *Agent* Creation 
 
@@ -592,6 +496,235 @@ Date: Tue, 11 Jul 2017 01:19:04 GMT
   ]
 }
 ```
+
+## *Agent* Read (GET) by DID
+
+This Agent read request (GET) retrieves a data resource corresponding to a given Agent as indicated by the *did* in the URL. This is functionally the same as the Agent Read above except that it at a different endpoint.
+The request is made by sending an HTTP Get to ```/agent/{did}``` with a *did* whose value is the desired DID. The brackets indicate substitution. This value needs to be URL encoded.
+A successful request will return status code 200. An unsuccessful request will return an error status code such as 404 Not Found.
+If successful the response includes a custom "Signature" header whose *signer* field value is the signature.
+
+
+Example requests and responses are shown below.
+
+## Request
+
+```http
+GET /agent/did%3Aigo%3AQt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE%3D HTTP/1.1
+Content-Type: application/json; charset=utf-8
+Host: localhost:8080
+Connection: close
+User-Agent: Paw/3.1.1 (Macintosh; OS X/10.12.5) GCDHTTPRequest
+```
+
+## Response
+
+```http
+HTTP/1.1 200 OK
+Signature: signer="AeYbsHot0pmdWAcgTo5sD8iAuSQAfnH5U6wiIGpVNJQQoYKBYrPPxAoIc1i5SHCIDS8KFFgf8i0tDq8XGizaCg=="
+Content-Type: application/json; charset=UTF-8
+Content-Length: 291
+Server: Ioflo WSGI Server
+Date: Tue, 11 Jul 2017 19:58:06 GMT
+
+{
+  "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",
+  "changed": "2000-01-01T00:00:00+00:00",
+  "keys": [
+    {
+      "key": "Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+      "kind": "EdDSA"
+    }
+  ]
+}
+```
+
+Below is an example for an *Issuer* *Agent*
+
+## Request
+
+```http
+GET /agent/did%3Aigo%3AdZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY%3D HTTP/1.1
+Content-Type: application/json; charset=utf-8
+Host: localhost:8080
+Connection: close
+User-Agent: Paw/3.1.2 (Macintosh; OS X/10.12.5) GCDHTTPRequest
+```
+
+## Response
+
+```http
+HTTP/1.1 200 OK
+Signature: signer="1eOnymJR0eAnyWig-cAzLlCXYYnzanMUbhgkCnNCYzOI0FWwRk8ZF5YvpfOLUge2F-NcR071YO5rbfDDltcXCg=="
+Content-Type: application/json; charset=UTF-8
+Content-Length: 569
+Server: Ioflo WSGI Server
+Date: Sat, 15 Jul 2017 00:56:55 GMT
+
+{
+  "did": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",
+  "signer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#1",
+  "changed": "2000-01-02T00:00:00+00:00",
+  "keys": [
+    {
+      "key": "dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",
+      "kind": "EdDSA"
+    },
+    {
+      "key": "0UX5tP24WPEmAbROdXdygGAM3oDcvrqb3foX4EyayYI=",
+      "kind": "EdDSA"
+    }
+  ],
+  "hids": [
+    {
+      "kind": "dns",
+      "issuer": "generic.com",
+      "registered": "2000-01-01T00:00:00+00:00",
+      "validationURL": "https://generic.com/indigo"
+    }
+  ]
+}
+```
+
+## *Agent* Write (PUT) by DID
+
+This Agent write request (PUT) overwrites a data resource corresponding to a given Agent as indicated by the *did* in the URL.
+The request is made by sending an HTTP PUT to ```/agent/{did}``` with a *did* whose value is the desired DID. The brackets indicate substitution. This value needs to be URL encoded. Because a PUT can change the signer field in the data resource, the PUT request Signature header must have two signatures. The tag 'signer' signature is the signature using the key indicated by the new value that the data resource will have once the PUT is successful. The tag 'current' signature is the signature using the key indicated by the current value of the data resource before it is overwritten. This allows to server to verify that the request was made by the current signer and that the new signer signature is provided so that the resource is signed at rest.
+
+A successful request will return status code 200. An unsuccessful request will return an error status code such as 404 Not Found.
+
+
+Example request and response are shown below for adding another key and changing the signer field to reference the new key.
+
+## Request
+
+```http
+PUT /agent/did%3Aigo%3AQt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE%3D HTTP/1.1
+Signature: signer="Y5xTb0_jTzZYrf5SSEK2f3LSLwIwhOX7GEj6YfRWmGViKAesa08UkNWukUkPGuKuu-EAH5U-sdFPPboBAsjRBw=="; current="Xhh6WWGJGgjU5V-e57gj4HcJ87LLOhQr2Sqg5VToTSg-SI1W3A8lgISxOjAI5pa2qnonyz3tpGvC2cmf1VTpBg=="
+Content-Type: application/json; charset=UTF-8
+Host: localhost:8080
+Connection: close
+User-Agent: Paw/3.1.1 (Macintosh; OS X/10.12.5) GCDHTTPRequest
+Content-Length: 387
+
+{
+  "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#1",
+  "changed": "2000-01-02T00:00:00+00:00",
+  "keys": [
+    {
+      "key": "Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+      "kind": "EdDSA"
+    },
+    {
+      "key": "FsSQTQnp_W-6RPkuvULH8h8G5u_4qYl61ec9-k-2hKc=",
+      "kind": "EdDSA"
+    }
+  ]
+}
+```
+
+## Response
+
+```http
+HTTP/1.1 200 OK
+Signature: signer="Y5xTb0_jTzZYrf5SSEK2f3LSLwIwhOX7GEj6YfRWmGViKAesa08UkNWukUkPGuKuu-EAH5U-sdFPPboBAsjRBw=="
+Content-Type: application/json; charset=UTF-8
+Content-Length: 387
+Server: Ioflo WSGI Server
+Date: Wed, 12 Jul 2017 00:47:00 GMT
+
+{
+  "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#1",
+  "changed": "2000-01-02T00:00:00+00:00",
+  "keys": [
+    {
+      "key": "Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+      "kind": "EdDSA"
+    },
+    {
+      "key": "FsSQTQnp_W-6RPkuvULH8h8G5u_4qYl61ec9-k-2hKc=",
+      "kind": "EdDSA"
+    }
+  ]
+}
+```
+
+Below is an example for an *Issuer* *Agent*
+
+## Request
+
+```http
+PUT /agent/did%3Aigo%3AdZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY%3D HTTP/1.1
+Signature: signer="1eOnymJR0eAnyWig-cAzLlCXYYnzanMUbhgkCnNCYzOI0FWwRk8ZF5YvpfOLUge2F-NcR071YO5rbfDDltcXCg==";  current="vmW5JeXuj7zI71lt18LYZomV_V9J1CP68MkJVd_M2ahsnetlj0U4qjGFKHNjhDjEtrYfxUYAn2BWFyx_e99aBg=="
+Content-Type: application/json; charset=UTF-8
+Host: localhost:8080
+Connection: close
+User-Agent: Paw/3.1.2 (Macintosh; OS X/10.12.5) GCDHTTPRequest
+Content-Length: 569
+
+{
+  "did": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",
+  "signer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#1",
+  "changed": "2000-01-02T00:00:00+00:00",
+  "keys": [
+    {
+      "key": "dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",
+      "kind": "EdDSA"
+    },
+    {
+      "key": "0UX5tP24WPEmAbROdXdygGAM3oDcvrqb3foX4EyayYI=",
+      "kind": "EdDSA"
+    }
+  ],
+  "hids": [
+    {
+      "kind": "dns",
+      "issuer": "generic.com",
+      "registered": "2000-01-01T00:00:00+00:00",
+      "validationURL": "https://generic.com/indigo"
+    }
+  ]
+}
+```
+
+## Response
+
+```http
+HTTP/1.1 200 OK
+Signature: signer="1eOnymJR0eAnyWig-cAzLlCXYYnzanMUbhgkCnNCYzOI0FWwRk8ZF5YvpfOLUge2F-NcR071YO5rbfDDltcXCg=="
+Content-Type: application/json; charset=UTF-8
+Content-Length: 569
+Server: Ioflo WSGI Server
+Date: Sat, 15 Jul 2017 00:54:33 GMT
+
+{
+  "did": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",
+  "signer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#1",
+  "changed": "2000-01-02T00:00:00+00:00",
+  "keys": [
+    {
+      "key": "dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",
+      "kind": "EdDSA"
+    },
+    {
+      "key": "0UX5tP24WPEmAbROdXdygGAM3oDcvrqb3foX4EyayYI=",
+      "kind": "EdDSA"
+    }
+  ],
+  "hids": [
+    {
+      "kind": "dns",
+      "issuer": "generic.com",
+      "registered": "2000-01-01T00:00:00+00:00",
+      "validationURL": "https://generic.com/indigo"
+    }
+  ]
+}
+```
+
 
 ## *Thing* Creation 
 
@@ -775,3 +908,113 @@ Date: Tue, 11 Jul 2017 01:07:47 GMT
   }
 }
 ```
+
+## *Thing* Read (GET) by DID
+
+This Thing read request (GET) retrieves a data resource corresponding to a given Thing as indicated by the *did* in the URL. This is functionally the same as the Thing Read above except that it at a different endpoint.
+The request is made by sending an HTTP Get to ```/thing/{did}``` with a *did* whose value is the desired DID. The brackets indicate substitution. This value needs to be URL encoded.
+A successful request will return status code 200. An unsuccessful request will return an error status code such as 404 Not Found.
+If successful the response includes a custom "Signature" header whose *signer* field value is the signature.
+
+
+Example requests and responses are shown below.
+
+## Request
+
+```http
+GET /thing/did%3Aigo%3A4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM%3D HTTP/1.1
+Content-Type: application/json; charset=utf-8
+Host: localhost:8080
+Connection: close
+User-Agent: Paw/3.1.2 (Macintosh; OS X/10.12.5) GCDHTTPRequest
+```
+
+## Response
+
+```http
+HTTP/1.1 200 OK
+Signature: signer="5SwnZroMIcOpx1vEYkcSajnU3BhrqBpovq0NnCwL43kuEs-GTfwd6bpQJ_L5bMhfRAZZEgkjVqFx4HCGGLc9DA=="
+Content-Type: application/json; charset=UTF-8
+Content-Length: 349
+Server: Ioflo WSGI Server
+Date: Sat, 15 Jul 2017 01:02:29 GMT
+
+{
+  "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
+  "hid": "hid:dns:generic.com#02",
+  "signer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#1",
+  "changed": "2000-01-02T00:00:00+00:00",
+  "data": {
+    "keywords": [
+      "Canon",
+      "EOS Rebel T6",
+      "251440"
+    ],
+    "message": "If found please return."
+  }
+}
+```
+
+## *Thing* Write (PUT) by DID
+
+This Thing write request (PUT) overwrites a data resource corresponding to a given Thing as indicated by the *did* in the URL.
+The request is made by sending an HTTP PUT to ```/thing/{did}``` with a *did* whose value is the desired DID. The brackets indicate substitution. This value needs to be URL encoded. Because a PUT can change the signer field in the data resource, the PUT request Signature header must have two signatures. The *tag* *signer* signature is the signature using the key indicated by the new value that the data resource will have once the PUT is successful. The *tag* *current* signature is the signature using the key indicated by the current value of the data resource before it is overwritten. This allows to server to verify that the request was made by the current signer and that the new signer signature is provided so that the resource is signed at rest.
+
+A successful request will return status code 200. An unsuccessful request will return an error status code such as 404 Not Found.
+
+
+Example request and response are shown below for adding another key and changing the signer field to reference the new key.
+
+## Request
+
+```http
+PUT /thing/did%3Aigo%3A4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM%3D HTTP/1.1
+Signature: signer="5SwnZroMIcOpx1vEYkcSajnU3BhrqBpovq0NnCwL43kuEs-GTfwd6bpQJ_L5bMhfRAZZEgkjVqFx4HCGGLc9DA==";  current="3GhKWYXFL0JGTnhK3vB0087Rib4nhjfts12KjJMr5EOa2AO6uqyBZyziKVfa7WUK5mvFPyo-Hxjx4GPTV5AGBw=="
+Content-Type: application/json; charset=UTF-8
+Host: localhost:8080
+Connection: close
+User-Agent: Paw/3.1.2 (Macintosh; OS X/10.12.5) GCDHTTPRequest
+Content-Length: 349
+
+{
+  "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
+  "hid": "hid:dns:generic.com#02",
+  "signer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#1",
+  "changed": "2000-01-02T00:00:00+00:00",
+  "data": {
+    "keywords": [
+      "Canon",
+      "EOS Rebel T6",
+      "251440"
+    ],
+    "message": "If found please return."
+  }
+}
+```
+
+## Response
+
+```http
+HTTP/1.1 200 OK
+Signature: signer="5SwnZroMIcOpx1vEYkcSajnU3BhrqBpovq0NnCwL43kuEs-GTfwd6bpQJ_L5bMhfRAZZEgkjVqFx4HCGGLc9DA=="
+Content-Type: application/json; charset=UTF-8
+Content-Length: 349
+Server: Ioflo WSGI Server
+Date: Sat, 15 Jul 2017 00:54:46 GMT
+
+{
+  "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
+  "hid": "hid:dns:generic.com#02",
+  "signer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#1",
+  "changed": "2000-01-02T00:00:00+00:00",
+  "data": {
+    "keywords": [
+      "Canon",
+      "EOS Rebel T6",
+      "251440"
+    ],
+    "message": "If found please return."
+  }
+}
+```
+
