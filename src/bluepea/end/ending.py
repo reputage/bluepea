@@ -293,7 +293,7 @@ class AgentDidDropResource:
         super(**kwa)
         self.store = store
 
-    def on_post(self, req, rep, adid, sdid):
+    def on_post(self, req, rep, adid, cdid):
         """
         Handles POST requests
         """
@@ -313,12 +313,18 @@ class AgentDidDropResource:
                                        'Could not read the request body.')
 
         ser = serb.decode("utf-8")
+        dat = json.loads(ser, object_pairs_hook=ODict)
 
+        index = 0
 
-        didURI = falcon.uri.encode_value(did)
+        aDidUri = falcon.uri.encode_value(adid)
+        cDidUri = falcon.uri.encode_value(cdid)
         rep.status = falcon.HTTP_201  # post response status with location header
-        rep.location = "{}?did={}".format(AGENT_BASE_PATH, didURI)
-        rep.body = json.dumps(result)
+        rep.location = "{}/{}/drop/{}?index={}".format(AGENT_BASE_PATH,
+                                                       aDidUri,
+                                                       cDidUri,
+                                                       index)
+        rep.body = json.dumps(dat, indent=2)
 
     def on_get(self, req, rep, adid, sdid):
         """
