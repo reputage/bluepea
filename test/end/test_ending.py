@@ -1405,7 +1405,7 @@ def test_post_AgentDidDrop(client):  # client is a fixture in pytest_falcon
     kdid = keeper.did
 
     agents, things = setupTestDbAgentsThings()
-    agents['sam'] = kdid  # sam the server
+    agents['sam'] = (kdid, keeper.verkey, keeper.sigkey)  # sam the server
 
     for did, vk, sk in agents.values():
         dat, ser, sig = dbing.getSelfSigned(did)
@@ -1427,18 +1427,18 @@ def test_post_AgentDidDrop(client):  # client is a fixture in pytest_falcon
 
     msg = ODict()
     msg['changed'] = stamp
-    msg['kind'] = "Find"
+    msg['kind'] = "found"
     msg['to'] = dstDid
     msg['from'] = srcDid
     msg['thing'] = thingDid
-    msg['subject'] = "Lost"
+    msg['subject'] = "Lose something?"
     msg['content'] = "Look what I found"
 
     mser = json.dumps(msg, indent=2)
-    msig = keyToKey64u(libnacl.crypto_sign(registration.encode("utf-8"), srcSk)[:libnacl.crypto_sign_BYTES])
+    msig = keyToKey64u(libnacl.crypto_sign(mser.encode("utf-8"), srcSk)[:libnacl.crypto_sign_BYTES])
 
-    srcUri = falcon.uri.encode_value(src)
-    dstUri = falcon.uri.encode_value(dst)
+    srcUri = falcon.uri.encode_value(srcDid)
+    dstUri = falcon.uri.encode_value(dstDid)
     headers = {"Content-Type": "text/html; charset=utf-8",
                "Signature": 'signer="{}"'.format(msig)}
     body = mser  # client.post encodes the body
