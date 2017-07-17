@@ -77,7 +77,7 @@ def createServerResource(vk, sk, changed=None,  **kwa):
     Assumes that global keeper and dbEnv are already setup
     """
     keeper = keeping.gKeeper
-    did = keeper.did
+    did = keeper.did  # is the server's did
     dat, ser, sig = dbing.getSelfSigned(did)  # see if valid already exists
     if dat is None:  # need to create
         sig, ser = dbing.makeSignedAgentReg(vk=keeper.verkey,

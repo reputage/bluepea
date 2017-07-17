@@ -55,6 +55,105 @@ ending.loadEnds(exapp, store=store)
 def app():
     return exapp
 
+def setupTestDbAgentsThings():
+    """
+    Put test agents and things in db and return duple of dicts (agents, things)
+    keyed by  name each value is triple ( did, vk, sk)  where
+    vk is public verification key
+    sk is private signing key
+    """
+    agents = ODict()
+    things = ODict()
+
+    #seed = libnacl.randombytes(libnacl.crypto_sign_SEEDBYTES)
+
+    dt = datetime.datetime(2000, 1, 1, tzinfo=datetime.timezone.utc)
+    stamp = timing.iso8601(dt, aware=True)
+
+    # make "ann" the agent
+    seed = (b'PTi\x15\xd5\xd3`\xf1u\x15}^r\x9bfH\x02l\xc6\x1b\x1d\x1c\x0b9\xd7{\xc0_'
+            b'\xf2K\x93`')
+
+    # creates signing/verification key pair
+    avk, ask = libnacl.crypto_sign_seed_keypair(seed)
+
+    sig, ser = makeSignedAgentReg(avk, ask, changed=stamp)
+
+    adat = json.loads(ser, object_pairs_hook=ODict)
+    adid = adat['did']
+
+    dbing.putSigned(ser, sig, adid, clobber=False)
+
+    agents['ann'] = (adid, avk, ask)
+
+    # make "ivy" the issurer
+    seed = seed = (b"\xb2PK\xad\x9b\x92\xa4\x07\xc6\xfa\x0f\x13\xd7\xe4\x08\xaf\xc7'~\x86"
+                   b'\xd2\x92\x93rA|&9\x16Bdi')
+
+    # creates signing/verification key pair
+    ivk, isk = libnacl.crypto_sign_seed_keypair(seed)
+
+    hid = ODict(kind="dns",
+                issuer="generic.com",
+                registered=stamp,
+                validationURL="https://generic.com/indigo")
+    hids = [hid]  # list of hids
+
+    sig, ser = makeSignedAgentReg(ivk, isk, changed=stamp, hids=hids)
+
+    idat = json.loads(ser, object_pairs_hook=ODict)
+    idid = idat['did']
+
+    dbing.putSigned(ser, sig, idid, clobber=False)
+
+    agents['ivy'] = (idid, ivk, isk)
+
+    # make "cam" the thing
+    # create  thing signed by issuer and put into database
+    seed = (b'\xba^\xe4\xdd\x81\xeb\x8b\xfa\xb1k\xe2\xfd6~^\x86tC\x9c\xa7\xe3\x1d2\x9d'
+            b'P\xdd&R <\x97\x01')
+
+    cvk, csk = libnacl.crypto_sign_seed_keypair(seed)
+
+    signer = idat['signer']  # use same signer key fragment reference as issuer isaac
+    hid = "hid:dns:generic.com#02"
+    data = ODict(keywords=["Canon", "EOS Rebel T6", "251440"],
+                 message="If found please return.")
+
+    sig, isig, ser = makeSignedThingReg(cvk,
+                                          csk,
+                                            isk,
+                                            signer,
+                                            changed=stamp,
+                                            hid=hid,
+                                            data=data)
+
+    cdat = json.loads(ser, object_pairs_hook=ODict)
+    cdid = cdat['did']
+
+    dbing.putSigned(ser, isig, cdid, clobber=False)
+
+    things['cam'] = (cdid, cvk, csk)
+
+    # make "fae" the finder
+    seed = (b'\xf9\x13\xf0\xff\xd4\xb3\xbdF\xa2\x80\x1d\xce\xaa\xd9\x87df\xc8\x1f\x91'
+            b';\x9bp+\x1bK\x1ey\xef6\xa7\xf9')
+
+
+    # creates signing/verification key pair
+    fvk, fsk = libnacl.crypto_sign_seed_keypair(seed)
+
+    sig, ser = makeSignedAgentReg(fvk, fsk, changed=stamp)
+
+    fdat = json.loads(ser, object_pairs_hook=ODict)
+    fdid = fdat['did']
+
+    dbing.putSigned(ser, sig, fdid, clobber=False)
+
+    agents['fae'] = (fdid, fvk, fsk)
+
+    return (agents, things)
+
 
 def test_post_AgentRegisterSigned(client):  # client is a fixture in pytest_falcon
     """
@@ -1275,6 +1374,80 @@ def test_put_ThingDid(client):  # client is a fixture in pytest_falcon
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")
 
+
+def test_post_AgentDidDrop(client):  # client is a fixture in pytest_falcon
+    """
+    Test POST drop message to agent .
+
+
+    The request includes.:
+    thing id
+    finder id
+    message type
+    message data
+    signature by finder
+
+    The server saves to the message queue:
+          Message board derived did  ending with message sequence number (zero based)
+          signer for server
+          changed datetime
+          the request  body
+          The request signature (with sender signature)
+          signature by server
+
+
+    """
+    print("Testing POST /agent/{adid}/drop/{cdid}")
+
+    priming.setupTest()
+    dbEnv = dbing.gDbEnv
+    keeper = keeping.gKeeper
+    kdid = keeper.did
+
+    agents, things = setupTestDbAgentsThings()
+    agents['sam'] = kdid  # sam the server
+
+    for did, vk, sk in agents.values():
+        dat, ser, sig = dbing.getSelfSigned(did)
+        assert dat is not None
+        assert dat['did'] == did
+
+    for did, vk, sk in things.values():
+        dat, ser, sig = dbing.getSigned(did)
+        assert dat is not None
+        assert dat['did'] == did
+
+    # post message from Ann to Ivy
+    dt = datetime.datetime(2000, 1, 3, tzinfo=datetime.timezone.utc)
+    stamp = timing.iso8601(dt, aware=True)
+
+    srcDid, srcVk, srcSk = agents['ann']
+    dstDid, dstVk, dskSk = agents['ivy']
+    thingDid, thingVk, thingSk = things['cam']
+
+    msg = ODict()
+    msg['changed'] = stamp
+    msg['kind'] = "Find"
+    msg['to'] = dstDid
+    msg['from'] = srcDid
+    msg['thing'] = thingDid
+    msg['subject'] = "Lost"
+    msg['content'] = "Look what I found"
+
+    mser = json.dumps(msg, indent=2)
+    msig = keyToKey64u(libnacl.crypto_sign(registration.encode("utf-8"), srcSk)[:libnacl.crypto_sign_BYTES])
+
+    srcUri = falcon.uri.encode_value(src)
+    dstUri = falcon.uri.encode_value(dst)
+    headers = {"Content-Type": "text/html; charset=utf-8",
+               "Signature": 'signer="{}"'.format(msig)}
+    body = mser  # client.post encodes the body
+    rep = client.post('/agent/{}/drop/{}'.format(dstUri, srcUri),
+                      body=body,
+                      headers=headers)
+
+    cleanupTmpBaseDir(dbEnv.path())
+    print("Done Test")
 
 def test_post_message(client):  # client is a fixture in pytest_falcon
     """
