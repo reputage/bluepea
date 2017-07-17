@@ -135,7 +135,7 @@ class AgentResource:
         didURI = falcon.uri.encode_value(did)
         rep.status = falcon.HTTP_201  # post response status with location header
         rep.location = "{}?did={}".format(AGENT_BASE_PATH, didURI)
-        rep.body = json.dumps(result)
+        rep.body = json.dumps(result, indent=2)
 
     def on_get(self, req, rep):
         """
@@ -465,7 +465,7 @@ class ThingResource:
         didURI = falcon.uri.encode_value(tdid)
         rep.status = falcon.HTTP_201  # post response status with location header
         rep.location = "{}?did={}".format(THING_BASE_PATH, didURI)
-        rep.body = json.dumps(result)
+        rep.body = json.dumps(result, indent=2)
 
     def on_get(self, req, rep):
         """
