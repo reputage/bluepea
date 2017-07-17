@@ -335,9 +335,19 @@ class AgentDidDropResource:
         """
         index = req.get_param("index")  # already has url-decoded query parameter value
 
+        try:
+            index = int(index)
+        except (ValueError, TypeError) as  ex:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                   'Request Error',
+                                   'Invalid request format. {}'.format(ex))
+
+
+        key = "{}/drop/{}/{:09d}".format(adid, sdid, index)
+
         # read from database
         try:
-            dat, ser, sig = dbing.getSelfSigned(adid)
+            dat, ser, sig = dbing.getSigned(key)
         except dbing.DatabaseError as ex:
             raise falcon.HTTPError(falcon.HTTP_400,
                             'Resource Verification Error',
