@@ -170,7 +170,7 @@ class AgentDidResource:
     Agent Did Resource
     Access agent by DID
 
-    /agent/{did}
+    /agent/{adid}
 
     Attributes:
         .store is reference to ioflo data store
@@ -184,13 +184,13 @@ class AgentDidResource:
         super(**kwa)
         self.store = store
 
-    def on_put(self, req, rep, did):
+    def on_put(self, req, rep, adid):
         """
         Handles PUT requests
 
         /agent/{did}
 
-        Falcon url decodes path parameters such as {did}
+        Falcon url decodes path parameters such as {adid}
         """
         signature = req.get_header("Signature")
         sigs = parseSignatureHeader(signature)
@@ -215,7 +215,7 @@ class AgentDidResource:
 
         # Get validated current resource from database
         try:
-            rdat, rser, rsig = dbing.getSelfSigned(did)
+            rdat, rser, rsig = dbing.getSelfSigned(adid)
         except dbing.DatabaseError as ex:
             raise falcon.HTTPError(falcon.HTTP_400,
                             'Resource Verification Error',
@@ -234,7 +234,7 @@ class AgentDidResource:
 
         # save to database
         try:
-            dbing.putSigned(ser, sig, did, clobber=True)
+            dbing.putSigned(ser, sig, adid, clobber=True)
         except dbing.DatabaseError as ex:
             raise falcon.HTTPError(falcon.HTTP_412,
                                   'Database Error',
@@ -245,7 +245,7 @@ class AgentDidResource:
         rep.status = falcon.HTTP_200  # This is the default status
         rep.body = ser
 
-    def on_get(self, req, rep, did):
+    def on_get(self, req, rep, adid):
         """
         Handles GET request for an Agent Resource by did
 
@@ -255,7 +255,83 @@ class AgentDidResource:
         """
         # read from database
         try:
-            dat, ser, sig = dbing.getSelfSigned(did)
+            dat, ser, sig = dbing.getSelfSigned(adid)
+        except dbing.DatabaseError as ex:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                            'Resource Verification Error',
+                            'Error verifying resource. {}'.format(ex))
+
+        if dat is None:
+            raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
+                                               'Not Found Error',
+                                               'DID resource does not exist')
+
+        rep.set_header("Signature", 'signer="{}"'.format(sig))
+        rep.set_header("Content-Type", "application/json; charset=UTF-8")
+        rep.status = falcon.HTTP_200  # This is the default status
+        rep.body = ser
+
+class AgentDidDropResource:
+    """
+    Agent Did Resource Drop Inex
+    Drop message in inbox of Agent
+
+    /agent/{adid}/drop/{cdid}
+
+    adid is receiver agent  did
+    cdid is corresponding sender agent did
+
+    Attributes:
+        .store is reference to ioflo data store
+
+    """
+    def  __init__(self, store=None, **kwa):
+        """
+        Parameters:
+            store is reference to ioflo data store
+        """
+        super(**kwa)
+        self.store = store
+
+    def on_post(self, req, rep, adid, sdid):
+        """
+        Handles POST requests
+        """
+        signature = req.get_header("Signature")
+        sigs = parseSignatureHeader(signature)
+        sig = sigs.get('signer')  # str not bytes
+        if not sig:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                           'Validation Error',
+                                           'Invalid or missing Signature header.')
+
+        try:
+            serb = req.stream.read()  # bytes
+        except Exception:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                       'Read Error',
+                                       'Could not read the request body.')
+
+        ser = serb.decode("utf-8")
+
+
+        didURI = falcon.uri.encode_value(did)
+        rep.status = falcon.HTTP_201  # post response status with location header
+        rep.location = "{}?did={}".format(AGENT_BASE_PATH, didURI)
+        rep.body = json.dumps(result)
+
+    def on_get(self, req, rep, adid, sdid):
+        """
+        Handles GET request for an AgentResources given by query parameter
+        with did
+
+
+        """
+        index = req.get_param("index")  # already has url-decoded query parameter value
+
+        # read from database
+        try:
+            dat, ser, sig = dbing.getSelfSigned(adid)
         except dbing.DatabaseError as ex:
             raise falcon.HTTPError(falcon.HTTP_400,
                             'Resource Verification Error',
@@ -431,13 +507,13 @@ class ThingDidResource:
         super(**kwa)
         self.store = store
 
-    def on_put(self, req, rep, did):
+    def on_put(self, req, rep, tdid):
         """
         Handles PUT requests
 
-        /thing/{did}
+        /thing/{tdid}
 
-        Falcon url decodes path parameters such as {did}
+        Falcon url decodes path parameters such as {tdid}
         """
         signature = req.get_header("Signature")
         sigs = parseSignatureHeader(signature)
@@ -462,7 +538,7 @@ class ThingDidResource:
 
         # Get validated existing resource from database
         try:
-            cdat, cser, psig = dbing.getSigned(did)
+            cdat, cser, psig = dbing.getSigned(tdid)
         except dbing.DatabaseError as ex:
             raise falcon.HTTPError(falcon.HTTP_400,
                             'Resource Verification Error',
@@ -501,7 +577,7 @@ class ThingDidResource:
 
         # save to database
         try:
-            dbing.putSigned(ser, sig, did, clobber=True)
+            dbing.putSigned(ser, sig, tdid, clobber=True)
         except dbing.DatabaseError as ex:
             raise falcon.HTTPError(falcon.HTTP_412,
                                   'Database Error',
@@ -512,17 +588,17 @@ class ThingDidResource:
         rep.status = falcon.HTTP_200  # This is the default status
         rep.body = ser
 
-    def on_get(self, req, rep, did):
+    def on_get(self, req, rep, tdid):
         """
         Handles GET request for an Thing Resource by did
 
-        /thing/{did}
+        /thing/{tdid}
 
-        Falcon url decodes path parameters such as {did}
+        Falcon url decodes path parameters such as {tdid}
         """
         # read from database
         try:
-            dat, ser, sig = dbing.getSigned(did)
+            dat, ser, sig = dbing.getSigned(tdid)
         except dbing.DatabaseError as ex:
             raise falcon.HTTPError(falcon.HTTP_400,
                             'Resource Verification Error',
@@ -553,10 +629,13 @@ def loadEnds(app, store):
     app.add_route('{}'.format(AGENT_BASE_PATH), agent)
 
     agentDid = AgentDidResource(store=store)
-    app.add_route('{}/{{did}}'.format(AGENT_BASE_PATH), agentDid)
+    app.add_route('{}/{{adid}}'.format(AGENT_BASE_PATH), agentDid)
+
+    agentDrop = AgentDidDropResource(store=store)
+    app.add_route('{}/{{adid}}/drop/{{cdid}}'.format(AGENT_BASE_PATH), agentDrop)
 
     thing = ThingResource(store=store)
     app.add_route('{}'.format(THING_BASE_PATH), thing)
 
     thingDid = ThingDidResource(store=store)
-    app.add_route('{}/{{did}}'.format(THING_BASE_PATH), thingDid)
+    app.add_route('{}/{{tdid}}'.format(THING_BASE_PATH), thingDid)
