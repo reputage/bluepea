@@ -328,8 +328,8 @@ class AgentDidDropResource:
                                     'Error verifying signer resource. {}'.format(ex))
 
         # verify request signature
-        mdat = verifySignedMessageWrite(sdat=sdat, index=index, sig=msig, ser=mser)
-        if not mdat:
+        result = verifySignedMessageWrite(sdat=sdat, index=index, sig=msig, ser=mser)
+        if not result:
             raise falcon.HTTPError(falcon.HTTP_400,
                                        'Validation Error',
                                     'Could not validate the request body.')
@@ -339,27 +339,6 @@ class AgentDidDropResource:
                                     'Validation Error',
                                     'Mismatch message from and signer DIDs.')
 
-
-        # Validate that its a new unique message wrt (to, from, uid)
-        key = "{}/drop/{}/{}".format(AGENT_BASE_PATH, did, sdid, mdat['uid'])
-
-
-        # Get validated destination agent resource from database
-        try:
-            ddat, dser, dsig = dbing.getSigned(did)
-        except dbing.DatabaseError as ex:
-            raise falcon.HTTPError(falcon.HTTP_400,
-                                       'Resource Verification Error',
-                                    'Error verifying destination resource. {}'.format(ex))
-
-        if ddat is None:
-            raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
-                                       'Not Found Error',
-                            'DID resource {} does not exist'.format(did))
-
-
-
-
         # Get validated destination agent resource from database
         try:
             ddat, dser, dsig = dbing.getSelfSigned(did)
@@ -368,21 +347,27 @@ class AgentDidDropResource:
                                        'Resource Verification Error',
                                     'Error verifying destination resource. {}'.format(ex))
 
+        # Build key for message from (to, from, uid)  (did, sdid, uid)
+        muid = mdat['uid']
+        key = "{}/{}/drop/{}/{}".format(AGENT_BASE_PATH, did, sdid, muid)
 
-        srcDid = mdat['from']
-        dstDid = mdat['to']
+        # save message to database error if duplicate
+        try:
+            dbing.putSigned(mser, msig, key, clobber=False)  # no clobber so error
+        except dbing.DatabaseError as ex:
+            raise falcon.HTTPError(falcon.HTTP_412,
+                                  'Database Error',
+                                  '{}'.format(ex.args[0]))
 
 
-        index = 0
 
         didUri = falcon.uri.encode_value(did)
-        srcDidUri = falcon.uri.encode_value(srcDid)
+        sdidUri = falcon.uri.encode_value(sdid)
         rep.status = falcon.HTTP_201  # post response status with location header
-        rep.location = "{}/{}/drop?index={}&from={}".format(AGENT_BASE_PATH,
-                                                       didUri,
-                                                       index,
-                                                       srcDidUri,
-                                                       )
+        rep.location = "{}/{}/drop?from={}&uid={}".format(AGENT_BASE_PATH,
+                                                          didUri,
+                                                          sdidUri,
+                                                          muid)
         rep.body = json.dumps(mdat, indent=2)
 
     def on_get(self, req, rep, did):

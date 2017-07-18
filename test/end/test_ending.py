@@ -1459,9 +1459,7 @@ def test_post_AgentDidDrop(client):  # client is a fixture in pytest_falcon
     assert rep.status == falcon.HTTP_201
     assert msg == rep.json
     location = falcon.uri.decode(rep.headers['location'])
-    assert location == "/agent/{}/drop?index={}&from={}".format(dstDid,
-                                                               0,
-                                                               srcDid,)
+    assert location == "/agent/{}/drop?from={}&uid={}".format(dstDid, srcDid, muid)
 
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")

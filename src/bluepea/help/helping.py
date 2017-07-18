@@ -792,7 +792,7 @@ def validateMessageData(ser):
         if not isinstance(dat, dict):  # must be dict subclass
             return None
 
-        requireds = ("uid", "kind", "signer", "date" "to", "from", "subject", "content")
+        requireds = ("uid", "kind", "signer", "date", "to", "from", "subject", "content")
         for field in requireds:
             if field not in dat:
                 return None
