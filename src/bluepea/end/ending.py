@@ -377,18 +377,20 @@ class AgentDidDropResource:
 
 
         """
-        index = req.get_param("index")  # already has url-decoded query parameter value
-        srcDid = req.get_param("src")  # already has url-decoded query parameter value
+        muid = req.get_param("uid") # returns url-decoded query parameter value
+        sdid = req.get_param("from")  # returns url-decoded query parameter value
+        index = req.get_param("index")  # returns url-decoded query parameter value
 
-        try:
-            index = int(index)
-        except (ValueError, TypeError) as  ex:
-            raise falcon.HTTPError(falcon.HTTP_400,
-                                   'Request Error',
-                                   'Invalid request format. {}'.format(ex))
+        if index is not None:
+            try:
+                index = int(index)
+            except (ValueError, TypeError) as  ex:
+                raise falcon.HTTPError(falcon.HTTP_400,
+                                       'Request Error',
+                                       'Invalid request format. {}'.format(ex))
 
 
-        key = "{}/drop/{}/{:09d}".format(did, srcDid, index)
+        key = "{}/{}/drop/{}/{}".format(AGENT_BASE_PATH, did, sdid, muid)
 
         # read from database
         try:
@@ -397,11 +399,6 @@ class AgentDidDropResource:
             raise falcon.HTTPError(falcon.HTTP_400,
                             'Resource Verification Error',
                             'Error verifying resource. {}'.format(ex))
-
-        if dat is None:
-            raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
-                                               'Not Found Error',
-                                               'DID resource does not exist')
 
         rep.set_header("Signature", 'signer="{}"'.format(sig))
         rep.set_header("Content-Type", "application/json; charset=UTF-8")

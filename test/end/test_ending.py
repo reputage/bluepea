@@ -1461,85 +1461,36 @@ def test_post_AgentDidDrop(client):  # client is a fixture in pytest_falcon
     location = falcon.uri.decode(rep.headers['location'])
     assert location == "/agent/{}/drop?from={}&uid={}".format(dstDid, srcDid, muid)
 
-    cleanupTmpBaseDir(dbEnv.path())
-    print("Done Test")
-
-def test_post_message(client):  # client is a fixture in pytest_falcon
-    """
-    Test POST to add message to Thing message queue.
-    """
-    print("Testing Post /thing/message with signature")
-
-    priming.setupTest()
-    dbEnv = dbing.gDbEnv
-    keeper = keeping.gKeeper
-    kdid = keeper.did
-
-    print("Testing POST /thing/message")
-
-    rep = client.get('/server')
+    # now get it from web service
+    # need to use uri encode version of location header
+    assert rep.headers['location'] == ('/agent/did%3Aigo%3AdZ74MLZXD-1QHoa73w9pQ'
+                                       '9GroAvxqFi2RTZWlkC0raY%3D/drop'
+                                       '?from=did%3Aigo%3AQt27fThWoNZsa88VrTkep'
+                                       '6H-4HA8tr54sHON1vWl6FE%3D&'
+                                       'uid=m_00035d2976e6a000_26ace93')
+    rep = client.get(rep.headers['location'])
 
     assert rep.status == falcon.HTTP_OK
-    assert int(rep.headers['content-length']) == 291
     assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
-    assert rep.headers['signature'] == ('signer="u72j9aKHgz99f0K8pSkMnyqwvEr_3r'
-                'pS_z2034L99sTWrMIIJGQPbVuIJ1cupo6cfIf_KCB5ecVRYoFRzAPnAQ=="')
     sigs = parseSignatureHeader(rep.headers['signature'])
 
-    assert sigs['signer'] == ('u72j9aKHgz99f0K8pSkMnyqwvEr_3rpS_z2034L99sTWrMII'
-                              'JGQPbVuIJ1cupo6cfIf_KCB5ecVRYoFRzAPnAQ==')
+    assert sigs['signer'] == msig
 
     assert rep.body == (
         '{\n'
-        '  "did": "did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=",\n'
-        '  "signer": "did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=#0",\n'
-        '  "changed": "2000-01-01T00:00:00+00:00",\n'
-        '  "keys": [\n'
-        '    {\n'
-        '      "key": "Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=",\n'
-        '      "kind": "EdDSA"\n'
-        '    }\n'
-        '  ]\n'
+        '  "uid": "m_00035d2976e6a000_26ace93",\n'
+        '  "kind": "found",\n'
+        '  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",\n'
+        '  "date": "2000-01-03T00:00:00+00:00",\n'
+        '  "to": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",\n'
+        '  "from": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",\n'
+        '  "thing": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",\n'
+        '  "subject": "Lose something?",\n'
+        '  "content": "Look what I found"\n'
         '}')
 
-    assert rep.json == {
-        'did': 'did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=',
-        'signer': 'did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=#0',
-        'changed': '2000-01-01T00:00:00+00:00',
-        'keys':
-        [
-            {
-                'key': 'Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=',
-                'kind': 'EdDSA'
-            }
-        ],
-    }
-
-    assert rep.json['did'] == kdid
-
-    assert verify64u(sigs['signer'], rep.body, rep.json['keys'][0]['key'])
-
-    dat, ser, sig = dbing.getSigned(kdid)
-
-    assert dat == rep.json
-    assert ser == rep.body
-    assert sig == sigs['signer']
-
-    print("Testing get server using GET /agent?did=")
-
-    didURI = falcon.uri.encode_value(kdid)
-    rep = client.get('/agent?did={}'.format(didURI))
-
-    assert rep.status == falcon.HTTP_OK
-    assert int(rep.headers['content-length']) == 291
-    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
-    assert rep.headers['signature'] == ('signer="u72j9aKHgz99f0K8pSkMnyqwvEr_3r'
-                    'pS_z2034L99sTWrMIIJGQPbVuIJ1cupo6cfIf_KCB5ecVRYoFRzAPnAQ=="')
-    sigs = parseSignatureHeader(rep.headers['signature'])
-
-    assert sigs['signer'] == sig
-    assert rep.body == ser
-    assert rep.json == dat
+    assert verify64u(msig, rep.body, keyToKey64u(srcVk))
 
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")
+
