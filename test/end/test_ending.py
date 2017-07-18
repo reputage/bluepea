@@ -68,7 +68,7 @@ def setupTestDbAgentsThings():
     #seed = libnacl.randombytes(libnacl.crypto_sign_SEEDBYTES)
 
     dt = datetime.datetime(2000, 1, 1, tzinfo=datetime.timezone.utc)
-    stamp = timing.iso8601(dt, aware=True)
+    changed = timing.iso8601(dt, aware=True)
 
     # make "ann" the agent
     seed = (b'PTi\x15\xd5\xd3`\xf1u\x15}^r\x9bfH\x02l\xc6\x1b\x1d\x1c\x0b9\xd7{\xc0_'
@@ -77,7 +77,7 @@ def setupTestDbAgentsThings():
     # creates signing/verification key pair
     avk, ask = libnacl.crypto_sign_seed_keypair(seed)
 
-    sig, ser = makeSignedAgentReg(avk, ask, changed=stamp)
+    sig, ser = makeSignedAgentReg(avk, ask, changed=changed)
 
     adat = json.loads(ser, object_pairs_hook=ODict)
     adid = adat['did']
@@ -95,11 +95,11 @@ def setupTestDbAgentsThings():
 
     hid = ODict(kind="dns",
                 issuer="generic.com",
-                registered=stamp,
+                registered=changed,
                 validationURL="https://generic.com/indigo")
     hids = [hid]  # list of hids
 
-    sig, ser = makeSignedAgentReg(ivk, isk, changed=stamp, hids=hids)
+    sig, ser = makeSignedAgentReg(ivk, isk, changed=changed, hids=hids)
 
     idat = json.loads(ser, object_pairs_hook=ODict)
     idid = idat['did']
@@ -124,7 +124,7 @@ def setupTestDbAgentsThings():
                                           csk,
                                             isk,
                                             signer,
-                                            changed=stamp,
+                                            changed=changed,
                                             hid=hid,
                                             data=data)
 
@@ -143,7 +143,7 @@ def setupTestDbAgentsThings():
     # creates signing/verification key pair
     fvk, fsk = libnacl.crypto_sign_seed_keypair(seed)
 
-    sig, ser = makeSignedAgentReg(fvk, fsk, changed=stamp)
+    sig, ser = makeSignedAgentReg(fvk, fsk, changed=changed)
 
     fdat = json.loads(ser, object_pairs_hook=ODict)
     fdid = fdat['did']
@@ -1419,14 +1419,25 @@ def test_post_AgentDidDrop(client):  # client is a fixture in pytest_falcon
 
     # post message from Ann to Ivy
     dt = datetime.datetime(2000, 1, 3, tzinfo=datetime.timezone.utc)
-    stamp = timing.iso8601(dt, aware=True)
+    changed = timing.iso8601(dt, aware=True)
+    assert changed == "2000-01-03T00:00:00+00:00"
+
+    stamp = dt.timestamp()  # make time.time value
+    #muid = timing.tuuid(stamp=stamp, prefix="m")
+    muid = "m_00035d2976e6a000_26ace93"
+    assert muid == "m_00035d2976e6a000_26ace93"
 
     srcDid, srcVk, srcSk = agents['ann']
     dstDid, dstVk, dskSk = agents['ivy']
     thingDid, thingVk, thingSk = things['cam']
 
+    signer = "{}#0".format(srcDid)
+    assert signer == "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0"
+
     msg = ODict()
-    msg['changed'] = stamp
+    msg['uid'] = muid
+    msg['signer'] = ""
+    msg['changed'] = changed
     msg['kind'] = "found"
     msg['to'] = dstDid
     msg['from'] = srcDid
