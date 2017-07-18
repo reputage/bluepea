@@ -1437,21 +1437,20 @@ def test_post_AgentDidDrop(client):  # client is a fixture in pytest_falcon
     mser = json.dumps(msg, indent=2)
     msig = keyToKey64u(libnacl.crypto_sign(mser.encode("utf-8"), srcSk)[:libnacl.crypto_sign_BYTES])
 
-    srcUri = falcon.uri.encode_value(srcDid)
-    dstUri = falcon.uri.encode_value(dstDid)
+    dstDidUri = falcon.uri.encode_value(dstDid)
     headers = {"Content-Type": "text/html; charset=utf-8",
                "Signature": 'signer="{}"'.format(msig)}
     body = mser  # client.post encodes the body
-    rep = client.post('/agent/{}/drop/{}'.format(dstUri, srcUri),
+    rep = client.post('/agent/{}/drop'.format(dstDidUri),
                       body=body,
                       headers=headers)
 
     assert rep.status == falcon.HTTP_201
     assert msg == rep.json
     location = falcon.uri.decode(rep.headers['location'])
-    assert location == "/agent/{}/drop/{}?index={}".format(dstDid,
-                                                       srcDid,
-                                                       0)
+    assert location == "/agent/{}/drop?index={}&from={}".format(dstDid,
+                                                               0,
+                                                               srcDid,)
 
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")
