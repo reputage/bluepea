@@ -25,7 +25,8 @@ from ..help.helping import (parseSignatureHeader, verify64u,
                             extractSignerParts,
                             validateSignedAgentReg, validateSignedThingReg,
                             validateSignedResource, validateSignedAgentWrite,
-                            validateSignedThingWrite)
+                            validateSignedThingWrite,
+                            validateMessageData, verifySignedMessageWrite)
 from ..db import dbing
 from ..keep import keeping
 
@@ -299,22 +300,109 @@ class AgentDidDropResource:
         """
         signature = req.get_header("Signature")
         sigs = parseSignatureHeader(signature)
-        sig = sigs.get('signer')  # str not bytes
-        if not sig:
+        msig = sigs.get('signer')  # str not bytes
+        if not msig:
             raise falcon.HTTPError(falcon.HTTP_400,
                                            'Validation Error',
                                            'Invalid or missing Signature header.')
 
         try:
-            serb = req.stream.read()  # bytes
+            mserb = req.stream.read()  # bytes
         except Exception:
             raise falcon.HTTPError(falcon.HTTP_400,
                                        'Read Error',
                                        'Could not read the request body.')
 
-        ser = serb.decode("utf-8")
-        dat = json.loads(ser, object_pairs_hook=ODict)
-        srcDid = dat['from']
+        mser = mserb.decode("utf-8")
+        mdat = validateMessageData(mser)
+
+        if not mdat:  # message must not be empty
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                    'Validation Error',
+                                    'Invalid message data.')
+
+        if did != mdat['to']:  # destination to did and did in url not same
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                    'Validation Error',
+                                    'Mismatch message to and url DIDs.')
+
+
+        # extract sdid and keystr from signer field in message
+        try:
+            (sdid, index, akey) = extractSignerParts(mdat)
+        except ValueError as ex:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                       'Resource Verification Error',
+                                'Missing or Invalid signer field. {}'.format(ex))
+
+        # Get validated signer resource from database
+        try:
+            sdat, sser, ssig = dbing.getSelfSigned(sdid)
+        except dbing.DatabaseError as ex:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                       'Resource Verification Error',
+                                    'Error verifying signer resource. {}'.format(ex))
+
+        if sdat is None:
+            raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
+                                       'Not Found Error',
+                                'DID resource {} does not exist'.format(sdid))
+
+        # verify request signature
+        mdat = verifySignedMessageWrite(sdat=sdat, index=index, sig=msig, ser=mser)
+        if not mdat:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                       'Validation Error',
+                                    'Could not validate the request body.')
+
+        if sdid != mdat['from']:  # destination to did and did in url not same
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                    'Validation Error',
+                                    'Mismatch message from and signer DIDs.')
+
+
+        # Validate that its a new unique message wrt (to, from, uid)
+        key = "{}/drop/{}/{}".format(AGENT_BASE_PATH, did, sdid, mdat['uid'])
+
+
+        # Get validated destination agent resource from database
+        try:
+            ddat, dser, dsig = dbing.getSigned(did)
+        except dbing.DatabaseError as ex:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                       'Resource Verification Error',
+                                    'Error verifying destination resource. {}'.format(ex))
+
+        if ddat is None:
+            raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
+                                       'Not Found Error',
+                            'DID resource {} does not exist'.format(did))
+
+
+
+
+        # Get validated destination agent resource from database
+        try:
+            ddat, dser, dsig = dbing.getSelfSigned(did)
+        except dbing.DatabaseError as ex:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                       'Resource Verification Error',
+                                    'Error verifying destination resource. {}'.format(ex))
+
+        if ddat is None:
+            raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
+                                       'Not Found Error',
+                            'DID resource {} does not exist'.format(did))
+
+
+
+
+
+
+        srcDid = mdat['from']
+        dstDid = mdat['to']
+
+
         index = 0
 
         didUri = falcon.uri.encode_value(did)
@@ -325,7 +413,7 @@ class AgentDidDropResource:
                                                        index,
                                                        srcDidUri,
                                                        )
-        rep.body = json.dumps(dat, indent=2)
+        rep.body = json.dumps(mdat, indent=2)
 
     def on_get(self, req, rep, did):
         """

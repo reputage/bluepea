@@ -269,3 +269,31 @@ def test_putSigned_getSigned():
 
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")
+
+
+def test_exists():
+    """
+
+    """
+    print("Testing exits in DB Env")
+
+    dbEnv = dbing.setupTestDbEnv()
+
+    data = ODict()
+    data["name"] = "John Smith"
+    data["city"] = "Alta"
+    datab = json.dumps(data, indent=2).encode("utf-8")
+
+    dbCore = dbing.gDbEnv.open_db(b'core')  # open named sub db named 'core' within env
+    with dbing.gDbEnv.begin(db=dbCore, write=True) as txn:  # txn is a Transaction object
+        txn.put(b'person0', datab)  # keys and values are bytes
+        d0b = txn.get(b'person0')
+        assert d0b == datab
+
+    result = dbing.exists(key="person0")
+    assert result is True
+    result = dbing.exists(key="person1")
+    assert result is False
+
+    cleanupTmpBaseDir(dbEnv.path())
+    print("Done Test")

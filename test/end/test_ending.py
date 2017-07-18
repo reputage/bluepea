@@ -1436,9 +1436,9 @@ def test_post_AgentDidDrop(client):  # client is a fixture in pytest_falcon
 
     msg = ODict()
     msg['uid'] = muid
-    msg['signer'] = ""
-    msg['changed'] = changed
     msg['kind'] = "found"
+    msg['signer'] = "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0"
+    msg['date'] = changed
     msg['to'] = dstDid
     msg['from'] = srcDid
     msg['thing'] = thingDid

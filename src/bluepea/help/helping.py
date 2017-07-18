@@ -768,3 +768,76 @@ def validateSignedThingWrite(sdat, cdat, csig, sig, ser,  method="igo"):
         return None
 
     return dat
+
+
+def validateMessageData(ser):
+    """
+    Returns deserialized version of serialization ser which is message to be written
+    if message is correctly formed.
+    Otherwise returns None
+
+    ser is json encoded unicode string of message
+    """
+
+    try:
+        # now validate message data
+        try:
+            dat = json.loads(ser, object_pairs_hook=ODict)
+        except ValueError as ex:
+            return None  # invalid json
+
+        if not dat:  # registration must not be empty
+            return None
+
+        if not isinstance(dat, dict):  # must be dict subclass
+            return None
+
+        requireds = ("uid", "kind", "signer", "date" "to", "from", "subject", "content")
+        for field in requireds:
+            if field not in dat:
+                return None
+
+        try:
+            dt = arrow.get(dat["date"])
+        except arrow.parser.ParserError as ex:  # invalid datetime format
+            return None
+
+    except Exception as ex:  # unknown problem
+        return None
+
+    return dat
+
+
+def verifySignedMessageWrite(sdat, index, sig, ser):
+    """
+    Returns True
+    If signature sig verifies with serialization ser with key at index in
+    signer sdat.
+    Otherwise returns False
+
+    sdat is current signer dict converted from database
+
+    index is index of key in signer data sdat
+
+    sig is signature using current signer field
+
+    ser is json encoded unicode string of message
+    """
+    try:
+        # get signer key at index from signer data. assumes that resource is valid
+        try:
+            sverkey = sdat["keys"][index]["key"]
+        except (TypeError, KeyError, IndexError) as ex:
+            return False
+
+        if len(sverkey) != 44:
+            return False  # invalid length for base64 encoded key
+
+        # verify request using existing resources signer verify key
+        if not verify64u(sig, ser, sverkey):
+            return False  # signature fails
+
+    except Exception as ex:  # unknown problem
+        return False
+
+    return True

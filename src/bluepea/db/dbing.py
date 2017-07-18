@@ -285,3 +285,31 @@ def getSigned(did, dbn='core', env=None):
 
     return (dat, ser, sig)
 
+
+def exists(key, dbn='core', env=None):
+    """
+    Returns true if key exists in named database dbn of environment env
+    False otherwise
+
+
+    Parameters:
+        key is key str for database
+        dbn is name str of named sub database, Default is 'core'
+        env is main LMDB database environment
+            If env is not provided then use global gDbEnv
+    """
+    global gDbEnv
+
+    if env is None:
+        env = gDbEnv
+
+    if env is None:
+        raise DatabaseError("Database environment not set up")
+
+    # read from database
+    subDb = gDbEnv.open_db(dbn.encode("utf-8"))  # open named sub db named dbn within env
+    with gDbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
+        rsrcb = txn.get(key.encode("utf-8"))
+        if rsrcb is None:  # does not exist
+            return False
+    return True
