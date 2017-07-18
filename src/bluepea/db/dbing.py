@@ -188,7 +188,7 @@ def getSelfSigned(did, dbn='core', env=None):
     with gDbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
         rsrcb = txn.get(did.encode("utf-8"))
         if rsrcb is None:  # does not exist
-            raise DatabaseError("Resource not found. {}".format(ex))
+            raise DatabaseError("Resource not found.")
 
     rsrc = rsrcb.decode("utf-8")
     ser, sep, sig = rsrc.partition(SEPARATOR)
@@ -255,7 +255,7 @@ def getSigned(did, dbn='core', env=None):
     with gDbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
         rsrcb = txn.get(did.encode("utf-8"))
         if rsrcb is None:  # does not exist
-            raise DatabaseError("Resource not found. {}".format(ex))
+            raise DatabaseError("Resource not found.")
 
     rsrc = rsrcb.decode("utf-8")
     ser, sep, sig = rsrc.partition(SEPARATOR)
