@@ -155,9 +155,11 @@ def getSelfSigned(did, dbn='core', env=None):
     """
     Returns tuple of (dat, ser, sig) corresponding to self-signed data resource
     at did in named dbn of env.
-    Returns tuple (None, None, None) if data resource not found
-    If self-signed signature stored in resource does not verify then
-    raises DatabaseError exception
+
+    Raises DatabaseError exception
+    IF data resource not found
+    IF self-signed signature stored in resource does not verify
+
 
     In return tuple:
         dat is ODict JSON deserialization of ser
@@ -186,7 +188,7 @@ def getSelfSigned(did, dbn='core', env=None):
     with gDbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
         rsrcb = txn.get(did.encode("utf-8"))
         if rsrcb is None:  # does not exist
-            return (None, None, None)
+            raise DatabaseError("Resource not found. {}".format(ex))
 
     rsrc = rsrcb.decode("utf-8")
     ser, sep, sig = rsrc.partition(SEPARATOR)
@@ -222,9 +224,10 @@ def getSigned(did, dbn='core', env=None):
     Looks up and verifies signer's data resource and then verfies data resource
     given verification key provided by signer's data resource.
 
-    Returns tuple (None, None, None) if data resource not found
-    If signatures do not verify then raises DatabaseError exception
-    If signer does not exist then raises DatabaseError exception
+    Raises DatabaseError exception
+    If data resource not found
+    If signer does not exist
+    If signatures do not verify
 
     In return tuple:
         dat is ODict JSON deserialization of ser
@@ -252,7 +255,7 @@ def getSigned(did, dbn='core', env=None):
     with gDbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
         rsrcb = txn.get(did.encode("utf-8"))
         if rsrcb is None:  # does not exist
-            return (None, None, None)
+            raise DatabaseError("Resource not found. {}".format(ex))
 
     rsrc = rsrcb.decode("utf-8")
     ser, sep, sig = rsrc.partition(SEPARATOR)
@@ -271,9 +274,6 @@ def getSigned(did, dbn='core', env=None):
         sdat, sser, ssig = getSelfSigned(sdid)
     except DatabaseError as ex:
         raise DatabaseError("Signer errored as {}".format(ex.args[0]))
-
-    if sdat is None:
-        raise DatabaseError("Signer not found")
 
     try:
         key = sdat['keys'][index]['key']

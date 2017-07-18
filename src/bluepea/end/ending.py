@@ -66,11 +66,6 @@ class ServerResource:
                             'Resource Verification Error',
                             'Error verifying resource. {}'.format(ex))
 
-        if dat is None:
-            raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
-                                               'Not Found Error',
-                                               'DID resource does not exist')
-
         rep.set_header("Signature", 'signer="{}"'.format(sig))
         rep.set_header("Content-Type", "application/json; charset=UTF-8")
         rep.status = falcon.HTTP_200  # This is the default status
@@ -155,11 +150,6 @@ class AgentResource:
                             'Resource Verification Error',
                             'Error verifying resource. {}'.format(ex))
 
-        if dat is None:
-            raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
-                                               'Not Found Error',
-                                               'DID resource does not exist')
-
         rep.set_header("Signature", 'signer="{}"'.format(sig))
         rep.set_header("Content-Type", "application/json; charset=UTF-8")
         rep.status = falcon.HTTP_200  # This is the default status
@@ -222,7 +212,6 @@ class AgentDidResource:
                             'Resource Verification Error',
                             'Error verifying signer resource. {}'.format(ex))
 
-
         # validate request
         dat = validateSignedAgentWrite(cdat=rdat, csig=csig, sig=sig, ser=ser)
         if not dat:
@@ -261,11 +250,6 @@ class AgentDidResource:
             raise falcon.HTTPError(falcon.HTTP_400,
                             'Resource Verification Error',
                             'Error verifying resource. {}'.format(ex))
-
-        if dat is None:
-            raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
-                                               'Not Found Error',
-                                               'DID resource does not exist')
 
         rep.set_header("Signature", 'signer="{}"'.format(sig))
         rep.set_header("Content-Type", "application/json; charset=UTF-8")
@@ -343,11 +327,6 @@ class AgentDidDropResource:
                                        'Resource Verification Error',
                                     'Error verifying signer resource. {}'.format(ex))
 
-        if sdat is None:
-            raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
-                                       'Not Found Error',
-                                'DID resource {} does not exist'.format(sdid))
-
         # verify request signature
         mdat = verifySignedMessageWrite(sdat=sdat, index=index, sig=msig, ser=mser)
         if not mdat:
@@ -388,15 +367,6 @@ class AgentDidDropResource:
             raise falcon.HTTPError(falcon.HTTP_400,
                                        'Resource Verification Error',
                                     'Error verifying destination resource. {}'.format(ex))
-
-        if ddat is None:
-            raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
-                                       'Not Found Error',
-                            'DID resource {} does not exist'.format(did))
-
-
-
-
 
 
         srcDid = mdat['from']
@@ -521,11 +491,6 @@ class ThingResource:
             raise falcon.HTTPError(falcon.HTTP_400,
                             'Resource Verification Error',
                             'Error verifying signer resource. {}'.format(ex))
-
-        if sdat is None:
-            raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
-                                               'Not Found Error',
-                                               'DID resource does not exist')
 
         # now use signer agents key indexed for thing signer to verify thing resource
         try:
@@ -665,11 +630,6 @@ class ThingDidResource:
             raise falcon.HTTPError(falcon.HTTP_400,
                                        'Resource Verification Error',
                                        'Error verifying signer resource. {}'.format(ex))
-
-        if sdat is None:
-            raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
-                                               'Not Found Error',
-                                               'DID resource does not exist')
 
         # validate request
         dat = validateSignedThingWrite(sdat=sdat, cdat=cdat, csig=csig, sig=sig, ser=ser)

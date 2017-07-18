@@ -78,8 +78,14 @@ def createServerResource(vk, sk, changed=None,  **kwa):
     """
     keeper = keeping.gKeeper
     did = keeper.did  # is the server's did
-    dat, ser, sig = dbing.getSelfSigned(did)  # see if valid already exists
-    if dat is None:  # need to create
+    created = dbing.exists(did)
+    if created:  # already created so validate
+        try:
+            dat, ser, sig = dbing.getSelfSigned(did)  # see if valid already exists
+        except dbing.DatabaseError as ex:
+            created = False  # corrupted so recreate
+
+    if not created:  # need to create
         sig, ser = dbing.makeSignedAgentReg(vk=keeper.verkey,
                                       sk=keeper.sigkey,
                                       changed=changed)
