@@ -496,7 +496,7 @@ class ThingResource:
         # save to database core
         try:
             dbing.putSigned(registration, tsig, tdid, clobber=False)
-        except DatabaseError as ex:
+        except dbing.DatabaseError as ex:
             raise falcon.HTTPError(falcon.HTTP_412,
                                   'Database Error',
                                   '{}'.format(ex.args[0]))
@@ -620,8 +620,9 @@ class ThingDidResource:
                                                'Validation Error',
                                            'Could not validate the request body.')
 
-        if "hid" in dat:
-            pass  # validate hid namespace here
+        if "hid" in dat:  # new or changed hid
+            if (dat["hid"] and not "hid" in cdat) or dat["hid"] != cdat["hid"]:
+                pass  # validate hid namespace here
 
         # save to database
         try:

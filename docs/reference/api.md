@@ -1,6 +1,6 @@
 # Indigo Service API
 
-2017/07/18
+2017/07/19
 
 ## Installing Service
 
@@ -376,10 +376,10 @@ Date: Tue, 11 Jul 2017 01:17:11 GMT
 
 ## *Issuer* *Agent* Creation 
 
-When the Agent Registration creation request includes an *hids* field then the  data resource represents an *Issuer* agent. This effectively registers the *Issuer* with the Indigo service. The creation request will also validate control of the associated *hid* namespaces.  The *hids* field is a list of one or more HID json objects. Each object contains information about a namespace used by the *Issuer* to generate HIDs:
+When the Agent Registration creation request includes an *issuants* field for registering control of human friendly identifier (*HID*) name spaces then the data resource represents an *Issuer* agent. This effectively registers the *Issuer* with the Indigo service. The creation request will also validate control of the associated *Issuant* *HID* name spaces.  The *issuants* field is a list of one or more *issuant* json objects. Each object contains information about a namespace used by the *Issuer* to generate HIDs:
 
 ```json
-"hids":
+"issuants":
 [
   {
     "kind": "dns",
@@ -390,30 +390,32 @@ When the Agent Registration creation request includes an *hids* field then the  
 ]
 ```
 
+*Issuer* *Agents* control *Things* and may issue  a unique human friendly identifier (HID) for the *Things* they control out of the Issuant HID name spaces they also control. Currently each HID is unique to the associated DID for the *Thing*. 
+
 Example requests and responses are shown below.
 
 ## Request
 
 ```http
 POST /agent HTTP/1.1
-Signature: signer="f2w1L6XtU8_GS5N8UwX0d77aw2kR0IM5BVdBLOaoIyR9nzra6d4JgVV7TlJrEx8WhJlgBRpyInRZgdnSf_WQAg=="
+Signature: signer="xZbsn-GqZQZmZX9UdhbG45EEGGj25o7WJ_t7yYI9UfXXseV7my3faYhn4slrxB-KuujOMjFmx_EJaZWgGb8HCg=="
 Content-Type: application/json; charset=UTF-8
 Host: localhost:8080
 Connection: close
-User-Agent: Paw/3.1.1 (Macintosh; OS X/10.12.5) GCDHTTPRequest
-Content-Length: 473
+User-Agent: Paw/3.1.2 (Macintosh; OS X/10.12.5) GCDHTTPRequest
+Content-Length: 477
 
 {
-  "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
-  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",
+  "did": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",
+  "signer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#0",
   "changed": "2000-01-01T00:00:00+00:00",
   "keys": [
     {
-      "key": "Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+      "key": "dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",
       "kind": "EdDSA"
     }
   ],
-  "hids": [
+  "issuants": [
     {
       "kind": "dns",
       "issuer": "generic.com",
@@ -428,23 +430,23 @@ Content-Length: 473
 
 ```http
 HTTP/1.1 201 Created
-Location: /agent?did=did%3Aigo%3AQt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE%3D
-Content-Length: 397
+Location: /agent?did=did%3Aigo%3AdZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY%3D
+Content-Length: 477
 Content-Type: application/json; charset=UTF-8
 Server: Ioflo WSGI Server
-Date: Tue, 11 Jul 2017 01:07:26 GMT
+Date: Wed, 19 Jul 2017 16:21:25 GMT
 
 {
-  "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
-  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",
+  "did": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",
+  "signer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#0",
   "changed": "2000-01-01T00:00:00+00:00",
   "keys": [
     {
-      "key": "Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+      "key": "dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",
       "kind": "EdDSA"
     }
   ],
-  "hids": [
+  "issuants": [
     {
       "kind": "dns",
       "issuer": "generic.com",
@@ -463,34 +465,34 @@ Example requests and responses are shown below.
 ## Request
 
 ```http
-GET /agent?did=did%3Aigo%3AQt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE%3D HTTP/1.1
+GET /agent?did=did%3Aigo%3AdZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY%3D HTTP/1.1
 Content-Type: application/json; charset=utf-8
 Host: localhost:8080
 Connection: close
-User-Agent: Paw/3.1.1 (Macintosh; OS X/10.12.5) GCDHTTPRequest
+User-Agent: Paw/3.1.2 (Macintosh; OS X/10.12.5) GCDHTTPRequest
 ```
 
 ## Response
 
 ```http
 HTTP/1.1 200 OK
-Signature: signer="f2w1L6XtU8_GS5N8UwX0d77aw2kR0IM5BVdBLOaoIyR9nzra6d4JgVV7TlJrEx8WhJlgBRpyInRZgdnSf_WQAg=="
+Signature: signer="xZbsn-GqZQZmZX9UdhbG45EEGGj25o7WJ_t7yYI9UfXXseV7my3faYhn4slrxB-KuujOMjFmx_EJaZWgGb8HCg=="
 Content-Type: application/json; charset=UTF-8
-Content-Length: 473
+Content-Length: 477
 Server: Ioflo WSGI Server
-Date: Tue, 11 Jul 2017 01:19:04 GMT
+Date: Wed, 19 Jul 2017 16:21:29 GMT
 
 {
-  "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
-  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",
+  "did": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",
+  "signer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#0",
   "changed": "2000-01-01T00:00:00+00:00",
   "keys": [
     {
-      "key": "Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+      "key": "dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",
       "kind": "EdDSA"
     }
   ],
-  "hids": [
+  "issuants": [
     {
       "kind": "dns",
       "issuer": "generic.com",
@@ -560,11 +562,11 @@ User-Agent: Paw/3.1.2 (Macintosh; OS X/10.12.5) GCDHTTPRequest
 
 ```http
 HTTP/1.1 200 OK
-Signature: signer="1eOnymJR0eAnyWig-cAzLlCXYYnzanMUbhgkCnNCYzOI0FWwRk8ZF5YvpfOLUge2F-NcR071YO5rbfDDltcXCg=="
+Signature: signer="P4CAY5_6Yh1-JbJRPLR11FcvFYcQZKscMeF9tsismbWZmRGSiqNpXcUAiV_zAaBtEOJl99UBR9v30XpGcUSDDw=="
 Content-Type: application/json; charset=UTF-8
-Content-Length: 569
+Content-Length: 573
 Server: Ioflo WSGI Server
-Date: Sat, 15 Jul 2017 00:56:55 GMT
+Date: Wed, 19 Jul 2017 16:21:57 GMT
 
 {
   "did": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",
@@ -580,7 +582,7 @@ Date: Sat, 15 Jul 2017 00:56:55 GMT
       "kind": "EdDSA"
     }
   ],
-  "hids": [
+  "issuants": [
     {
       "kind": "dns",
       "issuer": "generic.com",
@@ -662,12 +664,12 @@ Below is an example for an *Issuer* *Agent*
 
 ```http
 PUT /agent/did%3Aigo%3AdZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY%3D HTTP/1.1
-Signature: signer="1eOnymJR0eAnyWig-cAzLlCXYYnzanMUbhgkCnNCYzOI0FWwRk8ZF5YvpfOLUge2F-NcR071YO5rbfDDltcXCg==";  current="vmW5JeXuj7zI71lt18LYZomV_V9J1CP68MkJVd_M2ahsnetlj0U4qjGFKHNjhDjEtrYfxUYAn2BWFyx_e99aBg=="
+Signature: signer="P4CAY5_6Yh1-JbJRPLR11FcvFYcQZKscMeF9tsismbWZmRGSiqNpXcUAiV_zAaBtEOJl99UBR9v30XpGcUSDDw==";  current="yMyy2iEeecI_BtmuAEvLxhUywciPvDn6KHF85KmVuChNr1G3LiOUcxkjmJWNiNkhdcw-0nvFQ60YBCuQbZe_CA=="
 Content-Type: application/json; charset=UTF-8
 Host: localhost:8080
 Connection: close
 User-Agent: Paw/3.1.2 (Macintosh; OS X/10.12.5) GCDHTTPRequest
-Content-Length: 569
+Content-Length: 573
 
 {
   "did": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",
@@ -683,7 +685,7 @@ Content-Length: 569
       "kind": "EdDSA"
     }
   ],
-  "hids": [
+  "issuants": [
     {
       "kind": "dns",
       "issuer": "generic.com",
@@ -698,11 +700,11 @@ Content-Length: 569
 
 ```http
 HTTP/1.1 200 OK
-Signature: signer="1eOnymJR0eAnyWig-cAzLlCXYYnzanMUbhgkCnNCYzOI0FWwRk8ZF5YvpfOLUge2F-NcR071YO5rbfDDltcXCg=="
+Signature: signer="P4CAY5_6Yh1-JbJRPLR11FcvFYcQZKscMeF9tsismbWZmRGSiqNpXcUAiV_zAaBtEOJl99UBR9v30XpGcUSDDw=="
 Content-Type: application/json; charset=UTF-8
-Content-Length: 569
+Content-Length: 573
 Server: Ioflo WSGI Server
-Date: Sat, 15 Jul 2017 00:54:33 GMT
+Date: Wed, 19 Jul 2017 16:21:54 GMT
 
 {
   "did": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",
@@ -718,7 +720,7 @@ Date: Sat, 15 Jul 2017 00:54:33 GMT
       "kind": "EdDSA"
     }
   ],
-  "hids": [
+  "issuants": [
     {
       "kind": "dns",
       "issuer": "generic.com",
@@ -736,7 +738,9 @@ The *Thing* Registration creation request (POST) creates a data resource corresp
 
 In order to create an *Thing* Registration request the client application needs to know the DID of the associated controlling Agent as well have access to the the priviate signing key of that Agent. In other words a Thing can only be created by a client application for an Agent controlled by the client application. 
 
-Each Thing has a unique DID. The Server will also verify that the client application holds the associated private key used to create the Thing's DID. To create a DID the client application will first need to create an EdDSA signing keypair.
+Each *Thing* has a unique DID. The Server will also verify that the client application holds the associated private key used to create the Thing's DID. To create a DID the client application will first need to create an EdDSA signing keypair.
+
+Each *Thing* may also have a unique human friendly identifier (HID). Currently each HID is unique to its associated DID. *Issuer* *Agents* control an HID name space called and *Issuant* from which the HIDs are generated.
 
 To produce a unique EdDSA signing keypair using the libsodium library.
 
