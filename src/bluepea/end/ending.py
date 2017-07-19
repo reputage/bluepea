@@ -114,7 +114,7 @@ class AgentResource:
                                            'Validation Error',
                                             'Could not validate the request body.')
 
-        if "hids" in result:
+        if "issuants" in result:
             # validate hid control here
             pass
 
@@ -219,7 +219,7 @@ class AgentDidResource:
                                                'Validation Error',
                                            'Could not validate the request body.')
 
-        if "hids" in dat:
+        if "issuants" in dat:
             pass  # validate hid namespaces here
 
         # save to database

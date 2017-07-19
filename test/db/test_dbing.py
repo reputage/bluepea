@@ -155,22 +155,21 @@ def test_putSigned_getSigned():
     stamp = timing.iso8601(dt, aware=True)
     assert  stamp == "2000-01-01T00:00:00+00:00"
 
-    hidspace = ODict(kind="dns",
+    issuant = ODict(kind="dns",
                      issuer="generic.com",
                 registered=stamp,
                 validationURL="https://generic.com/indigo")
-    hids = [hidspace]  # list of hids
+    issuants = [issuant]  # list of issuants of hid name spaces
 
     ssig, sser = makeSignedAgentReg(svk,
                                     ssk,
                                     changed=stamp,
-                                    hids=hids)
+                                    issuants=issuants)
 
     assert len(ssig) == 88
-    assert ssig == ('f2w1L6XtU8_GS5N8UwX0d77aw2kR0IM5BVdBLOaoIyR9nzra6d4JgVV7Tl'
-                    'JrEx8WhJlgBRpyInRZgdnSf_WQAg==')
+    assert ssig == ('Fgn0uNoZ4OqJrqiKv03HotWztrrM2ZPapf-977nZEtlpk6JPywuFFem6f4UZOZkNcvAbfUalwAr29nkX5P6ADg==')
 
-    assert len(sser) == 473
+    assert len(sser) == 477
     assert SEPARATOR not in sser  # separator
     assert sser == (
         '{\n'
@@ -183,7 +182,7 @@ def test_putSigned_getSigned():
         '      "kind": "EdDSA"\n'
         '    }\n'
         '  ],\n'
-        '  "hids": [\n'
+        '  "issuants": [\n'
         '    {\n'
         '      "kind": "dns",\n'
         '      "issuer": "generic.com",\n'

@@ -212,7 +212,7 @@ def makeSignedAgentReg(vk, sk, changed=None, **kwa):
         **kwa are optional fields to be added to data resource. Each keyword is
            the associated field name and the argument parameter is the value of
            that field in the data resource.  Keywords in ("did", "signer", "changed",
-            "keys") will be overidden. Common use case is "hids".
+            "keys") will be overidden. Common use case is "issuants".
 
 
     """

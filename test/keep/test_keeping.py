@@ -22,7 +22,7 @@ import pytest
 from pytest import approx
 
 from bluepea.bluepeaing import SEPARATOR
-from bluepea.help.helping import setupTmpBaseDir, cleanupTmpBaseDir
+from bluepea.help.helping import setupTmpBaseDir, cleanupTmpBaseDir,  keyToKey64u
 
 from bluepea.keep import keeping
 
@@ -62,7 +62,12 @@ def test_Keeper():
     keys = keeper.loadAllRoles(keeper.baseDirPath)
     assert "server" in keys
     assert keys['server']['seed'] == '0caac9c64711f66e6ed71b37dc5e69c5124fe93ee12446e1a47ad4b650dd861d'
+    assert keys['server']['sigkey'] == '0caac9c64711f66e6ed71b37dc5e69c5124fe93ee12446e1a47ad4b650dd861d5eae58a9a2fa2f8f297f47eeec85212f4251694dbf47114fd002f8df0627d78f'
+    assert keys['server']['verkey'] == '5eae58a9a2fa2f8f297f47eeec85212f4251694dbf47114fd002f8df0627d78f'
     assert keys['server']['prikey'] == 'd9c83c2403b9250363b32a3667a76dd88d086ad45e3488ca63bad1e9d9e69925'
+    assert keys['server']['pubkey'] == '1ea6d2c98888fff8e45b5b5dd55643dc825cda3538b72e0a5db9ecee007d3f72'
+
+    assert keyToKey64u(keeper.pubkey) == "HqbSyYiI__jkW1td1VZD3IJc2jU4ty4KXbns7gB9P3I="
 
     keeper.clearBaseDir()
     assert not os.path.exists(keepDirPath)

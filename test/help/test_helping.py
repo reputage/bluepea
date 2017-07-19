@@ -221,22 +221,21 @@ def test_signedAgentRegistrationWithData():
     stamp = timing.iso8601(dt, aware=True)
     assert  stamp == "2000-01-01T00:00:00+00:00"
 
-    hid = ODict(kind="dns",
+    issuant = ODict(kind="dns",
                 issuer="generic.com",
                 registered=stamp,
                 validationURL="https://generic.com/indigo")
-    hids = [hid]  # list of hids
+    issuants = [issuant]  # list of hid issuants
 
     signature, registration = makeSignedAgentReg(vk,
                                                  sk,
                                                  changed=stamp,
-                                                 hids=hids)
+                                                 issuants=issuants)
 
     assert len(signature) == 88
-    assert signature == ('f2w1L6XtU8_GS5N8UwX0d77aw2kR0IM5BVdBLOaoIyR9nzra6d4J'
-                         'gVV7TlJrEx8WhJlgBRpyInRZgdnSf_WQAg==')
+    assert signature == ('Fgn0uNoZ4OqJrqiKv03HotWztrrM2ZPapf-977nZEtlpk6JPywuFFem6f4UZOZkNcvAbfUalwAr29nkX5P6ADg==')
 
-    assert len(registration) == 473
+    assert len(registration) == 477
     assert SEPARATOR not in registration  # separator
     assert registration == (
         '{\n'
@@ -249,7 +248,7 @@ def test_signedAgentRegistrationWithData():
         '      "kind": "EdDSA"\n'
         '    }\n'
         '  ],\n'
-        '  "hids": [\n'
+        '  "issuants": [\n'
         '    {\n'
         '      "kind": "dns",\n'
         '      "issuer": "generic.com",\n'

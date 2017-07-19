@@ -1,6 +1,6 @@
 # Indigo Service API
 
-2017/07/14
+2017/07/18
 
 ## Installing Service
 
@@ -128,11 +128,15 @@ The API consists of several ReST endpoints grouped according to the type of data
 /agent/{did}  GET
 /agent/{did}  PUT
 
+/agent/{did}
+
 /thing  POST
 /thing?did={did} GET
 
 /thing/{did}  GET
 /thing/{did}  PUT
+
+
 ```
 
 ## *Server* *Agent* Read 
@@ -592,7 +596,7 @@ Date: Sat, 15 Jul 2017 00:56:55 GMT
 This Agent write request (PUT) overwrites a data resource corresponding to a given Agent as indicated by the *did* in the URL.
 The request is made by sending an HTTP PUT to ```/agent/{did}``` with a *did* whose value is the desired DID. The brackets indicate substitution. This value needs to be URL encoded. Because a PUT can change the signer field in the data resource, the PUT request Signature header must have two signatures. The tag 'signer' signature is the signature using the key indicated by the new value that the data resource will have once the PUT is successful. The tag 'current' signature is the signature using the key indicated by the current value of the data resource before it is overwritten. This allows to server to verify that the request was made by the current signer and that the new signer signature is provided so that the resource is signed at rest.
 
-A successful request will return status code 200. An unsuccessful request will return an error status code such as 404 Not Found.
+A successful request will return status code 200. An unsuccessful request will return an error status code such as 400 Not Found.
 
 
 Example request and response are shown below for adding another key and changing the signer field to reference the new key.
@@ -960,8 +964,7 @@ Date: Sat, 15 Jul 2017 01:02:29 GMT
 This Thing write request (PUT) overwrites a data resource corresponding to a given Thing as indicated by the *did* in the URL.
 The request is made by sending an HTTP PUT to ```/thing/{did}``` with a *did* whose value is the desired DID. The brackets indicate substitution. This value needs to be URL encoded. Because a PUT can change the signer field in the data resource, the PUT request Signature header must have two signatures. The *tag* *signer* signature is the signature using the key indicated by the new value that the data resource will have once the PUT is successful. The *tag* *current* signature is the signature using the key indicated by the current value of the data resource before it is overwritten. This allows to server to verify that the request was made by the current signer and that the new signer signature is provided so that the resource is signed at rest.
 
-A successful request will return status code 200. An unsuccessful request will return an error status code such as 404 Not Found.
-
+A successful request will return status code 200. An unsuccessful request will return an error status code such as 400 Not Found.
 
 Example request and response are shown below for adding another key and changing the signer field to reference the new key.
 
@@ -1018,3 +1021,255 @@ Date: Sat, 15 Jul 2017 00:54:46 GMT
 }
 ```
 
+## Sending a *Message* from One *Agent* to Another 
+
+The request is made by sending an HTTP POST to ```/agent/{did}/drop```
+
+The path paramater indicated by ```{did}``` is the DID of destination agent for the message. This value must be URL encoded.
+
+The request includes a custom "Signature" header whose value has the signature of the sender. The *tag* value *signer* is the *signature* of the message by the sender/signer. The signature allows the Server to verify that the sending client exists as and Agent and also created the message.
+
+The request body is a JSON serialized dict object with several required fields.
+An example is shown below:
+
+```JSON
+{
+  "uid": "m_00035d2976e6a000_26ace93",
+  "kind": "found",
+  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",
+  "date": "2000-01-03T00:00:00+00:00",
+  "to": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",
+  "from": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+  "thing": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
+  "subject": "Lose something?",
+  "content": "Look what I found"
+}
+```
+
+All the fields in the example above are required except for ```thing```.
+
+The fields descriptions are as follows:
+
+- *uid*  is the unique message id. This must be monotonically increasing for any recipient. A useful ID scheme is the time based universal unique ID provided by the ```ioflo.aid.timing.tuuid()``` function. This uses time to order the UID up to microsecond intervals and then adds a random suffix to provide sub micro-second uniqueness. To generate a TUUID as in the examples use the function as follows:
+
+```python
+from ioflo.aid.timing import tuuid
+
+muid = tuuid(prefix="m")
+```
+
+For a specific datetime not just the current time one may use it as follows:
+
+```python
+import datetime
+from ioflo.aid.timing import tuuid
+
+dt =datetime.datetime(2017,7,4,tzinfo=datetime.timezone.utc)
+muid = tuuid(stamp=dt.timestamp(), prefix="m")
+```
+
+- *kind* is the message kind. This allows the client applications to know how to handle special messages such as encryption key exchange messages. Currently the special kinds  are ``` "exchange"``` for key exchange. Values that do not have special meaning are ignored.
+
+- *signer* is the indexed DID of the signer Agent sending the message. The index fragment indicates which of the signing *Agent*'s keys to use.
+
+- *date* is an ISO-8601 datetime which may be used by the client applications for filtering messages by date
+
+- *to* is the destination Agent's DID. This must match the DID used in the POST URL
+
+- *from* is the sending Agent's DID. This must match the DID used in the *signer* field.
+
+- *thing* is an optional field that has the DID of a *Thing*. This is to enable the client application to differentially display messages about particular things. 
+
+- *subject* is the subject text of the message.
+
+- *content* is the content text of the message.
+
+For each receipient, The Indigo service will create a dedicated message queue for each sender. 
+
+A successful request results in a response with the associated Agent data resource
+in the JSON body of the response is and a location header
+whose value is the URL to access the Agent Data Resource via a GET request.
+This location value has already been URL encoded.
+
+A successful request will return status code 201
+
+An unsuccessful request will return status code 400.
+
+Example requests and responses are shown below.
+
+## Request
+
+```http
+POST /agent/did%3Aigo%3AdZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY%3D/drop HTTP/1.1
+Signature: signer="07u1OcQI8FUeWPqeiga3A9k4MPJGSFmC4vShiJNpv2Rke9ssnW7aLx857HC5ZaJ973WSKkLAwPzkl399d01HBA=="
+Content-Type: application/json; charset=UTF-8
+Host: localhost:8080
+Connection: close
+User-Agent: Paw/3.1.2 (Macintosh; OS X/10.12.5) GCDHTTPRequest
+Content-Length: 432
+
+{
+  "uid": "m_00035d2976e6a000_26ace93",
+  "kind": "found",
+  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",
+  "date": "2000-01-03T00:00:00+00:00",
+  "to": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",
+  "from": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+  "thing": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
+  "subject": "Lose something?",
+  "content": "Look what I found"
+}
+```
+
+## Response
+
+```http
+HTTP/1.1 201 Created
+Location: /agent/did%3Aigo%3AdZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY%3D/drop?from=did%3Aigo%3AQt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE%3D&uid=m_00035d2976e6a000_26ace93
+Content-Length: 432
+Content-Type: application/json; charset=UTF-8
+Server: Ioflo WSGI Server
+Date: Tue, 18 Jul 2017 19:50:57 GMT
+
+{
+  "uid": "m_00035d2976e6a000_26ace93",
+  "kind": "found",
+  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",
+  "date": "2000-01-03T00:00:00+00:00",
+  "to": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",
+  "from": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+  "thing": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
+  "subject": "Lose something?",
+  "content": "Look what I found"
+}
+```
+
+## Reading a *Message* from One *Agent* to Another
+
+The Indigo service creates a dedicated message queue for each sender at each recipient.
+The request is made by sending an HTTP Get to ```/agent/{did}/drop``` with the path parameter that is the DID of the recepient of a message. This value needs to be URL encoded. The request also has two query parameters. One with *tag* *from* query parameter whose value is the sender DID. This value needs to be URL encoded. The other with *tag* uid whose value is the unique message ID of the message. Other variants of the request will allow querying the first last or all of the messages from a given sender to a given recepient.
+
+A successful request will return status code 200. An unsuccessful request will return an error status code such as 404 Not Found. 
+
+If successful the response includes a custom "Signature" header whose *signer* field value is the signature.
+
+Example requests and responses are shown below.
+
+## Request
+
+```http
+GET /agent/did%3Aigo%3AdZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY%3D/drop?from=did%3Aigo%3AQt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE%3D&uid=m_00035d2976e6a000_26ace93 HTTP/1.1
+Signature: signer="07u1OcQI8FUeWPqeiga3A9k4MPJGSFmC4vShiJNpv2Rke9ssnW7aLx857HC5ZaJ973WSKkLAwPzkl399d01HBA=="
+Content-Type: application/json; charset=UTF-8
+Host: localhost:8080
+Connection: close
+User-Agent: Paw/3.1.2 (Macintosh; OS X/10.12.5) GCDHTTPRequest
+```
+
+## Response
+
+```http
+HTTP/1.1 200 OK
+Signature: signer="07u1OcQI8FUeWPqeiga3A9k4MPJGSFmC4vShiJNpv2Rke9ssnW7aLx857HC5ZaJ973WSKkLAwPzkl399d01HBA=="
+Content-Type: application/json; charset=UTF-8
+Content-Length: 432
+Server: Ioflo WSGI Server
+Date: Tue, 18 Jul 2017 19:53:16 GMT
+
+{
+  "uid": "m_00035d2976e6a000_26ace93",
+  "kind": "found",
+  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",
+  "date": "2000-01-03T00:00:00+00:00",
+  "to": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",
+  "from": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+  "thing": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
+  "subject": "Lose something?",
+  "content": "Look what I found"
+}
+```
+
+## Including Encrypted Data in a *Message*
+
+Encrypted data requires an encryption/decryption key pair. Best practices for secure encryption/decryption exchange between two parties is to use asymmetric keys that are exchanged using a Diffie-Hellman key exchange that adds a type of authentication to the encryption/decryption. This provides additional security against exploits. The NaCL (libsodium) library provides support for such ECC based Diffie-Hellman authenticated encryption (ECDH) with its crypto box function. As mentioned previously NaCL keys use the Curve25519 standard. These are different from Ed25519 (EdDSA) signing keys. Consequently a separate key identifier for encrypted data is required. Curve25519 public keys are 32 binary bytes long or 64 Hex encoded characters or 44 Base64 encoded characters (with padding).
+
+The python libnacl call for creating a public/private encryption key pair is as follows:
+
+```python
+import libnacl
+
+pubkey, prikey = libnacl.crypto_box_keypair()
+```
+
+The following function allows one to regenerate a public key from a saved private key.
+
+```python
+import libnacl
+
+pubkey = libnacl.crypto_scalarmult_base(prikey)
+```
+
+In order to include encrypted data in a *Message* an *Agent* needs to first add an assymetric public encryption key to its *key* list in its data resource. The key kind is ```Curve25519```
+
+Shown below is an example Agent resource with public encryption key denoted by the key "kind" field with value "Curve25519" :
+
+```json
+{
+  "did": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",
+  "signer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#1",
+  "changed": "2000-01-02T00:00:00+00:00",
+  "keys": [
+    {
+      "key": "dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",
+      "kind": "EdDSA"
+    },
+    {
+      "key": "0UX5tP24WPEmAbROdXdygGAM3oDcvrqb3foX4EyayYI=",
+      "kind": "EdDSA"
+    },
+    {
+      "key": "HqbSyYiI__jkW1td1VZD3IJc2jU4ty4KXbns7gB9P3I=",
+      "kind": "Curve25519",
+    }
+
+  ],
+}
+```
+
+In the two party Diffie-Hellman key exchange the actual keys used for encryption and decryption are never transmitted. Instead the asymetric private key of the first party is combined with the asymetric public key of the second party to generate a "*shared*" key. Likewise the second party uses its private key and the first party's public key to generate an equivalent "*shared*" key. The shared key is not a symmetric key. This approach is used for the exchange of data between two entities within Indigo. To generate the shared key requires knowledge of both the encryptor and decryptor entity.
+When an entity encrypts data it becomes the encryptor of the data. In a two party exchange of encrypted data using ECDH the recipient of the data is the decryptor. Both these entities need to be identified in order that both know how the associated ECDH shared key for encryption/decription is to be generated from the associated public/private keys.
+
+In order to include encrypted data in a *Message* three fields must be added to the message, these are:  ```encryptor, decryptor, crypt```
+
+- *encryptor* is the indexed DID of the the public encryption/decryption key by the encrypting Agent sending the message. The index indicates which Curve25519 key to use.
+
+- *decryptor* is the indexed DID of the the public encryption/decryption key by the decrypting Agent receiving the message. The index indicates which Curve25519 key to use.
+
+- *crypt* is the Base64 url/file safe encoded crypt text that has been encrypted with the shared key generated as described above.
+
+Example encryption fields :
+
+```json
+"encryptor": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#2",
+"decryptor": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#2",
+"crypt": "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+```
+
+An example message with encrypted data is as follows:
+
+```JSON
+{
+  "uid": "m_00035d2976e6a000_26ace93",
+  "kind": "found",
+  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",
+  "date": "2000-01-03T00:00:00+00:00",
+  "to": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",
+  "from": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+  "thing": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
+  "subject": "Lose something?",
+  "content": "Look what I found"
+  "encryptor": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#2",
+  "decryptor": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#2",
+  "crypt": "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+}
+```
