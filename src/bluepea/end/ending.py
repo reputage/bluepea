@@ -876,3 +876,6 @@ def loadEnds(app, store):
 
     thingDid = ThingDidResource(store=store)
     app.add_route('{}/{{did}}'.format(THING_BASE_PATH), thingDid)
+
+    thingOffer = ThingDidOfferResource(store=store)
+    app.add_route('{}/{{did}}/offer'.format(THING_BASE_PATH), thingDid)

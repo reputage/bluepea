@@ -1588,3 +1588,126 @@ def test_get_AgentDidDrop(client):  # client is a fixture in pytest_falcon
 
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")
+
+
+def test_post_ThingDidOffer(client):  # client is a fixture in pytest_falcon
+    """
+    Test POST offer of thing.
+
+    offer request fields
+    {
+        "thing": thingDID,
+        "aspirant": AgentDID,
+        "duration": timeinsecondsofferisopen,
+    }
+
+    offer response fields
+    {
+        "thing": thingDID,
+        "aspirant": AgentDID,
+        "duration": timeinsecondsofferisopen,
+        "expiration": datetimeofexpiration,
+        "signer": serverkeydid,
+        "offerer": ownerkeydid,
+        "offer": Base64serrequest
+    }
+    """
+    print("Testing POST /thing/{did}/offer")
+
+    priming.setupTest()
+    dbEnv = dbing.gDbEnv
+    keeper = keeping.gKeeper
+    kdid = keeper.did
+
+    agents, things = setupTestDbAgentsThings()
+    agents['sam'] = (kdid, keeper.verkey, keeper.sigkey)  # sam the server
+
+    for did, vk, sk in agents.values():
+        dat, ser, sig = dbing.getSelfSigned(did)
+        assert dat is not None
+        assert dat['did'] == did
+
+    for did, vk, sk in things.values():
+        dat, ser, sig = dbing.getSigned(did)
+        assert dat is not None
+        assert dat['did'] == did
+
+    # post message from Ann to Ivy
+    dt = datetime.datetime(2000, 1, 3, tzinfo=datetime.timezone.utc)
+    changed = timing.iso8601(dt, aware=True)
+    assert changed == "2000-01-03T00:00:00+00:00"
+
+    stamp = dt.timestamp()  # make time.time value
+    #muid = timing.tuuid(stamp=stamp, prefix="m")
+    muid = "m_00035d2976e6a000_26ace93"
+    assert muid == "m_00035d2976e6a000_26ace93"
+
+    srcDid, srcVk, srcSk = agents['ann']
+    dstDid, dstVk, dskSk = agents['ivy']
+    thingDid, thingVk, thingSk = things['cam']
+
+    assert dstDid == "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY="
+
+    signer = "{}#0".format(srcDid)
+    assert signer == "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0"
+
+    msg = ODict()
+    msg['uid'] = muid
+    msg['kind'] = "found"
+    msg['signer'] = "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0"
+    msg['date'] = changed
+    msg['to'] = dstDid
+    msg['from'] = srcDid
+    msg['thing'] = thingDid
+    msg['subject'] = "Lose something?"
+    msg['content'] = "Look what I found"
+
+    mser = json.dumps(msg, indent=2)
+    msig = keyToKey64u(libnacl.crypto_sign(mser.encode("utf-8"), srcSk)[:libnacl.crypto_sign_BYTES])
+    assert msig == "07u1OcQI8FUeWPqeiga3A9k4MPJGSFmC4vShiJNpv2Rke9ssnW7aLx857HC5ZaJ973WSKkLAwPzkl399d01HBA=="
+
+    dstDidUri = falcon.uri.encode_value(dstDid)
+    headers = {"Content-Type": "text/html; charset=utf-8",
+               "Signature": 'signer="{}"'.format(msig)}
+    body = mser  # client.post encodes the body
+    rep = client.post('/agent/{}/drop'.format(dstDidUri),
+                      body=body,
+                      headers=headers)
+
+    assert rep.status == falcon.HTTP_201
+    assert msg == rep.json
+    location = falcon.uri.decode(rep.headers['location'])
+    assert location == "/agent/{}/drop?from={}&uid={}".format(dstDid, srcDid, muid)
+
+    # now get it from web service
+    # need to use uri encode version of location header
+    assert rep.headers['location'] == ('/agent/did%3Aigo%3AdZ74MLZXD-1QHoa73w9pQ'
+                                       '9GroAvxqFi2RTZWlkC0raY%3D/drop'
+                                       '?from=did%3Aigo%3AQt27fThWoNZsa88VrTkep'
+                                       '6H-4HA8tr54sHON1vWl6FE%3D&'
+                                       'uid=m_00035d2976e6a000_26ace93')
+    rep = client.get(rep.headers['location'])
+
+    assert rep.status == falcon.HTTP_OK
+    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
+    sigs = parseSignatureHeader(rep.headers['signature'])
+
+    assert sigs['signer'] == msig
+
+    assert rep.body == (
+        '{\n'
+        '  "uid": "m_00035d2976e6a000_26ace93",\n'
+        '  "kind": "found",\n'
+        '  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",\n'
+        '  "date": "2000-01-03T00:00:00+00:00",\n'
+        '  "to": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",\n'
+        '  "from": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",\n'
+        '  "thing": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",\n'
+        '  "subject": "Lose something?",\n'
+        '  "content": "Look what I found"\n'
+        '}')
+
+    assert verify64u(msig, rep.body, keyToKey64u(srcVk))
+
+    cleanupTmpBaseDir(dbEnv.path())
+    print("Done Test")
