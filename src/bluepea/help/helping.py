@@ -34,7 +34,7 @@ from ioflo.aid import timing
 
 import libnacl
 
-from ..bluepeaing import SEPARATOR
+from ..bluepeaing import SEPARATOR, PROPAGATION_DELAY
 
 console = getConsole()
 
@@ -172,7 +172,7 @@ def verify64u(signature, message, verkey):
     msg = message.encode("utf-8")
     return (verify(sig, msg, vk))
 
-def extractSignerParts(dat, method="igo"):
+def extractDatSignerParts(dat, method="igo"):
     """
     Parses and returns did index keystr from signer field value of dat
     as tuple (did, index, keystr)
@@ -194,6 +194,44 @@ def extractSignerParts(dat, method="igo"):
         raise ValueError("Invalid DID value")
 
     return (did, index, keystr)
+
+def extractDidSignerParts(signer, method="igo"):
+    """
+    Parses and returns did index keystr from signer key indexed did
+    as tuple (did, index, keystr)
+    raises ValueError if fails parsing
+    """
+    # get signer key from read data. assumes that resource is valid
+    try:
+        did, index = signer.rsplit("#", maxsplit=1)
+        index = int(index)  # get index and sdid from signer field
+    except ValueError as ex:
+        raise ValueError("Invalid indexed signer value")
+
+    try:  # correct did format  pre:method:keystr
+        pre, meth, keystr = did.split(":")
+    except ValueError as ex:
+        raise ValueError("Malformed DID value")
+
+    if pre != "did" or meth != method:
+        raise ValueError("Invalid DID value")
+
+    return (did, index, keystr)
+
+def extractDidParts(did, method="igo"):
+    """
+    Parses and returns keystr from did
+    raises ValueError if fails parsing
+    """
+    try:  # correct did format  pre:method:keystr
+        pre, meth, keystr = did.split(":")
+    except ValueError as ex:
+        raise ValueError("Malformed DID value")
+
+    if pre != "did" or meth != method:
+        raise ValueError("Invalid DID value")
+
+    return keystr
 
 
 def makeSignedAgentReg(vk, sk, changed=None, **kwa):
@@ -599,6 +637,9 @@ def validateSignedAgentWrite(cdat, csig, sig, ser,  method="igo"):
         except ValueError as ex:
             return None
 
+        if pre != "did" or meth != method:
+            return None  # did format bad
+
         cverkey = keystr  # existing resources verify key
 
         # verify request using existing resources signer verify key
@@ -699,7 +740,7 @@ def validateSignedThingWrite(sdat, cdat, csig, sig, ser,  method="igo"):
     try:
         # get signer key index from signer field in cdat
         try:
-            (sdid, index, akey) = extractSignerParts(cdat)
+            (sdid, index, akey) = extractDatSignerParts(cdat)
         except ValueError as ex:
             return None
 
@@ -749,7 +790,7 @@ def validateSignedThingWrite(sdat, cdat, csig, sig, ser,  method="igo"):
 
         # validate new signer
         try:
-            (sdid, nindex, akey) = extractSignerParts(dat)
+            (sdid, nindex, akey) = extractDatSignerParts(dat)
         except ValueError as ex:
             return None
 
@@ -841,3 +882,153 @@ def verifySignedMessageWrite(sdat, index, sig, ser):
         return False
 
     return True
+
+def validateSignedOfferData(adat, ser, sig, tdat, method="igo"):
+    """
+    Returns deserialized version of serialization ser which Offer
+        if offer request is correctly formed.
+    Otherwise returns None
+
+    adat is thing's holder/owner agent resource
+    ser is json encoded unicode string of request
+    sig is base64 encoded signature from request header "signer" tag
+    tdat is thing data resource
+
+    offer request fields
+    {
+        "thing": thingDID,
+        "aspirant": AgentDID,
+        "duration": timeinsecondsofferisopen,
+    }
+
+    """
+    try:
+
+        try:  # get signing key of request from thing resource
+            (adid, index, akey) = extractDatSignerParts(tdat)
+        except ValueError as ex:
+            return None
+
+        # get agent key at index from signer data. assumes that resource is valid
+        try:
+            averkey = adat["keys"][index]["key"]
+        except (TypeError, KeyError, IndexError) as ex:
+            return None
+
+        if len(averkey) != 44:
+            return None  # invalid length for base64 encoded key
+
+        # verify request using agent signer verify key
+        if not verify64u(sig, ser, averkey):
+            return None  # signature fails
+        # now validate offer data
+        try:
+            dat = json.loads(ser, object_pairs_hook=ODict)
+        except ValueError as ex:
+            return None  # invalid json
+
+        if not dat:  # offer request must not be empty
+            return None
+
+        if not isinstance(dat, dict):  # must be dict subclass
+            return None
+
+        requireds = ("thing", "aspirant", "duration")
+        for field in requireds:
+            if field not in dat:
+                return None
+
+        if dat["thing"] != tdat['did']:
+            return None
+
+        aspirant = dat["aspirant"]
+        try:  # correct did format  pre:method:keystr
+            pre, meth, keystr = aspirant.split(":")
+        except ValueError as ex:
+            return None
+
+        if pre != "did" or meth != method:
+            return None  # did format bad
+
+        try:
+            duration = float(dat["duration"])
+        except ValueError as ex:
+            return None
+
+        if duration <= PROPAGATION_DELAY * 2.0:
+            return None
+
+    except Exception as ex:  # unknown problem
+        return None
+
+    return dat
+
+
+
+def buildSignedServerOffer(dat, ser, sig, sdat, dt, sk, **kwa):
+    """
+    Return triple of (odat, oser, osig)
+
+    Where:
+       odat is server offer dict data
+       oser is JSON serialize version of oser
+       osig is signature base64U using sk
+
+    Parameters:
+       dat is offer request dat
+       ser is offer request JSON serialization
+       sig is offer request signature
+       sdat is server resource
+       dt is current datetime
+       sk is server private signing key
+
+    registration is json encoded unicode string of registration record
+    signature is base64 url-file safe unicode string signature generated
+    by signing bytes version of registration
+
+    Parameters:
+        vk is bytes that is the public verification key
+        sk is bytes that is the private signing key
+        changed is ISO8601 date time stamp string if not provided then uses current datetime
+        **kwa are optional fields to be added to data resource. Each keyword is
+           the associated field name and the argument parameter is the value of
+           that field in the data resource.  Keywords in ("did", "signer", "changed",
+            "keys") will be overidden. Common use case is "issuants".
+
+      offer request fields
+    {
+        "thing": thingDID,
+        "aspirant": AgentDID,
+        "duration": timeinsecondsofferisopen,
+    }
+
+    offer response fields
+    {
+        "thing": thingDID,
+        "aspirant": AgentDID,
+        "duration": timeinsecondsofferisopen,
+        "expiration": datetimeofexpiration,
+        "signer": serverkeydid,
+        "offerer": ownerkeydid,
+        "offer": Base64serrequest
+    }
+    """
+    duration = float(dat["duration"])
+    odat = ODict()
+    if kwa:
+        odat.update(kwa.items())
+
+    odat["thing"] = dat["thing"]
+    odat["aspirant"] = dat["aspirant"]
+    odat["duration"] = duration
+
+    td = datetime.timedelta(seconds=duration)
+    odat["expiration"] = timing.iso8601(dt + td, aware=True)
+    odat["signer"] = sdat["signer"]   # assumes sk and sdat["signer"] correspond
+    odat["offerer"] = tdat["signer"]
+    odat["offer"] = keyToKey64u(ser.encode("utf-8"))
+
+    oser = json.dumps(odat, indent=2)
+    osig = keyToKey64u(libnacl.crypto_sign(registration.encode("utf-8"), sk)[:libnacl.crypto_sign_BYTES])
+
+    return (odat, oser, osig)

@@ -1,6 +1,6 @@
 # Indigo Service API
 
-2017/07/19
+2017/07/21
 
 ## Installing Service
 
@@ -1241,25 +1241,66 @@ Shown below is an example Agent resource with public encryption key denoted by t
 ```
 
 In the two party Diffie-Hellman key exchange the actual keys used for encryption and decryption are never transmitted. Instead the asymetric private key of the first party is combined with the asymetric public key of the second party to generate a "*shared*" key. Likewise the second party uses its private key and the first party's public key to generate an equivalent "*shared*" key. The shared key is not a symmetric key. This approach is used for the exchange of data between two entities within Indigo. To generate the shared key requires knowledge of both the encryptor and decryptor entity.
+
+In order to indicate to another *Agent* which of its public encryption keys to use when communicating encrypted data, a given *Agent* must include a *cryptor* field in a message that it sends to another *Agent*. The value of this field is the given *Agent*'s key indexed DID where the fragment index indicates which of the keys in its data resource is to be used for encrypted exchange with the other *Agent*. The other agent may then reply with a message including a *cryptor* field with its own key indexed DID or may reply with a message that includes encrypted data with its public key provided in the *encryptor* field and the given Agent's previously recieved public encryption key in the *decryptor* field.  
+
+- *cryptor* is the key indexed DID of the public encryption/decryption key by the Agent sending the message. The index indicates which Curve25519 key to use in the future.
+
+An example message with a *cryptor* field is shown below:
+
+```JSON
+{
+  "uid": "m_00035d2976e6a000_26ace93",
+  "kind": "key",
+  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",
+  "date": "2000-01-03T00:00:00+00:00",
+  "to": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",
+  "from": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+  "thing": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
+  "subject": "Public encryption key",
+  "content": "Use the enclosed key to create shared encryption key",
+  "cryptor": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#2",
+}
+```
+
 When an entity encrypts data it becomes the encryptor of the data. In a two party exchange of encrypted data using ECDH the recipient of the data is the decryptor. Both these entities need to be identified in order that both know how the associated ECDH shared key for encryption/decription is to be generated from the associated public/private keys.
 
-In order to include encrypted data in a *Message* three fields must be added to the message, these are:  ```encryptor, decryptor, crypt```
+In order to include encrypted data in a *Message* four fields must be added to the message, these are:  ```encryptor, decryptor, crypt, nonce```
 
-- *encryptor* is the indexed DID of the the public encryption/decryption key by the encrypting Agent sending the message. The index indicates which Curve25519 key to use.
+- *encryptor* is the key indexed DID of the public encryption/decryption key by the encrypting Agent sending the message. The index indicates which Curve25519 key to use.
 
-- *decryptor* is the indexed DID of the the public encryption/decryption key by the decrypting Agent receiving the message. The index indicates which Curve25519 key to use.
+- *decryptor* is the key indexed DID of the public encryption/decryption key by the decrypting Agent receiving the message. The index indicates which Curve25519 key to use.
 
 - *crypt* is the Base64 url/file safe encoded crypt text that has been encrypted with the shared key generated as described above.
+
+
+- *nonce* is the Base64 url/file safe encoded nonce. The nonce is a random 24 byte string used in the encryption.
+
+
+Given the following JSON serialized data to be sent encrypted
+
+```json
+{
+  "name" : "John Smith",
+  "city" : "San Jose",
+  "zip" : "94088",
+  "phone" : "8005551212"
+}
+
+```
+
+Then with suitable encryption keys the added fields for sending the data would appear as follows:
 
 Example encryption fields :
 
 ```json
-"encryptor": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#2",
-"decryptor": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#2",
-"crypt": "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+"encryptor": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#2"
+"decryptor": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#2"
+"crypt": "UaP_31Z1S8qfb99JnnvdfIRTCp-gL8L98IyWiT7GVvrO_0mfx6CV31ecP0dfKDg7wuWaDlR6T4LB5ofDRRM7FALDZ7Ao0BJtEV_nZTTAI9YVYUsozsUo3gVXnb6ukYrgI2ZeyNDbZbfkSIs="
+"nonce": "K7z3nEc7LaLJUf2A2G7zK2b2P31ggnaf"
 ```
 
-An example message with encrypted data is as follows:
+An example of a full message with encrypted data is as follows:
 
 ```JSON
 {
@@ -1271,9 +1312,64 @@ An example message with encrypted data is as follows:
   "from": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
   "thing": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
   "subject": "Lose something?",
-  "content": "Look what I found"
+  "content": "Look what I found",
   "encryptor": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#2",
   "decryptor": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#2",
-  "crypt": "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+  "crypt": "UaP_31Z1S8qfb99JnnvdfIRTCp-gL8L98IyWiT7GVvrO_0mfx6CV31ecP0dfKDg7wuWaDlR6T4LB5ofDRRM7FALDZ7Ao0BJtEV_nZTTAI9YVYUsozsUo3gVXnb6ukYrgI2ZeyNDbZbfkSIs=",
+  "nonce": "K7z3nEc7LaLJUf2A2G7zK2b2P31ggnaf"
 }
 ```
+
+The python ```libnacl``` library provides functions for encrypting and decrypting data. The following code snippet provides and example.
+
+```python
+import libnacl
+import libnacl.utils
+import base64
+from collections import OrderedDict as ODict
+
+data = ODict(name="John Smith", city="San Jose", zip="94088", phone="8005551212")
+msg = json.dumps(data, indent=2)  # serialize the data
+
+# Ann sending msg data to Bob
+
+# create Ann's keys
+aPubKey, aPriKey = libnacl.crypto_box_keypair()
+
+# create Bob's keys
+bPubKey, bPriKey = libnacl.crypto_box_keypair()
+
+# create nonce
+nonce = libnacl.utils.rand_nonce()
+
+# now Ann encrypts msg and nonce with Ann's private key and Bob's public key
+crypt = libnacl.crypto_box(msg.encode("utf-8"), nonce, bPubKey, aPriKey)
+
+# now Bob decrypts box and nonce with Ann's public key and Bob's private key
+clear = libnacl.crypto_box_open(crypt, nonce, aPubKey, bPriKey)
+
+# now Bob deserializes the clear text to get back the dict
+stuff = json.loads(clear.decode("utf-8", object_pairs_hook=ODict)
+
+```
+
+The code above used raw bytes values for the data and keys. To include in Indigo messages the raw bytes values need to be converted to and from Base64 url safe unicode strings and bytes. The code snippet below shows how to do this
+
+```python
+import base64
+
+# convert Ann's public key from a bytes to Base64 url unicode str
+aPubKey64u = base64.urlsafe_b64encode(aPubKey).decode("utf-8")
+# convert Ann's public key from a Base64 url unicode str to a bytes
+aPubKey = base64.urlsafe_b64decode(aPubKey64u.encode("utf-8"))
+
+# convert nonce
+nonce64u = base64.urlsafe_b64encode(aPubKey).decode("utf-8")
+nonce = base64.urlsafe_b64decode(nonce64u.encode("utf-8"))
+
+# convert crypt text
+crypt64u = base64.urlsafe_b64encode(crypt).decode("utf-8")
+crypt = base64.urlsafe_b64decode(crypt64u.encode("utf-8"))
+
+```
+

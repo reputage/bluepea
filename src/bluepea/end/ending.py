@@ -14,6 +14,9 @@ try:
 except ImportError:
     import json
 
+import datetime
+
+import arrow
 import falcon
 
 from ioflo.aid.sixing import *
@@ -21,8 +24,8 @@ from ioflo.aid import getConsole
 
 from ..bluepeaing import SEPARATOR
 
-from ..help.helping import (parseSignatureHeader, verify64u,
-                            extractSignerParts,
+from ..help.helping import (parseSignatureHeader, verify64u, extractDidParts,
+                            extractDatSignerParts, extractDidSignerParts,
                             validateSignedAgentReg, validateSignedThingReg,
                             validateSignedResource, validateSignedAgentWrite,
                             validateSignedThingWrite,
@@ -313,7 +316,7 @@ class AgentDidDropResource:
 
         # extract sdid and keystr from signer field in message
         try:
-            (sdid, index, akey) = extractSignerParts(mdat)
+            (sdid, index, akey) = extractDatSignerParts(mdat)
         except ValueError as ex:
             raise falcon.HTTPError(falcon.HTTP_400,
                                        'Resource Verification Error',
@@ -589,8 +592,15 @@ class ThingDidResource:
                                        'Could not read the request body.')
         ser = serb.decode("utf-8")
 
-        # Get validated existing resource from database
-        try:
+        try:  # validate did
+            ckey = extractDidParts(did)
+        except ValueError as ex:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                           'Resource Verification Error',
+                                           'Invalid did field. {}'.format(ex))
+
+
+        try: # Get validated existing resource from database
             cdat, cser, psig = dbing.getSigned(did)
         except dbing.DatabaseError as ex:
             raise falcon.HTTPError(falcon.HTTP_400,
@@ -599,7 +609,7 @@ class ThingDidResource:
 
         # extract sdid and keystr from signer field
         try:
-            (sdid, index, akey) = extractSignerParts(cdat)
+            (sdid, index, akey) = extractDatSignerParts(cdat)
         except ValueError as ex:
             raise falcon.HTTPError(falcon.HTTP_400,
                                            'Resource Verification Error',
@@ -663,6 +673,184 @@ class ThingDidResource:
         rep.status = falcon.HTTP_200  # This is the default status
         rep.body = ser
 
+class ThingDidOfferResource:
+    """
+    Thing Did Offer Resource
+    Create proffer to transfer title to Thing at DID message
+
+    /agent/{did}/offer
+
+    did is thing did
+
+    offer request fields
+    {
+        "thing": thingDID,
+        "aspirant": AgentDID,
+        "duration": timeinsecondsofferisopen,
+    }
+
+    offer response fields
+    {
+        "thing": thingDID,
+        "aspirant": AgentDID,
+        "duration": timeinsecondsofferisopen,
+        "expiration": datetimeofexpiration,
+        "signer": serverkeydid,
+        "offerer": ownerkeydid,
+        "offer": Base64serrequest
+    }
+
+    Database key is
+    did/offer/expire
+
+    Attributes:
+        .store is reference to ioflo data store
+
+    """
+    def  __init__(self, store=None, **kwa):
+        """
+        Parameters:
+            store is reference to ioflo data store
+        """
+        super(**kwa)
+        self.store = store
+
+    def on_post(self, req, rep, did):
+        """
+        Handles POST requests
+        """
+        signature = req.get_header("Signature")
+        sigs = parseSignatureHeader(signature)
+        sig = sigs.get('signer')  # str not bytes
+        if not sig:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                           'Validation Error',
+                                           'Invalid or missing Signature header.')
+
+        try:
+            serb = req.stream.read()  # bytes
+        except Exception:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                       'Read Error',
+                                       'Could not read the request body.')
+
+        try:  # validate did
+            tkey = extractDidParts(did)
+        except ValueError as ex:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                           'Resource Verification Error',
+                                           'Invalid did field. {}'.format(ex))
+
+        try:  # Get validated thing resource from database
+            tdat, tser, tsig = dbing.getSigned(did)
+        except dbing.DatabaseError as ex:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                       'Resource Verification Error',
+                                    'Error verifying signer resource. {}'.format(ex))
+
+
+        try:  # validate signer field
+            (adid, index, akey) = extractDatSignerParts(tdat)
+        except ValueError as ex:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                           'Resource Verification Error',
+                                'Missing or Invalid signer field. {}'.format(ex))
+
+
+        try:   # Get validated holder agent resource from database
+            adat, aser, asig = dbing.getSigned(adid)
+        except dbing.DatabaseError as ex:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                       'Resource Verification Error',
+                                    'Error verifying signer resource. {}'.format(ex))
+
+        # Get validated server resource from database
+        sdid = keeping.gKeeper.did
+        try:
+            sdat, sser, ssig = dbing.getSigned(sdid)
+        except dbing.DatabaseError as ex:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                       'Resource Verification Error',
+                                    'Error verifying signer resource. {}'.format(ex))
+
+        ser = serb.decode("utf-8")
+        dat = validateSignedOfferData(adat, ser, sig, tdat)
+
+        if not dat:  # offer must not be empty
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                    'Validation Error',
+                                    'Invalid offer data.')
+
+
+        dt = datetime.now(tz=datetime.timezone.utc)
+
+        # build signed offer
+        odat, oser, osig = buildSignedServerOffer(dat, ser, sig, sdat, dt,
+                                                  sk=keeping.gKeeper.sigkey)
+
+
+        # Build database key for offer
+        key = "{}/{}/offer/{}".format(THING_BASE_PATH, tdid, odat["expiration"])
+
+        # validate that no unexpired offers
+
+
+
+        edt = arrow.get(odat["expired"])
+
+        # save offer to database error if duplicate
+        try:
+            dbing.putSigned(oser, osig, key, clobber=False)  # no clobber so error
+        except dbing.DatabaseError as ex:
+            raise falcon.HTTPError(falcon.HTTP_412,
+                                  'Database Error',
+                                  '{}'.format(ex.args[0]))
+
+
+
+        didUri = falcon.uri.encode_value(did)
+        sdidUri = falcon.uri.encode_value(sdid)
+        rep.status = falcon.HTTP_201  # post response status with location header
+        rep.location = "{}/{}/drop?from={}&uid={}".format(AGENT_BASE_PATH,
+                                                          didUri,
+                                                          sdidUri,
+                                                          muid)
+        rep.body = json.dumps(pdat, indent=2)
+
+    def on_get(self, req, rep, did):
+        """
+        Handles GET request for an AgentResources given by query parameter
+        with did
+
+
+        """
+        muid = req.get_param("uid") # returns url-decoded query parameter value
+        sdid = req.get_param("from")  # returns url-decoded query parameter value
+        index = req.get_param("index")  # returns url-decoded query parameter value
+
+        if index is not None:
+            try:
+                index = int(index)
+            except (ValueError, TypeError) as  ex:
+                raise falcon.HTTPError(falcon.HTTP_400,
+                                       'Request Error',
+                                       'Invalid request format. {}'.format(ex))
+
+
+        key = "{}/{}/drop/{}/{}".format(AGENT_BASE_PATH, did, sdid, muid)
+
+        # read from database
+        try:
+            dat, ser, sig = dbing.getSigned(key)
+        except dbing.DatabaseError as ex:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                            'Resource Verification Error',
+                            'Error verifying resource. {}'.format(ex))
+
+        rep.set_header("Signature", 'signer="{}"'.format(sig))
+        rep.set_header("Content-Type", "application/json; charset=UTF-8")
+        rep.status = falcon.HTTP_200  # This is the default status
+        rep.body = ser
 
 
 def loadEnds(app, store):

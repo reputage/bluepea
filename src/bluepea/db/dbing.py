@@ -78,6 +78,7 @@ def setupDbEnv(baseDirPath=None):
     # create named dbs  (core and tables)
     gDbEnv.open_db(b'core')
     gDbEnv.open_db(b'hid2did')  # table of dids keyed by hids
+    gDbEnv.open_db(b'dead')  # dead drop messages
 
     # verify that the server resource is present in the database
     # need to read in saved server signing keys and query database
@@ -313,3 +314,37 @@ def exists(key, dbn='core', env=None):
         if rsrcb is None:  # does not exist
             return False
     return True
+
+
+def getLatestOfferKey(ekey, dbn='core', env=None):
+    """
+    Returns lkey of latest offer if one exists in named database dbn of environment env
+    Returns None otherwise
+
+    Starts with key of new offer and works backwards
+
+
+    Parameters:
+        key is key str for database
+        dbn is name str of named sub database, Default is 'core'
+        env is main LMDB database environment
+            If env is not provided then use global gDbEnv
+    """
+    global gDbEnv
+
+    if env is None:
+        env = gDbEnv
+
+    if env is None:
+        raise DatabaseError("Database environment not set up")
+
+    lkey = None
+
+    # read from database
+    subDb = gDbEnv.open_db(dbn.encode("utf-8"))  # open named sub db named dbn within env
+    with gDbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
+        rsrcb = txn.get(ekey.encode("utf-8"))
+        if rsrcb is None:  # does not exist
+            pass
+
+    return lkey
