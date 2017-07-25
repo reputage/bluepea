@@ -1373,3 +1373,87 @@ crypt = base64.urlsafe_b64decode(crypt64u.encode("utf-8"))
 
 ```
 
+## Transferring Control/Ownership of a *Thing* from one *Agent* to Another
+
+Transfer of control of a *Thing* from one *Agent* to another requires several steps.
+These steps are to prevent the controlling *Agent* from transferring control to more than one other *Agent* at a time. The *Server* *Agent* acts as a trusted third party to ensure that the *Agent* transferring control only transfers once and that there are no race conditions.
+
+### Offer Request
+
+The first step if for the current controller *Agent* or *Offerer* to POST an *offer* to transfer control to another *Agent*. This other Agent is called the *Aspirant* as this other *Agent* aspires to be the new controlling agent of the *Thing*.  This *offer* is signed by the *Offerer* *Agent*.  
+
+The request is made by sending an HTTP POST to ```/thing/{did}/offer```
+
+The path paramater indicated by ```{did}``` is the DID of *Thing* that is being offered.  This value must be URL encoded.
+
+The request includes a custom "Signature" header whose value has the signature of the Offerer. The *tag* value *signer* is the *signature* of the message by the sender/signer. The signature allows the Server to verify that the sending client exists as an *Agent*, is the controlling *Agent* of the *Thing* and also created the offer and no other offers are still in effect or open.
+
+The request body is offer a JSON serialized dict object with several required fields.
+An example is shown below:
+
+```json
+{
+    "thing": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
+    "aspirant": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+    "duration": 360.0,
+}
+```
+
+- *thing* is the DID of the Thing
+- *aspirant* is the DID of the Aspirant Agent
+- *duration* is the length of time in seconds that the offer is open to be accepted by the Aspirant.
+
+Only one offer for a given thing can be open at any time.
+
+Given that the offer is valid. The server then adds an *expiration* field and the Server's signer field  as well as a copy of the serialized offer request and the signature of the orginal offer and puts it in the database.
+
+An example is shown below
+
+
+```JSON
+{
+    "thing": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
+    "aspirant": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+    "duration": 360.0,
+    "expiration": "2017-07-25T18:33:57.424839+00:00",
+    "signer" : "did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=#0",
+    "offerer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",
+    "offer": "UaP_31Z1S8qfb99JnnvdfIRTCp-gL8L98IyWiT7GVvrO_0mfx6CV31ecP0dfKDg7wuWaDlR6T4LB5ofDRRM7FALDZ7Ao0BJtEV_nZTTAI9YVYUsozsUo3gVXnb6ukYrgI2ZeyNDbZbfkSIs="
+}
+```
+
+The fields descriptions are as follows:
+
+- *thing* is the DID of the Thing
+- *aspirant* is the DID of the Aspirant Agent
+- *duration* is the length of time in seconds that the offer is open to be accepted by the Aspirant.
+- *expiration* is the ISO-8601 datetime of the expiration of the offer. It is duration seconds after current datetime of the server when it received the the offer request.
+- *signer* is the key indexed DID of the signing key of the Server.
+- *offerer* is the key indexed DID of the signing key of the Offerer
+- *offer* is the base64 url/file safe encoding of the offer request body
+
+A successful request results in a response with the associated *Server* signed offer data resource in the JSON body of the response is and a location header
+whose value is the URL to access the offer Data Resource via a GET request.
+This location value has already been URL encoded.
+
+A successful request will return status code 201
+
+An unsuccessful request will return status code 400.
+
+Example requests and responses are shown below.
+
+## Request
+
+```http
+
+```
+
+## Response
+
+```http
+
+```
+
+### Accept Request
+
+
