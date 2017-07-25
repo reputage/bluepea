@@ -1387,7 +1387,7 @@ def test_post_AgentDidDrop(client):  # client is a fixture in pytest_falcon
         "content": "Look what I found"
     }
     """
-    print("Testing POST /agent/{adid}/drop/{cdid}")
+    print("Testing POST /agent/{adid}/drop")
 
     priming.setupTest()
     dbEnv = dbing.gDbEnv
