@@ -368,3 +368,57 @@ def test_putOfferExpire():
 
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")
+
+
+def test_getOfferExpires():
+    """
+    Test get entries in did2offer database
+
+    getOfferExpires(did, lastOnly=True, dbn='did2offer', env=None)
+    """
+    print("Testing getOfferExpires in DB Env")
+
+    dbEnv = dbing.setupTestDbEnv()
+
+    dt = datetime.datetime(2000, 1, 1, minute=30, tzinfo=datetime.timezone.utc)
+    #stamp = dt.timestamp()  # make time.time value
+    #ouid = timing.tuuid(stamp=stamp, prefix="o")
+    ouid = "o_00035d2976e6a000_26ace93"
+
+    did = "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY="
+    expire = timing.iso8601(dt=dt, aware=True)
+    assert expire == "2000-01-01T00:30:00+00:00"
+
+    offer = "{}/offer/{}".format(did, ouid)
+    assert offer == "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=/offer/o_00035d2976e6a000_26ace93"
+
+    #  no offer expire entries yet
+    entries = dbing.getOfferExpires(did, lastOnly=False)
+    assert entries == []
+
+    # write entry
+    result = dbing.putDidOfferExpire(did, ouid, expire)
+    assert result == True
+
+    # write another one
+    td = datetime.timedelta(seconds=360)
+    expire1 = timing.iso8601(dt=dt+td, aware=True)
+    assert expire1 == "2000-01-01T00:36:00+00:00"
+
+    result = dbing.putDidOfferExpire(did, ouid, expire1)
+    assert result == True
+
+    entries = dbing.getOfferExpires(did, lastOnly=False)
+    assert len(entries) == 2
+    assert entries[0]["expire"] == expire
+    assert entries[0]["offer"] == offer
+    assert entries[1]["expire"] == expire1
+    assert entries[1]["offer"] == offer
+
+    entries = dbing.getOfferExpires(did)  # lastOnly=True
+    assert len(entries) == 1
+    assert entries[0]["expire"] == expire1
+    assert entries[0]["offer"] == offer
+
+    cleanupTmpBaseDir(dbEnv.path())
+    print("Done Test")

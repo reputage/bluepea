@@ -332,12 +332,9 @@ def putDidOfferExpire(did, ouid, expire, dbn="did2offer", env=None):
     The key for the entry is just the did
     The value of the entry is serialized JSON
     {
-        "offer": "{did}/offer/{ouid}",
-        "expire": expire
+        "offer": "{did}/offer/{ouid}",  # key of offer entry in core database
+        "expire": "2000-01-01T00:36:00+00:00", #  ISO-8601 expiration date of offer
     }
-
-    Could make this better by using db .replace and checking that previous value
-    is the same
     """
     global gDbEnv
 
@@ -359,16 +356,23 @@ def putDidOfferExpire(did, ouid, expire, dbn="did2offer", env=None):
         result = txn.put(did.encode("utf-8"), dat.encode("utf-8"))  # keys and values are bytes
     return result
 
-def getLatestOfferKey(offer, dbn='core', env=None):
+def getOfferExpires(did, lastOnly=True, dbn='did2offer', env=None):
     """
-    Returns lkey of latest offer if one exists in named database dbn of environment env
-    Database allows duplicates so finds latest one
-    Returns None otherwise
+    Returns list earliest to latest with offer data entriesfor given did If any
+    If none exist returns empty list
+    If lastOnly is True (default) then list contains only the last offer
+
+    Each offer data is ODict
+    {
+        "offer": "{did}/offer/{ouid}",  # key of offer entry in core database
+        "expire": "2000-01-01T00:36:00+00:00", #  ISO-8601 expiration date of offer
+    }
 
 
     Parameters:
-        key is key str for database
-        dbn is name str of named sub database, Default is 'core'
+        did is thing did
+        lastOnly is True then returns only the last key in list
+        dbn is name str of named sub database, Default is 'did2offer'
         env is main LMDB database environment
             If env is not provided then use global gDbEnv
     """
@@ -380,13 +384,17 @@ def getLatestOfferKey(offer, dbn='core', env=None):
     if env is None:
         raise DatabaseError("Database environment not set up")
 
-    lkey = None
-
-    # read from database
-    subDb = gDbEnv.open_db(dbn.encode("utf-8"))  # open named sub db named dbn within env
+    entries = []
+    subDb = gDbEnv.open_db(b"did2offer", dupsort=True)  # open named sub db named dbn within env
     with gDbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
-        rsrcb = txn.get(ekey.encode("utf-8"))
-        if rsrcb is None:  # does not exist
-            pass
+        cursor = txn.cursor()
+        if cursor.set_key(did.encode("utf-8")):
+            if lastOnly:
+                cursor.last_dup()
+                entries.append(json.loads(cursor.value().decode("utf-8"),
+                                          object_pairs_hook=ODict))
+            else:
+                entries = [json.loads(value.decode("utf-8"), object_pairs_hook=ODict)
+                           for value in cursor.iternext_dup()]
 
-    return lkey
+    return entries
