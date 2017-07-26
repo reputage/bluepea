@@ -684,6 +684,7 @@ class ThingDidOfferResource:
 
     offer request fields
     {
+        "uid": offeruniqueid,
         "thing": thingDID,
         "aspirant": AgentDID,
         "duration": timeinsecondsofferisopen,
@@ -691,6 +692,7 @@ class ThingDidOfferResource:
 
     offer response fields
     {
+        "uid": offeruniqueid,
         "thing": thingDID,
         "aspirant": AgentDID,
         "duration": timeinsecondsofferisopen,

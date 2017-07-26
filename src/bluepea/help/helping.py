@@ -896,6 +896,7 @@ def validateSignedOfferData(adat, ser, sig, tdat, method="igo"):
 
     offer request fields
     {
+        "uid": offeruniqueid,
         "thing": thingDID,
         "aspirant": AgentDID,
         "duration": timeinsecondsofferisopen,
@@ -933,10 +934,13 @@ def validateSignedOfferData(adat, ser, sig, tdat, method="igo"):
         if not isinstance(dat, dict):  # must be dict subclass
             return None
 
-        requireds = ("thing", "aspirant", "duration")
+        requireds = ("uid", "thing", "aspirant", "duration")
         for field in requireds:
             if field not in dat:
                 return None
+
+        if not dat["uid"]:  # uid must not be empty
+            return None
 
         if dat["thing"] != tdat['did']:
             return None
@@ -997,6 +1001,7 @@ def buildSignedServerOffer(dat, ser, sig, sdat, dt, sk, **kwa):
 
       offer request fields
     {
+        "uid": offeruniqueid,
         "thing": thingDID,
         "aspirant": AgentDID,
         "duration": timeinsecondsofferisopen,
@@ -1004,6 +1009,7 @@ def buildSignedServerOffer(dat, ser, sig, sdat, dt, sk, **kwa):
 
     offer response fields
     {
+        "uid": offeruniqueid,
         "thing": thingDID,
         "aspirant": AgentDID,
         "duration": timeinsecondsofferisopen,
@@ -1018,6 +1024,7 @@ def buildSignedServerOffer(dat, ser, sig, sdat, dt, sk, **kwa):
     if kwa:
         odat.update(kwa.items())
 
+    odat["uid"] = dat["uid"]
     odat["thing"] = dat["thing"]
     odat["aspirant"] = dat["aspirant"]
     odat["duration"] = duration

@@ -78,7 +78,8 @@ def setupDbEnv(baseDirPath=None):
     # create named dbs  (core and tables)
     gDbEnv.open_db(b'core')
     gDbEnv.open_db(b'hid2did')  # table of dids keyed by hids
-    gDbEnv.open_db(b'dead')  # dead drop messages
+    gDbEnv.open_db(b'did2offer', dupsort=True)  # table of offer expirations keyed by offer relative dids
+    gDbEnv.open_db(b'track', dupsort=True)  # tracking messages
 
     # verify that the server resource is present in the database
     # need to read in saved server signing keys and query database
@@ -129,11 +130,13 @@ def putSigned(ser, sig, did, dbn="core", env=None, clobber=True):
         result = txn.put(didb, rsrcb, overwrite=clobber )
         if not result:
             raise DatabaseError("Preexisting entry at DID")
+    return True
 
 def putHid(hid, did, dbn="hid2did", env=None):
     """
     Put entry in HID to DID table
     assumes the each HID is unique so just overwrites
+    key is hid  value is did
 
     Could make this better by using db .replace and checking that previous value
     is the same
@@ -150,7 +153,7 @@ def putHid(hid, did, dbn="hid2did", env=None):
     with env.begin(db=subDb, write=True) as txn:  # txn is a Transaction object
         # will overwrite by default
         result = txn.put(hid.encode("utf-8"), did.encode("utf-8"))  # keys and values are bytes
-
+    return result
 
 def getSelfSigned(did, dbn='core', env=None):
     """
@@ -286,8 +289,7 @@ def getSigned(did, dbn='core', env=None):
 
     return (dat, ser, sig)
 
-
-def exists(key, dbn='core', env=None):
+def exists(key, dbn='core', env=None, dup=False):
     """
     Returns true if key exists in named database dbn of environment env
     False otherwise
@@ -298,6 +300,7 @@ def exists(key, dbn='core', env=None):
         dbn is name str of named sub database, Default is 'core'
         env is main LMDB database environment
             If env is not provided then use global gDbEnv
+        dup is dupsort does the database allow duplicates
     """
     global gDbEnv
 
@@ -308,7 +311,7 @@ def exists(key, dbn='core', env=None):
         raise DatabaseError("Database environment not set up")
 
     # read from database
-    subDb = gDbEnv.open_db(dbn.encode("utf-8"))  # open named sub db named dbn within env
+    subDb = gDbEnv.open_db(dbn.encode("utf-8"), dupsort=dup)  # open named sub db named dbn within env
     with gDbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
         rsrcb = txn.get(key.encode("utf-8"))
         if rsrcb is None:  # does not exist
@@ -316,12 +319,51 @@ def exists(key, dbn='core', env=None):
     return True
 
 
-def getLatestOfferKey(ekey, dbn='core', env=None):
+def putDidOfferExpire(did, ouid, expire, dbn="did2offer", env=None):
+    """
+    Put entry into database table that maps offers to expiring offers expirations
+    and database keys
+    Database allows duplicates
+
+    where
+        did is thing DID
+        ouid is offer unique id
+
+    The key for the entry is just the did
+    The value of the entry is serialized JSON
+    {
+        "offer": "{did}/offer/{ouid}",
+        "expire": expire
+    }
+
+    Could make this better by using db .replace and checking that previous value
+    is the same
+    """
+    global gDbEnv
+
+    if env is None:
+        env = gDbEnv
+
+    if env is None:
+        raise DatabaseError("Database environment not set up")
+
+    offer = "{}/offer/{}".format(did, ouid)
+    data = ODict()
+    data["offer"] = offer
+    data["expire"] = expire
+    dat = json.dumps(data, indent=2)
+
+    subDb = env.open_db(dbn.encode("utf-8"), dupsort=True)  # open named sub dbn within env
+    with env.begin(db=subDb, write=True) as txn:  # txn is a Transaction object
+        # if dupsort True means makes duplicates on writes to same key
+        result = txn.put(did.encode("utf-8"), dat.encode("utf-8"))  # keys and values are bytes
+    return result
+
+def getLatestOfferKey(offer, dbn='core', env=None):
     """
     Returns lkey of latest offer if one exists in named database dbn of environment env
+    Database allows duplicates so finds latest one
     Returns None otherwise
-
-    Starts with key of new offer and works backwards
 
 
     Parameters:

@@ -1632,45 +1632,40 @@ def test_post_ThingDidOffer(client):  # client is a fixture in pytest_falcon
         assert dat is not None
         assert dat['did'] == did
 
-    # post message from Ann to Ivy
-    dt = datetime.datetime(2000, 1, 3, tzinfo=datetime.timezone.utc)
-    changed = timing.iso8601(dt, aware=True)
-    assert changed == "2000-01-03T00:00:00+00:00"
+    # post offer Ivy to Ann
 
-    stamp = dt.timestamp()  # make time.time value
-    #muid = timing.tuuid(stamp=stamp, prefix="m")
-    muid = "m_00035d2976e6a000_26ace93"
-    assert muid == "m_00035d2976e6a000_26ace93"
 
-    srcDid, srcVk, srcSk = agents['ann']
-    dstDid, dstVk, dskSk = agents['ivy']
-    thingDid, thingVk, thingSk = things['cam']
+    hDid, hVk, hSk = agents['ivy']
+    aDid, hVk, hSk = agents['ann']
+
+    tDid, tVk, tSk = things['cam']
 
     assert dstDid == "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY="
 
     signer = "{}#0".format(srcDid)
     assert signer == "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0"
 
-    msg = ODict()
-    msg['uid'] = muid
-    msg['kind'] = "found"
-    msg['signer'] = "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0"
-    msg['date'] = changed
-    msg['to'] = dstDid
-    msg['from'] = srcDid
-    msg['thing'] = thingDid
-    msg['subject'] = "Lose something?"
-    msg['content'] = "Look what I found"
+    dt = datetime.datetime(2000, 1, 3, tzinfo=datetime.timezone.utc)
+    #stamp = dt.timestamp()  # make time.time value
+    #ouid = timing.tuuid(stamp=stamp, prefix="o")
+    ouid = "o_00035d2976e6a000_26ace93"
+    assert muid == "o_00035d2976e6a000_26ace93"
 
-    mser = json.dumps(msg, indent=2)
-    msig = keyToKey64u(libnacl.crypto_sign(mser.encode("utf-8"), srcSk)[:libnacl.crypto_sign_BYTES])
-    assert msig == "07u1OcQI8FUeWPqeiga3A9k4MPJGSFmC4vShiJNpv2Rke9ssnW7aLx857HC5ZaJ973WSKkLAwPzkl399d01HBA=="
+    offer = ODict()
+    offer['uid'] = ouid
+    offer['thing'] = muid
+    offer['aspirant'] = "found"
+    offer['duration'] = 60.0
 
-    dstDidUri = falcon.uri.encode_value(dstDid)
+    oser = json.dumps(msg, indent=2)
+    osig = keyToKey64u(libnacl.crypto_sign(oser.encode("utf-8"), hSk)[:libnacl.crypto_sign_BYTES])
+    assert osig == "07u1OcQI8FUeWPqeiga3A9k4MPJGSFmC4vShiJNpv2Rke9ssnW7aLx857HC5ZaJ973WSKkLAwPzkl399d01HBA=="
+
+    tDidUri = falcon.uri.encode_value(tDid)
     headers = {"Content-Type": "text/html; charset=utf-8",
-               "Signature": 'signer="{}"'.format(msig)}
-    body = mser  # client.post encodes the body
-    rep = client.post('/agent/{}/drop'.format(dstDidUri),
+               "Signature": 'signer="{}"'.format(osig)}
+    body = oser  # client.post encodes the body
+    rep = client.post('/thing/{}/offer'.format(tDidUri),
                       body=body,
                       headers=headers)
 

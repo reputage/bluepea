@@ -1393,12 +1393,14 @@ An example is shown below:
 
 ```json
 {
+    "uid": "o_00035d2976e6a000_26ace93",
     "thing": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
     "aspirant": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
     "duration": 360.0,
 }
 ```
 
+- *uid* is the unique Id of the offer as a time based unique identifier
 - *thing* is the DID of the Thing
 - *aspirant* is the DID of the Aspirant Agent
 - *duration* is the length of time in seconds that the offer is open to be accepted by the Aspirant.
@@ -1412,6 +1414,7 @@ An example is shown below
 
 ```JSON
 {
+    "uid": "o_00035d2976e6a000_26ace93",
     "thing": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
     "aspirant": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
     "duration": 360.0,
@@ -1424,6 +1427,7 @@ An example is shown below
 
 The fields descriptions are as follows:
 
+- *uid* is the unique Id of the offer as a time based unique identifier
 - *thing* is the DID of the Thing
 - *aspirant* is the DID of the Aspirant Agent
 - *duration* is the length of time in seconds that the offer is open to be accepted by the Aspirant.

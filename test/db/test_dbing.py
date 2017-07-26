@@ -269,7 +269,6 @@ def test_putSigned_getSigned():
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")
 
-
 def test_exists():
     """
 
@@ -293,6 +292,79 @@ def test_exists():
     assert result is True
     result = dbing.exists(key="person1")
     assert result is False
+
+    cleanupTmpBaseDir(dbEnv.path())
+    print("Done Test")
+
+def test_putOfferExpire():
+    """
+    Test put entry in did2offer database
+
+    putOfferExpire(expire, did, ouid, dbn="did2offer", env=None)
+    """
+    print("Testing putOfferExpire in DB Env")
+
+    dbEnv = dbing.setupTestDbEnv()
+
+    dt = datetime.datetime(2000, 1, 1, minute=30, tzinfo=datetime.timezone.utc)
+    #stamp = dt.timestamp()  # make time.time value
+    #ouid = timing.tuuid(stamp=stamp, prefix="o")
+    ouid = "o_00035d2976e6a000_26ace93"
+
+    did = "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY="
+    expire = timing.iso8601(dt=dt, aware=True)
+    assert expire == "2000-01-01T00:30:00+00:00"
+
+    result = dbing.putDidOfferExpire(did, ouid, expire)
+    assert result == True
+
+    # verify in database
+    assert dbing.exists(did, dbn='did2offer', dup=True) == True
+
+    # read from database
+    subDb = dbing.gDbEnv.open_db(b"did2offer", dupsort=True)  # open named sub db named dbn within env
+    with dbing.gDbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
+        rsrcb = txn.get(did.encode("utf-8"))
+
+    rsrc = rsrcb.decode("utf-8")
+    assert rsrc == (
+        '{\n'
+        '  "offer": '
+        '"did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=/offer/o_00035d2976e6a000_26ace93",\n'
+        '  "expire": "2000-01-01T00:30:00+00:00"\n'
+        '}')
+
+    dat = json.loads(rsrc, object_pairs_hook=ODict)
+
+    offer = "{}/offer/{}".format(did, ouid)
+    assert offer == "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=/offer/o_00035d2976e6a000_26ace93"
+
+    assert dat["offer"] == offer
+    assert dat["expire"] == expire
+
+
+    # write another one
+    td = datetime.timedelta(seconds=360)
+    expire1 = timing.iso8601(dt=dt+td, aware=True)
+    assert expire1 == "2000-01-01T00:36:00+00:00"
+
+    result = dbing.putDidOfferExpire(did, ouid, expire1)
+    assert result == True
+
+    # read from database
+    entries = []
+    subDb = dbing.gDbEnv.open_db(b"did2offer", dupsort=True)  # open named sub db named dbn within env
+    with dbing.gDbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
+        cursor = txn.cursor()
+        if cursor.set_key(did.encode("utf-8")):
+            entries = [json.loads(value.decode("utf-8"), object_pairs_hook=ODict)
+                       for value in cursor.iternext_dup()]
+
+    assert len(entries) == 2
+    assert entries[0]["expire"] == expire
+    assert entries[0]["offer"] == offer
+    assert entries[1]["expire"] == expire1
+    assert entries[1]["offer"] == offer
 
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")
