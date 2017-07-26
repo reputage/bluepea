@@ -29,7 +29,8 @@ from ..help.helping import (parseSignatureHeader, verify64u, extractDidParts,
                             validateSignedAgentReg, validateSignedThingReg,
                             validateSignedResource, validateSignedAgentWrite,
                             validateSignedThingWrite,
-                            validateMessageData, verifySignedMessageWrite)
+                            validateMessageData, verifySignedMessageWrite,
+                            validateSignedOfferData, buildSignedServerOffer)
 from ..db import dbing
 from ..keep import keeping
 
@@ -678,7 +679,7 @@ class ThingDidOfferResource:
     Thing Did Offer Resource
     Create proffer to transfer title to Thing at DID message
 
-    /agent/{did}/offer
+    /thing/{did}/offer
 
     did is thing did
 
@@ -784,23 +785,26 @@ class ThingDidOfferResource:
                                     'Invalid offer data.')
 
 
-        dt = datetime.now(tz=datetime.timezone.utc)
-
+        dt = datetime.datetime.now(tz=datetime.timezone.utc)
         # build signed offer
-        odat, oser, osig = buildSignedServerOffer(dat, ser, sig, sdat, dt,
+        odat, oser, osig = buildSignedServerOffer(dat, ser, sig, tdat, sdat, dt,
                                                   sk=keeping.gKeeper.sigkey)
+
+        # validate that no unexpired offers
+        entries = dbing.getOfferExpires(did)
+        if entries:
+            entry = entries[-1]
+            edt = arrow.get(entry["expire"])
+            if dt <= edt:  # not yet expired
+                raise falcon.HTTPError(falcon.HTTP_400,
+                                               'Validation Error',
+                                            'Unexpired prevailing offer.')
 
 
         # Build database key for offer
-        key = "{}/{}/offer/{}".format(THING_BASE_PATH, tdid, odat["expiration"])
+        key = "{}/offer/{}".format(did, odat["uid"])
 
-        # validate that no unexpired offers
-
-
-
-        edt = arrow.get(odat["expired"])
-
-        # save offer to database error if duplicate
+        # save offer to database, raise error if duplicate
         try:
             dbing.putSigned(oser, osig, key, clobber=False)  # no clobber so error
         except dbing.DatabaseError as ex:
@@ -809,15 +813,23 @@ class ThingDidOfferResource:
                                   '{}'.format(ex.args[0]))
 
 
+        # save entry to offer expires database
+        odt = arrow.get(odat["expiration"])
+        result = dbing.putDidOfferExpire(did=did,
+                                         ouid=odat["uid"],
+                                         expire=odat["expiration"])
+        if not result:  # should never happen
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                       'Database Table Error',
+                                               'Failure making entry.')
+
 
         didUri = falcon.uri.encode_value(did)
-        sdidUri = falcon.uri.encode_value(sdid)
         rep.status = falcon.HTTP_201  # post response status with location header
-        rep.location = "{}/{}/drop?from={}&uid={}".format(AGENT_BASE_PATH,
+        rep.location = "{}/{}/offer?uid={}".format(THING_BASE_PATH,
                                                           didUri,
-                                                          sdidUri,
-                                                          muid)
-        rep.body = json.dumps(pdat, indent=2)
+                                                          odat["uid"])
+        rep.body = json.dumps(odat, indent=2)
 
     def on_get(self, req, rep, did):
         """
@@ -880,4 +892,4 @@ def loadEnds(app, store):
     app.add_route('{}/{{did}}'.format(THING_BASE_PATH), thingDid)
 
     thingOffer = ThingDidOfferResource(store=store)
-    app.add_route('{}/{{did}}/offer'.format(THING_BASE_PATH), thingDid)
+    app.add_route('{}/{{did}}/offer'.format(THING_BASE_PATH), thingOffer)

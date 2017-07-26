@@ -348,12 +348,14 @@ def putDidOfferExpire(did, ouid, expire, dbn="did2offer", env=None):
     data = ODict()
     data["offer"] = offer
     data["expire"] = expire
-    dat = json.dumps(data, indent=2)
+    ser = json.dumps(data, indent=2)
 
     subDb = env.open_db(dbn.encode("utf-8"), dupsort=True)  # open named sub dbn within env
     with env.begin(db=subDb, write=True) as txn:  # txn is a Transaction object
         # if dupsort True means makes duplicates on writes to same key
-        result = txn.put(did.encode("utf-8"), dat.encode("utf-8"))  # keys and values are bytes
+        result = txn.put(did.encode("utf-8"), ser.encode("utf-8"))  # keys and values are bytes
+
+    result = data if result else {}  # return data written or empty dict is None
     return result
 
 def getOfferExpires(did, lastOnly=True, dbn='did2offer', env=None):

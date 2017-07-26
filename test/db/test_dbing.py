@@ -316,7 +316,7 @@ def test_putOfferExpire():
     assert expire == "2000-01-01T00:30:00+00:00"
 
     result = dbing.putDidOfferExpire(did, ouid, expire)
-    assert result == True
+    assert result
 
     # verify in database
     assert dbing.exists(did, dbn='did2offer', dup=True) == True
@@ -342,14 +342,16 @@ def test_putOfferExpire():
     assert dat["offer"] == offer
     assert dat["expire"] == expire
 
-
     # write another one
     td = datetime.timedelta(seconds=360)
     expire1 = timing.iso8601(dt=dt+td, aware=True)
     assert expire1 == "2000-01-01T00:36:00+00:00"
 
     result = dbing.putDidOfferExpire(did, ouid, expire1)
-    assert result == True
+    assert result == {
+        'offer': 'did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=/offer/o_00035d2976e6a000_26ace93',
+        'expire': '2000-01-01T00:36:00+00:00',
+        }
 
     # read from database
     entries = []
@@ -398,7 +400,10 @@ def test_getOfferExpires():
 
     # write entry
     result = dbing.putDidOfferExpire(did, ouid, expire)
-    assert result == True
+    assert result == {
+        'offer': 'did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=/offer/o_00035d2976e6a000_26ace93',
+        'expire': '2000-01-01T00:30:00+00:00'
+        }
 
     # write another one
     td = datetime.timedelta(seconds=360)
@@ -406,7 +411,10 @@ def test_getOfferExpires():
     assert expire1 == "2000-01-01T00:36:00+00:00"
 
     result = dbing.putDidOfferExpire(did, ouid, expire1)
-    assert result == True
+    assert result == {
+        'offer': 'did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=/offer/o_00035d2976e6a000_26ace93',
+        'expire': '2000-01-01T00:36:00+00:00'
+        }
 
     entries = dbing.getOfferExpires(did, lastOnly=False)
     assert len(entries) == 2

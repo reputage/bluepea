@@ -32,7 +32,7 @@ import pytest_falcon # declares client fixture
 
     pytest_falcon assumes there is a fixture named 'app'
 """
-from bluepea.bluepeaing import SEPARATOR_BYTES
+from bluepea.bluepeaing import SEPARATOR_BYTES, PROPAGATION_DELAY
 
 from bluepea.help.helping import (key64uToKey, keyToKey64u, makeDid,
                                   verify, verify64u, parseSignatureHeader,
@@ -1633,33 +1633,38 @@ def test_post_ThingDidOffer(client):  # client is a fixture in pytest_falcon
         assert dat['did'] == did
 
     # post offer Ivy to Ann
-
-
     hDid, hVk, hSk = agents['ivy']
-    aDid, hVk, hSk = agents['ann']
+    aDid, aVk, aSk = agents['ann']
 
     tDid, tVk, tSk = things['cam']
 
-    assert dstDid == "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY="
+    assert tDid == "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM="
 
-    signer = "{}#0".format(srcDid)
-    assert signer == "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0"
+    signer = "{}#0".format(hDid)
+    assert signer == "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#0"
 
-    dt = datetime.datetime(2000, 1, 3, tzinfo=datetime.timezone.utc)
+    #dt = datetime.datetime(2000, 1, 3, tzinfo=datetime.timezone.utc)
     #stamp = dt.timestamp()  # make time.time value
     #ouid = timing.tuuid(stamp=stamp, prefix="o")
     ouid = "o_00035d2976e6a000_26ace93"
-    assert muid == "o_00035d2976e6a000_26ace93"
 
     offer = ODict()
     offer['uid'] = ouid
-    offer['thing'] = muid
-    offer['aspirant'] = "found"
-    offer['duration'] = 60.0
-
-    oser = json.dumps(msg, indent=2)
+    offer['thing'] = tDid
+    offer['aspirant'] = aDid
+    offer['duration'] = PROPAGATION_DELAY * 2.0
+    oser = json.dumps(offer, indent=2)
+    assert oser == (
+        '{\n'
+        '  "uid": "o_00035d2976e6a000_26ace93",\n'
+        '  "thing": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",\n'
+        '  "aspirant": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",\n'
+        '  "duration": 120.0\n'
+        '}')
     osig = keyToKey64u(libnacl.crypto_sign(oser.encode("utf-8"), hSk)[:libnacl.crypto_sign_BYTES])
-    assert osig == "07u1OcQI8FUeWPqeiga3A9k4MPJGSFmC4vShiJNpv2Rke9ssnW7aLx857HC5ZaJ973WSKkLAwPzkl399d01HBA=="
+    assert osig == 'EhsfS2_4LSVjDMo_QShvciNr6aYf5ut8NuFkBugxL748vlOs1YF971aPIckmtRRAFzby07hY0Ny-7xs27-wXCw=='
+
+    dt = datetime.datetime.now(tz=datetime.timezone.utc)
 
     tDidUri = falcon.uri.encode_value(tDid)
     headers = {"Content-Type": "text/html; charset=utf-8",
@@ -1670,11 +1675,37 @@ def test_post_ThingDidOffer(client):  # client is a fixture in pytest_falcon
                       headers=headers)
 
     assert rep.status == falcon.HTTP_201
-    assert msg == rep.json
+    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
     location = falcon.uri.decode(rep.headers['location'])
-    assert location == "/agent/{}/drop?from={}&uid={}".format(dstDid, srcDid, muid)
+    assert location == "/thing/{}/offer?uid={}".format(tDid, ouid)
+
+    expiration = rep.json['expiration']
+    edt = arrow.get(expiration)
+    assert edt > dt
+    assert rep.json['offerer'].startswith(hDid)
+
+
 
     # now get it from web service
+    rep = client.get(rep.headers['location'])
+
+    assert rep.status == falcon.HTTP_OK
+    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
+    assert rep.headers['signature'] == ('signer="AeYbsHot0pmdWAcgTo5sD8iAuSQAfnH5U6'
+                                        'wiIGpVNJQQoYKBYrPPxAoIc1i5SHCIDS8KFFgf8i0tDq8XGizaCg=="')
+    sigs = parseSignatureHeader(rep.headers['signature'])
+    sigs = parseSignatureHeader(rep.headers['signature'])
+
+    ssig = sigs['signer']
+    assert signs['signer'] == ""
+    assert sigs['signer'] == signature
+
+    assert rep.body == registration
+    assert rep.json == reg
+
+    assert verify64u(ssig, rep.body, sVk)
+
+
     # need to use uri encode version of location header
     assert rep.headers['location'] == ('/agent/did%3Aigo%3AdZ74MLZXD-1QHoa73w9pQ'
                                        '9GroAvxqFi2RTZWlkC0raY%3D/drop'

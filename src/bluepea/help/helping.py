@@ -959,7 +959,7 @@ def validateSignedOfferData(adat, ser, sig, tdat, method="igo"):
         except ValueError as ex:
             return None
 
-        if duration <= PROPAGATION_DELAY * 2.0:
+        if duration < PROPAGATION_DELAY * 2.0:
             return None
 
     except Exception as ex:  # unknown problem
@@ -969,7 +969,7 @@ def validateSignedOfferData(adat, ser, sig, tdat, method="igo"):
 
 
 
-def buildSignedServerOffer(dat, ser, sig, sdat, dt, sk, **kwa):
+def buildSignedServerOffer(dat, ser, sig, tdat, sdat, dt, sk, **kwa):
     """
     Return triple of (odat, oser, osig)
 
@@ -1036,6 +1036,6 @@ def buildSignedServerOffer(dat, ser, sig, sdat, dt, sk, **kwa):
     odat["offer"] = keyToKey64u(ser.encode("utf-8"))
 
     oser = json.dumps(odat, indent=2)
-    osig = keyToKey64u(libnacl.crypto_sign(registration.encode("utf-8"), sk)[:libnacl.crypto_sign_BYTES])
+    osig = keyToKey64u(libnacl.crypto_sign(oser.encode("utf-8"), sk)[:libnacl.crypto_sign_BYTES])
 
     return (odat, oser, osig)
