@@ -1705,3 +1705,123 @@ def test_post_ThingDidOffer(client):  # client is a fixture in pytest_falcon
 
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")
+
+
+def test_get_ThingDidOffer(client):  # client is a fixture in pytest_falcon
+    """
+    Test GET offer of thing.
+
+    offer request fields
+    {
+        "thing": thingDID,
+        "aspirant": AgentDID,
+        "duration": timeinsecondsofferisopen,
+    }
+
+    offer response fields
+    {
+        "thing": thingDID,
+        "aspirant": AgentDID,
+        "duration": timeinsecondsofferisopen,
+        "expiration": datetimeofexpiration,
+        "signer": serverkeydid,
+        "offerer": ownerkeydid,
+        "offer": Base64serrequest
+    }
+    """
+    print("Testing GET /thing/{did}/offer?uid=")
+
+    priming.setupTest()
+    dbEnv = dbing.gDbEnv
+    keeper = keeping.gKeeper
+    kdid = keeper.did
+
+    agents, things = setupTestDbAgentsThings()
+    agents['sam'] = (kdid, keeper.verkey, keeper.sigkey)  # sam the server
+
+    for did, vk, sk in agents.values():
+        dat, ser, sig = dbing.getSelfSigned(did)
+        assert dat is not None
+        assert dat['did'] == did
+
+    for did, vk, sk in things.values():
+        dat, ser, sig = dbing.getSigned(did)
+        assert dat is not None
+        assert dat['did'] == did
+
+    sDid, sVk, sSk = agents['sam']  # server keys
+
+    # post offer Ivy to Ann
+    hDid, hVk, hSk = agents['ivy']
+    aDid, aVk, aSk = agents['ann']
+
+    tDid, tVk, tSk = things['cam']
+
+    #dt = datetime.datetime(2000, 1, 3, tzinfo=datetime.timezone.utc)
+    #stamp = dt.timestamp()  # make time.time value
+    #ouid = timing.tuuid(stamp=stamp, prefix="o")
+    ouid = "o_00035d2976e6a000_26ace93"
+
+    duration = PROPAGATION_DELAY * 2.0
+    offerer = "{}#0".format(hDid)  # ivy is offerer
+
+    # build prior request offer for saved offer
+    poffer = ODict()
+    poffer['uid'] = ouid
+    poffer['thing'] = tDid
+    poffer['aspirant'] = aDid
+    poffer['duration'] = duration
+    poser = json.dumps(poffer, indent=2)
+
+    # now build offer in database
+    odat = ODict()
+    odat['uid'] = ouid
+    odat['thing'] = tDid
+    odat['aspirant'] = aDid
+    odat['duration'] = duration
+
+    dt = datetime.datetime.now(tz=datetime.timezone.utc)
+    # go back 10 minutes
+    td = datetime.timedelta(seconds=10 * 60)
+    odt = dt + td
+
+    td = datetime.timedelta(seconds=duration)
+    expiration = timing.iso8601(odt + td, aware=True)
+    odat["expiration"] = expiration
+
+    signer = "{}#0".format(sDid)  # server sam signs
+    assert signer == "did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=#0"
+    odat["signer"] = signer
+    odat["offerer"] = offerer
+    odat["offer"] = keyToKey64u(poser.encode("utf-8"))
+
+    oser = json.dumps(odat, indent=2)
+    osig = keyToKey64u(libnacl.crypto_sign(oser.encode("utf-8"), sSk)[:libnacl.crypto_sign_BYTES])
+
+    key = "{}/offer/{}".format(tDid, ouid)
+
+    # save offer to database, raise error if duplicate
+    dbing.putSigned(oser, osig, key, clobber=False)  # no clobber so error
+
+    # save entry to offer expires table
+    result = dbing.putDidOfferExpire(did=tDid,
+                                         ouid=ouid,
+                                         expire=expiration)
+    # now get it from web service
+    tDidUri = falcon.uri.encode_value(tDid)
+    location = "/thing/{}/offer?uid={}".format(tDidUri, ouid)
+    rep = client.get(location)
+
+    assert rep.status == falcon.HTTP_OK
+    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
+
+    sigs = parseSignatureHeader(rep.headers['signature'])
+    ssig = sigs['signer']  # signature changes everytime because expiration changes
+
+    assert rep.json == odat
+    assert rep.body == oser
+
+    assert verify64u(ssig, rep.body, keyToKey64u(sVk))
+
+    cleanupTmpBaseDir(dbEnv.path())
+    print("Done Test")
