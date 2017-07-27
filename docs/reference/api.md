@@ -120,24 +120,32 @@ Although all resource write requests are signed by the client and therefore can 
 The API consists of several ReST endpoints grouped according to the type of data resource that is being manipulated by the API. Each resource has HTTP verbs that do the manipulation.
 
 
-/server GET  [ServerAgentRead](#*Server* *Agent* Read)
+/server GET  [ServerAgentRead](#Replay-Attack-Prevention)
 
-/agent  POST
+/agent  POST  [AgentCreation](*Agent*-Creation)
+
 /agent?did={did} GET
 
 /agent/{did}  GET
+
 /agent/{did}  PUT
 
 /agent/{did}
 
+
 /thing  POST
+
 /thing?did={did} GET
 
 /thing/{did}  GET
 /thing/{did}  PUT
 
+
+
 /agent/{did}/drop  POST
 /agent/{did}/drop?from={did}&uid={muid}  GET
+
+
 
 /thing/{did}/offer  POST
 /thing/{did}/offer?uid={ouid}  GET
@@ -145,7 +153,7 @@ The API consists of several ReST endpoints grouped according to the type of data
 /thing/{did}/accept?uid={ouid}  POST
 
 
-## *Server* *Agent* Read 
+## *Server* *Agent* Read
 
 A special *Agent* is the *Server* *Agent*. This Agent is created automatically by the Indigo *Server* and acts as a trusted party in various exchanges between other Agents. This endpoint allows clients to get the DID and verification key for the Server Agent. The Agent Server read request (GET) retrieves a data resource corresponding to a Server Agent. This is a self-signed or self-owned data resource in that the signer field value references is the self-same data resource. The signature of the data resource is supplied in the Signature header of the response. The client application can verify that the data resource has not been tampered with by verifing the signature against the response body which contains the data resource which is a JSON serialization of the registration data.
 
@@ -171,7 +179,7 @@ If successful the response includes a custom "Signature" header whose *signer* f
 
 Example requests and responses are shown below.
 
-## Request
+#### Request
 
 ```http
 GET /server HTTP/1.1
@@ -181,7 +189,7 @@ Connection: close
 User-Agent: Paw/3.1.1 (Macintosh; OS X/10.12.5) GCDHTTPRequest
 ```
 
-## Response
+#### Response
 
 ```http
 HTTP/1.1 200 OK
@@ -204,7 +212,7 @@ Date: Tue, 11 Jul 2017 01:07:56 GMT
 }
 ```
 
-## *Agent* Creation 
+## *Agent* Creation
 
 The Agent creation request (POST) creates a data resource corresponding to a given Agent. This
 is a self-signed or self-owned data resource in that the signer field value
