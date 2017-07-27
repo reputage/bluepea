@@ -1632,6 +1632,8 @@ def test_post_ThingDidOffer(client):  # client is a fixture in pytest_falcon
         assert dat is not None
         assert dat['did'] == did
 
+    sDid, sVk, sSk = agents['sam']  # server keys
+
     # post offer Ivy to Ann
     hDid, hVk, hSk = agents['ivy']
     aDid, aVk, aSk = agents['ann']
@@ -1682,58 +1684,24 @@ def test_post_ThingDidOffer(client):  # client is a fixture in pytest_falcon
     expiration = rep.json['expiration']
     edt = arrow.get(expiration)
     assert edt > dt
-    assert rep.json['offerer'].startswith(hDid)
-
-
+    offer = rep.json
+    offser = rep.body
+    assert offer['offerer'].startswith(hDid)
+    assert offer['signer'].startswith(sDid)
 
     # now get it from web service
     rep = client.get(rep.headers['location'])
 
     assert rep.status == falcon.HTTP_OK
     assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
-    assert rep.headers['signature'] == ('signer="AeYbsHot0pmdWAcgTo5sD8iAuSQAfnH5U6'
-                                        'wiIGpVNJQQoYKBYrPPxAoIc1i5SHCIDS8KFFgf8i0tDq8XGizaCg=="')
+
     sigs = parseSignatureHeader(rep.headers['signature'])
-    sigs = parseSignatureHeader(rep.headers['signature'])
+    ssig = sigs['signer']  # signature changes everytime because expiration changes
 
-    ssig = sigs['signer']
-    assert signs['signer'] == ""
-    assert sigs['signer'] == signature
+    assert rep.json == offer
+    assert rep.body == offser
 
-    assert rep.body == registration
-    assert rep.json == reg
-
-    assert verify64u(ssig, rep.body, sVk)
-
-
-    # need to use uri encode version of location header
-    assert rep.headers['location'] == ('/agent/did%3Aigo%3AdZ74MLZXD-1QHoa73w9pQ'
-                                       '9GroAvxqFi2RTZWlkC0raY%3D/drop'
-                                       '?from=did%3Aigo%3AQt27fThWoNZsa88VrTkep'
-                                       '6H-4HA8tr54sHON1vWl6FE%3D&'
-                                       'uid=m_00035d2976e6a000_26ace93')
-    rep = client.get(rep.headers['location'])
-
-    assert rep.status == falcon.HTTP_OK
-    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
-    sigs = parseSignatureHeader(rep.headers['signature'])
-
-    assert sigs['signer'] == msig
-
-    assert rep.body == (
-        '{\n'
-        '  "uid": "m_00035d2976e6a000_26ace93",\n'
-        '  "kind": "found",\n'
-        '  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",\n'
-        '  "date": "2000-01-03T00:00:00+00:00",\n'
-        '  "to": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",\n'
-        '  "from": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",\n'
-        '  "thing": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",\n'
-        '  "subject": "Lose something?",\n'
-        '  "content": "Look what I found"\n'
-        '}')
-
-    assert verify64u(msig, rep.body, keyToKey64u(srcVk))
+    assert verify64u(ssig, rep.body, keyToKey64u(sVk))
 
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")

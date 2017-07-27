@@ -838,8 +838,7 @@ class ThingDidOfferResource:
         """
         ouid = req.get_param("uid") # returns url-decoded query parameter value
 
-
-        key = "{}/{}/drop/{}/{}".format(AGENT_BASE_PATH, did, sdid, muid)
+        key = "{}/offer/{}".format(did, ouid)
 
         # read from database
         try:
