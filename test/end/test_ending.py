@@ -1632,6 +1632,8 @@ def test_post_ThingDidOffer(client):  # client is a fixture in pytest_falcon
         assert dat is not None
         assert dat['did'] == did
 
+    setupTestPriorOffer(agents=agents, things=things, ago=600.0)  # to test that it checks for priors
+
     sDid, sVk, sSk = agents['sam']  # server keys
 
     # post offer Ivy to Ann
@@ -1783,7 +1785,7 @@ def test_get_ThingDidOffer(client):  # client is a fixture in pytest_falcon
     dt = datetime.datetime.now(tz=datetime.timezone.utc)
     # go back 10 minutes
     td = datetime.timedelta(seconds=10 * 60)
-    odt = dt + td
+    odt = dt - td
 
     td = datetime.timedelta(seconds=duration)
     expiration = timing.iso8601(odt + td, aware=True)
@@ -1825,3 +1827,88 @@ def test_get_ThingDidOffer(client):  # client is a fixture in pytest_falcon
 
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")
+
+
+def setupTestPriorOffer(agents, things, ago=600.0):
+    """
+    Utility function to create prior offer in database at ago seconds
+    in the past.
+
+    Agents and things are ODicts of Agents and things in database
+
+    offer request fields
+    {
+        "thing": thingDID,
+        "aspirant": AgentDID,
+        "duration": timeinsecondsofferisopen,
+    }
+
+    offer response fields
+    {
+        "thing": thingDID,
+        "aspirant": AgentDID,
+        "duration": timeinsecondsofferisopen,
+        "expiration": datetimeofexpiration,
+        "signer": serverkeydid,
+        "offerer": ownerkeydid,
+        "offer": Base64serrequest
+    }
+    """
+    # Assumes database setup
+    dbEnv = dbing.gDbEnv
+    keeper = keeping.gKeeper
+
+    sDid, sVk, sSk = agents['sam']  # server keys
+
+    # post offer Ivy to Ann to transfer cam
+    hDid, hVk, hSk = agents['ivy']
+    aDid, aVk, aSk = agents['ann']
+    tDid, tVk, tSk = things['cam']
+
+    dt = datetime.datetime.now(tz=datetime.timezone.utc)
+    # go back ago seconds
+    td = datetime.timedelta(seconds=ago)
+    odt = dt - td
+
+    stamp = odt.timestamp()  # make time.time value
+    ouid = timing.tuuid(stamp=stamp, prefix="o")
+
+    duration = PROPAGATION_DELAY * 2.0
+    offerer = "{}#0".format(hDid)  # ivy is offerer
+
+    # build prior request offer for saved offer
+    poffer = ODict()
+    poffer['uid'] = ouid
+    poffer['thing'] = tDid
+    poffer['aspirant'] = aDid
+    poffer['duration'] = duration
+    poser = json.dumps(poffer, indent=2)
+
+    # now build offer in database
+    odat = ODict()
+    odat['uid'] = ouid
+    odat['thing'] = tDid
+    odat['aspirant'] = aDid
+    odat['duration'] = duration
+
+    td = datetime.timedelta(seconds=duration)
+    expiration = timing.iso8601(odt + td, aware=True)
+    odat["expiration"] = expiration
+
+    signer = "{}#0".format(sDid)  # server sam signs
+    odat["signer"] = signer
+    odat["offerer"] = offerer
+    odat["offer"] = keyToKey64u(poser.encode("utf-8"))
+
+    oser = json.dumps(odat, indent=2)
+    osig = keyToKey64u(libnacl.crypto_sign(oser.encode("utf-8"), sSk)[:libnacl.crypto_sign_BYTES])
+
+    key = "{}/offer/{}".format(tDid, ouid)
+
+    # save offer to database, raise error if duplicate
+    dbing.putSigned(oser, osig, key, clobber=False)  # no clobber so error
+
+    # save entry to offer expires table
+    result = dbing.putDidOfferExpire(did=tDid,
+                                         ouid=ouid,
+                                         expire=expiration)

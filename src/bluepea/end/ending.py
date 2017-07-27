@@ -21,6 +21,7 @@ import falcon
 
 from ioflo.aid.sixing import *
 from ioflo.aid import getConsole
+from ioflo.aid import timing
 
 from ..bluepeaing import SEPARATOR
 
