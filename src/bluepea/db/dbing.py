@@ -98,17 +98,18 @@ def setupTestDbEnv():
     return setupDbEnv(baseDirPath=baseDirPath)
 
 
-def putSigned(ser, sig, did, dbn="core", env=None, clobber=True):
+def putSigned(key, ser, sig,  dbn="core", env=None, clobber=True):
     """
     Put signed serialization ser with signature sig at key did in named sub
     database dbn in lmdb database environment env. If clobber is False then
     raise DatabaseError exception if entry at key did is already present.
 
     Parameters:
+        key is DID relative key str for agent data resource in database
         ser is JSON serialization of dat
         sig is signature of resource using private signing key corresponding
             to did indexed key given by signer field in dat
-        did is DID str for agent data resource in database
+
         dbn is name str of named sub database, Default is 'core'
         env is main LMDB database environment
             If env is not provided then use global gDbEnv
@@ -123,13 +124,13 @@ def putSigned(ser, sig, did, dbn="core", env=None, clobber=True):
     if env is None:
         raise DatabaseError("Database environment not set up")
 
-    didb = did.encode("utf-8")
+    keyb = key.encode("utf-8")
     subDb = env.open_db(dbn.encode("utf-8"))  # open named sub db named dbn within env
     with env.begin(db=subDb, write=True) as txn:  # txn is a Transaction object
         rsrcb = (ser + SEPARATOR + sig).encode("utf-8")  # keys and values must be bytes
-        result = txn.put(didb, rsrcb, overwrite=clobber )
+        result = txn.put(keyb, rsrcb, overwrite=clobber )
         if not result:
-            raise DatabaseError("Preexisting entry at DID")
+            raise DatabaseError("Preexisting entry at key {}".format(key))
     return True
 
 def putHid(hid, did, dbn="hid2did", env=None):

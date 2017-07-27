@@ -127,7 +127,7 @@ class AgentResource:
 
         # save to database
         try:
-            dbing.putSigned(registration, sig, did, clobber=False)
+            dbing.putSigned(key=did, ser=registration, sig=sig, clobber=False)
         except dbing.DatabaseError as ex:
             raise falcon.HTTPError(falcon.HTTP_412,
                                   'Database Error',
@@ -229,7 +229,7 @@ class AgentDidResource:
 
         # save to database
         try:
-            dbing.putSigned(ser, sig, did, clobber=True)
+            dbing.putSigned(key=did, ser=ser, sig=sig,  clobber=True)
         except dbing.DatabaseError as ex:
             raise falcon.HTTPError(falcon.HTTP_412,
                                   'Database Error',
@@ -358,7 +358,7 @@ class AgentDidDropResource:
 
         # save message to database error if duplicate
         try:
-            dbing.putSigned(mser, msig, key, clobber=False)  # no clobber so error
+            dbing.putSigned(key=key, ser=mser, sig=msig, clobber=False)  # no clobber so error
         except dbing.DatabaseError as ex:
             raise falcon.HTTPError(falcon.HTTP_412,
                                   'Database Error',
@@ -500,7 +500,7 @@ class ThingResource:
 
         # save to database core
         try:
-            dbing.putSigned(registration, tsig, tdid, clobber=False)
+            dbing.putSigned(key=tdid, ser=registration, sig=tsig, clobber=False)
         except dbing.DatabaseError as ex:
             raise falcon.HTTPError(falcon.HTTP_412,
                                   'Database Error',
@@ -638,7 +638,7 @@ class ThingDidResource:
 
         # save to database
         try:
-            dbing.putSigned(ser, sig, did, clobber=True)
+            dbing.putSigned(key=did, ser=ser, sig=sig, clobber=True)
         except dbing.DatabaseError as ex:
             raise falcon.HTTPError(falcon.HTTP_412,
                                   'Database Error',
@@ -807,7 +807,7 @@ class ThingDidOfferResource:
 
         # save offer to database, raise error if duplicate
         try:
-            dbing.putSigned(oser, osig, key, clobber=False)  # no clobber so error
+            dbing.putSigned(key=key, ser=oser, sig=osig, clobber=False)  # no clobber so error
         except dbing.DatabaseError as ex:
             raise falcon.HTTPError(falcon.HTTP_412,
                                   'Database Error',

@@ -82,7 +82,7 @@ def setupTestDbAgentsThings():
     adat = json.loads(ser, object_pairs_hook=ODict)
     adid = adat['did']
 
-    dbing.putSigned(ser, sig, adid, clobber=False)
+    dbing.putSigned(key=adid, ser=ser, sig=sig, clobber=False)
 
     agents['ann'] = (adid, avk, ask)
 
@@ -104,7 +104,7 @@ def setupTestDbAgentsThings():
     idat = json.loads(ser, object_pairs_hook=ODict)
     idid = idat['did']
 
-    dbing.putSigned(ser, sig, idid, clobber=False)
+    dbing.putSigned(key=idid, ser=ser, sig=sig, clobber=False)
 
     agents['ivy'] = (idid, ivk, isk)
 
@@ -131,7 +131,7 @@ def setupTestDbAgentsThings():
     cdat = json.loads(ser, object_pairs_hook=ODict)
     cdid = cdat['did']
 
-    dbing.putSigned(ser, isig, cdid, clobber=False)
+    dbing.putSigned(key=cdid, ser=ser, sig=isig, clobber=False)
 
     things['cam'] = (cdid, cvk, csk)
 
@@ -148,7 +148,7 @@ def setupTestDbAgentsThings():
     fdat = json.loads(ser, object_pairs_hook=ODict)
     fdid = fdat['did']
 
-    dbing.putSigned(ser, sig, fdid, clobber=False)
+    dbing.putSigned(key=fdid, ser=ser, sig=sig,  clobber=False)
 
     agents['fae'] = (fdid, fvk, fsk)
 
@@ -725,7 +725,7 @@ def test_get_AgentDid(client):  # client is a fixture in pytest_falcon
     reg = json.loads(res, object_pairs_hook=ODict)
     did = reg['did']
 
-    dbing.putSigned(res, sig, did, clobber=False)
+    dbing.putSigned(key=did, ser=res, sig=sig, clobber=False)
 
 
     didURI = falcon.uri.encode_value(did)
@@ -789,7 +789,7 @@ def test_put_AgentDid(client):  # client is a fixture in pytest_falcon
     reg = json.loads(res, object_pairs_hook=ODict)
     did = reg['did']
 
-    dbing.putSigned(res, sig, did, clobber=False)
+    dbing.putSigned(key=did, ser=res, sig=sig, clobber=False)
 
     rdat, rser, rsig = dbing.getSelfSigned(did)
 
@@ -940,7 +940,7 @@ def test_put_IssuerDid(client):  # client is a fixture in pytest_falcon
     reg = json.loads(res, object_pairs_hook=ODict)
     did = reg['did']
 
-    dbing.putSigned(res, sig, did, clobber=False)
+    dbing.putSigned(key=did, ser=res, sig=sig, clobber=False)
 
     vdat, vser, vsig = dbing.getSelfSigned(did)
 
@@ -1071,7 +1071,7 @@ def test_get_ThingDid(client):  # client is a fixture in pytest_falcon
     adat = json.loads(aser, object_pairs_hook=ODict)
     adid = adat['did']
 
-    dbing.putSigned(aser, asig, adid, clobber=False)
+    dbing.putSigned(key=adid, ser=aser, sig=asig, clobber=False)
 
     # verify that its in database
     vdat, vser, vsig = dbing.getSigned(adid)
@@ -1123,7 +1123,7 @@ def test_get_ThingDid(client):  # client is a fixture in pytest_falcon
         '  }\n'
         '}')
 
-    dbing.putSigned(tser, ssig, tdid, clobber=False)
+    dbing.putSigned(key=tdid, ser=tser, sig=ssig, clobber=False)
 
     # verify that its in database
     vdat, vser, vsig = dbing.getSigned(tdid)
@@ -1222,7 +1222,7 @@ def test_put_ThingDid(client):  # client is a fixture in pytest_falcon
     nsig = keyToKey64u(libnacl.crypto_sign(nser.encode("utf-8"), ssk)[:libnacl.crypto_sign_BYTES])
     assert nsig == ('sft7-SsT_n1URyXUPgO76QBw_LXKApxE0x8lv2vcoOaKFWrLSjNrxGGxiKasEgjy0lbw6ZX9O80bZE7dHcJNCg==')
 
-    dbing.putSigned(nser, nsig, adid, clobber=False)
+    dbing.putSigned(key=adid, ser=nser, sig=nsig, clobber=False)
 
     # verify that its in database
     vdat, vser, vsig = dbing.getSelfSigned(adid)
@@ -1274,7 +1274,7 @@ def test_put_ThingDid(client):  # client is a fixture in pytest_falcon
         '  }\n'
         '}')
 
-    dbing.putSigned(tser, ssig, tdid, clobber=False)
+    dbing.putSigned(key=tdid, ser=tser, sig=ssig, clobber=False)
 
     # verify that its in database
     vdat, vser, vsig = dbing.getSigned(tdid)
@@ -1558,7 +1558,7 @@ def test_get_AgentDidDrop(client):  # client is a fixture in pytest_falcon
     assert key == ("did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY="
                    "/drop/did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE="
                    "/m_00035d2976e6a000_26ace93")
-    dbing.putSigned(mser, msig, key)
+    dbing.putSigned(key=key, ser=mser, sig=msig)
 
     # now get it from web service
     dstDidUri = falcon.uri.encode_value(dstDid)
@@ -1803,7 +1803,7 @@ def test_get_ThingDidOffer(client):  # client is a fixture in pytest_falcon
     key = "{}/offer/{}".format(tDid, ouid)
 
     # save offer to database, raise error if duplicate
-    dbing.putSigned(oser, osig, key, clobber=False)  # no clobber so error
+    dbing.putSigned(key=key, ser=oser, sig=osig, clobber=False)  # no clobber so error
 
     # save entry to offer expires table
     result = dbing.putDidOfferExpire(did=tDid,
@@ -1906,7 +1906,7 @@ def setupTestPriorOffer(agents, things, ago=600.0):
     key = "{}/offer/{}".format(tDid, ouid)
 
     # save offer to database, raise error if duplicate
-    dbing.putSigned(oser, osig, key, clobber=False)  # no clobber so error
+    dbing.putSigned(key=key, ser=oser, sig=osig, clobber=False)  # no clobber so error
 
     # save entry to offer expires table
     result = dbing.putDidOfferExpire(did=tDid,

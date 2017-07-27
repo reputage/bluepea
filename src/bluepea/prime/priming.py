@@ -89,7 +89,7 @@ def createServerResource(vk, sk, changed=None,  **kwa):
         sig, ser = dbing.makeSignedAgentReg(vk=keeper.verkey,
                                       sk=keeper.sigkey,
                                       changed=changed)
-        dbing.putSigned(ser, sig, did)  # clobber in case was corrupted to fix
+        dbing.putSigned(key=did, ser=ser, sig=sig)  # clobber in case was corrupted to fix
 
 
 
