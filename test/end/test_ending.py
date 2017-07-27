@@ -1554,8 +1554,8 @@ def test_get_AgentDidDrop(client):  # client is a fixture in pytest_falcon
     mser = json.dumps(msg, indent=2)
     msig = keyToKey64u(libnacl.crypto_sign(mser.encode("utf-8"), srcSk)[:libnacl.crypto_sign_BYTES])
 
-    key = "/agent/{}/drop/{}/{}".format(dstDid, srcDid, muid)
-    assert key == ("/agent/did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY="
+    key = "{}/drop/{}/{}".format(dstDid, srcDid, muid)
+    assert key == ("did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY="
                    "/drop/did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE="
                    "/m_00035d2976e6a000_26ace93")
     dbing.putSigned(mser, msig, key)

@@ -353,7 +353,7 @@ class AgentDidDropResource:
 
         # Build key for message from (to, from, uid)  (did, sdid, uid)
         muid = mdat['uid']
-        key = "{}/{}/drop/{}/{}".format(AGENT_BASE_PATH, did, sdid, muid)
+        key = "{}/drop/{}/{}".format(did, sdid, muid)
 
         # save message to database error if duplicate
         try:
@@ -394,7 +394,7 @@ class AgentDidDropResource:
                                        'Invalid request format. {}'.format(ex))
 
 
-        key = "{}/{}/drop/{}/{}".format(AGENT_BASE_PATH, did, sdid, muid)
+        key = "{}/drop/{}/{}".format(did, sdid, muid)
 
         # read from database
         try:
@@ -833,22 +833,10 @@ class ThingDidOfferResource:
 
     def on_get(self, req, rep, did):
         """
-        Handles GET request for an AgentResources given by query parameter
-        with did
-
-
+        Handles GET request for Thing offer resource with did
+        and uid in query params
         """
-        muid = req.get_param("uid") # returns url-decoded query parameter value
-        sdid = req.get_param("from")  # returns url-decoded query parameter value
-        index = req.get_param("index")  # returns url-decoded query parameter value
-
-        if index is not None:
-            try:
-                index = int(index)
-            except (ValueError, TypeError) as  ex:
-                raise falcon.HTTPError(falcon.HTTP_400,
-                                       'Request Error',
-                                       'Invalid request format. {}'.format(ex))
+        ouid = req.get_param("uid") # returns url-decoded query parameter value
 
 
         key = "{}/{}/drop/{}/{}".format(AGENT_BASE_PATH, did, sdid, muid)
