@@ -1378,7 +1378,7 @@ crypt = base64.urlsafe_b64decode(crypt64u.encode("utf-8"))
 Transfer of control of a *Thing* from one *Agent* to another requires several steps.
 These steps are to prevent the controlling *Agent* from transferring control to more than one other *Agent* at a time. The *Server* *Agent* acts as a trusted third party to ensure that the *Agent* transferring control only transfers once and that there are no race conditions.
 
-### Offer Request
+### *Offer* Creation Request
 
 The first step if for the current controller *Agent* or *Offerer* to POST an *offer* to transfer control to another *Agent*. This other Agent is called the *Aspirant* as this other *Agent* aspires to be the new controlling agent of the *Thing*.  This *offer* is signed by the *Offerer* *Agent*.  
 
@@ -1487,6 +1487,52 @@ Date: Thu, 27 Jul 2017 01:33:36 GMT
   "offer": "ewogICJ1aWQiOiAib18wMDAzNWQyOTc2ZTZhMDAwXzI2YWNlOTMiLAogICJ0aGluZyI6ICJkaWQ6aWdvOjRKQ004ZEpXd19PNTd2TTRrQXRUdDB5V3FTZ0J1d2lIcFZnZDU1QmlvQ009IiwKICAiYXNwaXJhbnQiOiAiZGlkOmlnbzpRdDI3ZlRoV29OWnNhODhWclRrZXA2SC00SEE4dHI1NHNIT04xdldsNkZFPSIsCiAgImR1cmF0aW9uIjogMTIwLjAKfQ=="
 }
 ```
+
+### *Offer* Read Request
+
+The *Offer*  read request (GET) retrieves an offer for a given *Thing* DID with a given *Offer* UID by the *uid* query parameter in the request. In order to retrieve an *Offer* data resource the client application needs the DID for the corresponding Thing as well as the UID for the specific *Offer*.  This is supplied in the *Location* header of the response to a successful *Offer* creation request. The signature of the data resource is supplied in the Signature header of the response. The client application can verify that the data resource has not been tampered with by verifing the signature against the response body which contains the data resource which is a JSON serialization of the *Offer* data. Successfully created Offers are signed by the *Server* *Agent*.
+
+
+The request is made by sending an HTTP Get to ```/thing/{did}/offer?uid={ouid}``` where the did path parameter is the DID of the thing and the *uid* query parameter is the Offer unique ID. This did needs to be URL encoded.
+A successful request will return status code 200. An unsuccessful request will return an error status code such as 404 Not Found. 
+If successful the response includes a custom "Signature" header whose *signer* field value is the signature.
+
+
+Example requests and responses are shown below.
+
+## Request
+
+```http
+GET /thing/did%3Aigo%3A4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM%3D/offer?uid=o_00035d2976e6a000_26ace93 HTTP/1.1
+Content-Type: application/json; charset=utf-8
+Host: localhost:8080
+Connection: close
+User-Agent: Paw/3.1.2 (Macintosh; OS X/10.12.5) GCDHTTPRequest
+```
+
+## Response
+
+```http
+HTTP/1.1 200 OK
+Signature: signer="klcoeC_dztIDcCO2hkptCSGyoRURSI30EqqyQaUOihHGsR9suntOaRqZpbCJi4qRTGdfSEV880DfVo5iq726Bw=="
+Content-Type: application/json; charset=UTF-8
+Content-Length: 675
+Server: Ioflo WSGI Server
+Date: Thu, 27 Jul 2017 01:38:14 GMT
+
+{
+  "uid": "o_00035d2976e6a000_26ace93",
+  "thing": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
+  "aspirant": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+  "duration": 120.0,
+  "expiration": "2017-07-27T01:35:36.895638+00:00",
+  "signer": "did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=#0",
+  "offerer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#0",
+  "offer": "ewogICJ1aWQiOiAib18wMDAzNWQyOTc2ZTZhMDAwXzI2YWNlOTMiLAogICJ0aGluZyI6ICJkaWQ6aWdvOjRKQ004ZEpXd19PNTd2TTRrQXRUdDB5V3FTZ0J1d2lIcFZnZDU1QmlvQ009IiwKICAiYXNwaXJhbnQiOiAiZGlkOmlnbzpRdDI3ZlRoV29OWnNhODhWclRrZXA2SC00SEE4dHI1NHNIT04xdldsNkZFPSIsCiAgImR1cmF0aW9uIjogMTIwLjAKfQ=="
+}
+```
+
+
 
 ### Accept Request
 
