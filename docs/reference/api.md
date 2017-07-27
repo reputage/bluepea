@@ -1421,7 +1421,7 @@ An example is shown below
     "expiration": "2017-07-25T18:33:57.424839+00:00",
     "signer" : "did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=#0",
     "offerer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",
-    "offer": "UaP_31Z1S8qfb99JnnvdfIRTCp-gL8L98IyWiT7GVvrO_0mfx6CV31ecP0dfKDg7wuWaDlR6T4LB5ofDRRM7FALDZ7Ao0BJtEV_nZTTAI9YVYUsozsUo3gVXnb6ukYrgI2ZeyNDbZbfkSIs="
+    "offer": "ewogICJ1aWQiOiAib18wMDAzNWQyOTc2ZTZhMDAwXzI2YWNlOTMiLAogICJ0aGluZyI6ICJkaWQ6aWdvOjRKQ004ZEpXd19PNTd2TTRrQXRUdDB5V3FTZ0J1d2lIcFZnZDU1QmlvQ009IiwKICAiYXNwaXJhbnQiOiAiZGlkOmlnbzpRdDI3ZlRoV29OWnNhODhWclRrZXA2SC00SEE4dHI1NHNIT04xdldsNkZFPSIsCiAgImR1cmF0aW9uIjogMTIwLjAKfQ=="
 }
 ```
 
@@ -1449,13 +1449,43 @@ Example requests and responses are shown below.
 ## Request
 
 ```http
+POST /thing/did%3Aigo%3A4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM%3D/offer HTTP/1.1
+Signature: signer="EhsfS2_4LSVjDMo_QShvciNr6aYf5ut8NuFkBugxL748vlOs1YF971aPIckmtRRAFzby07hY0Ny-7xs27-wXCw=="
+Content-Type: application/json; charset=UTF-8
+Host: localhost:8080
+Connection: close
+User-Agent: Paw/3.1.2 (Macintosh; OS X/10.12.5) GCDHTTPRequest
+Content-Length: 199
+
+{
+  "uid": "o_00035d2976e6a000_26ace93",
+  "thing": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
+  "aspirant": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+  "duration": 120.0
+}
 
 ```
 
 ## Response
 
 ```http
+HTTP/1.1 201 Created
+Location: /thing/did%3Aigo%3A4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM%3D/offer?uid=o_00035d2976e6a000_26ace93
+Content-Length: 675
+Content-Type: application/json; charset=UTF-8
+Server: Ioflo WSGI Server
+Date: Thu, 27 Jul 2017 01:33:36 GMT
 
+{
+  "uid": "o_00035d2976e6a000_26ace93",
+  "thing": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
+  "aspirant": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+  "duration": 120.0,
+  "expiration": "2017-07-27T01:35:36.895638+00:00",
+  "signer": "did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=#0",
+  "offerer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#0",
+  "offer": "ewogICJ1aWQiOiAib18wMDAzNWQyOTc2ZTZhMDAwXzI2YWNlOTMiLAogICJ0aGluZyI6ICJkaWQ6aWdvOjRKQ004ZEpXd19PNTd2TTRrQXRUdDB5V3FTZ0J1d2lIcFZnZDU1QmlvQ009IiwKICAiYXNwaXJhbnQiOiAiZGlkOmlnbzpRdDI3ZlRoV29OWnNhODhWclRrZXA2SC00SEE4dHI1NHNIT04xdldsNkZFPSIsCiAgImR1cmF0aW9uIjogMTIwLjAKfQ=="
+}
 ```
 
 ### Accept Request
