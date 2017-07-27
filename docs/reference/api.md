@@ -1378,7 +1378,7 @@ crypt = base64.urlsafe_b64decode(crypt64u.encode("utf-8"))
 Transfer of control of a *Thing* from one *Agent* to another requires several steps.
 These steps are to prevent the controlling *Agent* from transferring control to more than one other *Agent* at a time. The *Server* *Agent* acts as a trusted third party to ensure that the *Agent* transferring control only transfers once and that there are no race conditions.
 
-### *Offer* Creation Request
+### *Offer* to Tranfer Control Creation Request
 
 The first step if for the current controller *Agent* or *Offerer* to POST an *offer* to transfer control to another *Agent*. This other Agent is called the *Aspirant* as this other *Agent* aspires to be the new controlling agent of the *Thing*.  This *offer* is signed by the *Offerer* *Agent*.  
 
@@ -1488,19 +1488,20 @@ Date: Thu, 27 Jul 2017 01:33:36 GMT
 }
 ```
 
-### *Offer* Read Request
+### *Offer* to Transfer Control Read Request
 
 The *Offer*  read request (GET) retrieves an offer for a given *Thing* DID with a given *Offer* UID by the *uid* query parameter in the request. In order to retrieve an *Offer* data resource the client application needs the DID for the corresponding Thing as well as the UID for the specific *Offer*.  This is supplied in the *Location* header of the response to a successful *Offer* creation request. The signature of the data resource is supplied in the Signature header of the response. The client application can verify that the data resource has not been tampered with by verifing the signature against the response body which contains the data resource which is a JSON serialization of the *Offer* data. Successfully created Offers are signed by the *Server* *Agent*.
 
 
 The request is made by sending an HTTP Get to ```/thing/{did}/offer?uid={ouid}``` where the did path parameter is the DID of the thing and the *uid* query parameter is the Offer unique ID. This did needs to be URL encoded.
+
 A successful request will return status code 200. An unsuccessful request will return an error status code such as 404 Not Found. 
 If successful the response includes a custom "Signature" header whose *signer* field value is the signature.
 
 
 Example requests and responses are shown below.
 
-## Request
+#### Request
 
 ```http
 GET /thing/did%3Aigo%3A4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM%3D/offer?uid=o_00035d2976e6a000_26ace93 HTTP/1.1
@@ -1510,7 +1511,7 @@ Connection: close
 User-Agent: Paw/3.1.2 (Macintosh; OS X/10.12.5) GCDHTTPRequest
 ```
 
-## Response
+#### Response
 
 ```http
 HTTP/1.1 200 OK
@@ -1532,8 +1533,70 @@ Date: Thu, 27 Jul 2017 01:38:14 GMT
 }
 ```
 
+### *Offer* to Transfer Control Accept Request
 
+Once an Offer to transfer control has been created the next step if for the *Aspirant* *Agent* named in the offer to accept the request. The acceptance URL includes the Thing DID and the Offer UID as a query parameter. The Aspirant *Agent* then POSTs an *accept* to take over control of the *Thing*. The POST body includes the new *Thing* serialized data resource with one of the *Aspirant* keys as *signer*. The *Signature* header includes the *Aspirant* signature of the POST body.  
+The request is made by sending an HTTP POST to ```/thing/{did}/offer?uid={ouid}```
+The ```did``` path parameter is the DID of the *Thing*. This DID needs to be URL encoded. The ```uid``` query parameter is the *Offer* unique ID. 
 
-### Accept Request
+The request includes a custom *Signature* header whose value has the signature of the *Aspirant*. The *tag* value *signer* is the *signature* of the message by the sender/signer. The signature allows the Server to verify that the sending client exists as an *Agent*, is the Aspirant *Agent* of for the Offer and also offer is still in effect or open.
 
+A successful request results in a response with the associated *Thing* data resource with the *Aspirant* now as the new controlling *signer*. The *Thing* data resource in the JSON body of the response. The value of the *location* header in the response s the URL to access the *Thing* data resource via a GET request. This *location* value has already been URL encoded.
 
+A successful request will return status code 201
+An unsuccessful request will return status code 400.
+
+Example requests and responses are shown below.
+
+## Request
+
+```http
+POST /thing/did%3Aigo%3A4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM%3D/accept?uid=o_00035d2976e6a000_26ace93 HTTP/1.1
+Signature: signer="RtlBu9sZgqhfc0QbGe7IHqwsHOARrGNjy4BKJG7gNfNP4GfKDQ8FGdjyv-EzN1OIHYlnMBFB2Kf05KZAj-g2Cg=="
+Content-Type: application/json; charset=UTF-8
+Host: localhost:8080
+Connection: close
+User-Agent: Paw/3.1.2 (Macintosh; OS X/10.12.6) GCDHTTPRequest
+Content-Length: 349
+
+{
+  "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
+  "hid": "hid:dns:generic.com#02",
+  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",
+  "changed": "2000-01-01T00:00:00+00:00",
+  "data": {
+    "keywords": [
+      "Canon",
+      "EOS Rebel T6",
+      "251440"
+    ],
+    "message": "If found please return."
+  }
+}
+```
+
+## Response
+
+```http
+HTTP/1.1 201 Created
+Location: /thing/did%3Aigo%3A4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM%3D
+Content-Length: 349
+Content-Type: application/json; charset=UTF-8
+Server: Ioflo WSGI Server
+Date: Thu, 27 Jul 2017 22:16:15 GMT
+
+{
+  "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
+  "hid": "hid:dns:generic.com#02",
+  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",
+  "changed": "2000-01-01T00:00:00+00:00",
+  "data": {
+    "keywords": [
+      "Canon",
+      "EOS Rebel T6",
+      "251440"
+    ],
+    "message": "If found please return."
+  }
+}
+```
