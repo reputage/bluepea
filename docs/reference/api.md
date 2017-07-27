@@ -136,6 +136,9 @@ The API consists of several ReST endpoints grouped according to the type of data
 /thing/{did}  GET
 /thing/{did}  PUT
 
+/agent/{did}/drop  POST
+/agent/{did}/drop?from={did}&uid={muid}  GET
+
 /thing/{did}/offer  POST
 /thing/{did}/offer?uid={ouid}  GET
 
@@ -1154,7 +1157,7 @@ Date: Tue, 18 Jul 2017 19:50:57 GMT
 ## Reading a *Message* from One *Agent* to Another
 
 The Indigo service creates a dedicated message queue for each sender at each recipient.
-The request is made by sending an HTTP Get to ```/agent/{did}/drop``` with the path parameter that is the DID of the recepient of a message. This value needs to be URL encoded. The request also has two query parameters. One with *tag* *from* query parameter whose value is the sender DID. This value needs to be URL encoded. The other with *tag* uid whose value is the unique message ID of the message. Other variants of the request will allow querying the first last or all of the messages from a given sender to a given recepient.
+The request is made by sending an HTTP Get to ```/agent/{did}/drop?from={did}&uid={muid}``` with the path parameter that is the DID of the recepient of a message. This value needs to be URL encoded. The request also has two query parameters. One with *tag* *from* query parameter whose value is the sender DID. This value needs to be URL encoded. The other with *tag* uid whose value is the unique message ID of the message. Other variants of the request will allow querying the first last or all of the messages from a given sender to a given recepient.
 
 A successful request will return status code 200. An unsuccessful request will return an error status code such as 404 Not Found. 
 
