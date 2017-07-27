@@ -1039,3 +1039,75 @@ def buildSignedServerOffer(dat, ser, sig, tdat, sdat, dt, sk, **kwa):
     osig = keyToKey64u(libnacl.crypto_sign(oser.encode("utf-8"), sk)[:libnacl.crypto_sign_BYTES])
 
     return (odat, oser, osig)
+
+
+def validateSignedThingTransfer(adat, tdid, sig, ser, method="igo"):
+    """
+    Returns deserialized version of serialization ser which is resource to be written
+    if signature sig verifies and resource is correctly formed.
+    Otherwise returns None
+
+    adat is aspirant signer dict converted from database
+
+    tdid is DID of thing being transferred
+
+    sig is base64 url-file safe unicode string signature generated
+        by signing bytes version of new thing resource with new privated signing key
+        associated with public verification key in signer field in updated resourse
+
+    ser is json encoded unicode string of new thing resource
+
+    method is the method string used to generate dids in the registration
+    """
+
+    try:
+        # validate updated resource
+        try:
+            dat = json.loads(ser, object_pairs_hook=ODict)
+        except ValueError as ex:
+            return None  # invalid json
+
+        if not dat:  # registration must not be empty
+            return None
+
+        if not isinstance(dat, dict):  # must be dict subclass
+            return None
+
+        if "changed" not in dat:  # changed field required
+            return None
+
+        try:
+            dt = arrow.get(dat["changed"])
+        except arrow.parser.ParserError as ex:  # invalid datetime format
+            return None
+
+        if "did" not in dat:  # did field required
+            return None
+
+        if dat['did'] != tdid:  # not same thing
+            return None
+
+        # validate new signer
+        try:
+            (adid, nindex, nkey) = extractDatSignerParts(dat)
+        except ValueError as ex:
+            return None
+
+        if adid != adat['did']:  # thing signer is not aspirant
+            return None
+
+        try:
+            nverkey = adat['keys'][nindex]['key']  # new index
+        except (KeyError, IndexError) as ex:
+            return None
+
+        if len(nverkey) != 44:
+            return None  # invalid length for base64 encoded key
+
+        if not verify64u(sig, ser, nverkey):  # verify with new signer verify key
+            return None  # signature fails
+
+    except Exception as ex:  # unknown problem
+        return None
+
+    return dat

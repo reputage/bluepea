@@ -1912,3 +1912,110 @@ def setupTestPriorOffer(agents, things, ago=600.0):
     result = dbing.putDidOfferExpire(did=tDid,
                                          ouid=ouid,
                                          expire=expiration)
+
+    return (tDid, ouid)
+
+
+def test_post_ThingDidAccept(client):  # client is a fixture in pytest_falcon
+    """
+    Test POST  to thing/did/accept with parameter offer uid.
+    """
+    print("Testing POST /thing/{did}/accept?uid={ouid}")
+
+    priming.setupTest()
+    dbEnv = dbing.gDbEnv
+    keeper = keeping.gKeeper
+    kdid = keeper.did
+
+    agents, things = setupTestDbAgentsThings()
+    agents['sam'] = (kdid, keeper.verkey, keeper.sigkey)  # sam the server
+
+    for did, vk, sk in agents.values():
+        dat, ser, sig = dbing.getSelfSigned(did)
+        assert dat is not None
+        assert dat['did'] == did
+
+    for did, vk, sk in things.values():
+        dat, ser, sig = dbing.getSigned(did)
+        assert dat is not None
+        assert dat['did'] == did
+
+    sDid, sVk, sSk = agents['sam']  # server keys
+
+    # post offer Ivy to Ann
+    hDid, hVk, hSk = agents['ivy']
+    aDid, aVk, aSk = agents['ann']
+
+    tDid, tVk, tSk = things['cam']
+
+    odid, ouid = setupTestPriorOffer(agents=agents, things=things, ago=10.0)  # to test that it checks for priors
+
+    assert odid == tDid
+
+    # We now have thing in database with offer from ivy to ann
+    # get think resource and change it to have ann as signer
+    tdat, tser, tsig = dbing.getSigned(tDid)
+
+    # now change signer field  to ann as signer
+    index = 0
+    signer = "{}#{}".format(aDid, index)  # signer field value key at index
+    assert signer == 'did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0'
+    tdat['signer'] = signer
+
+    # now sign and post to accept
+    atser = json.dumps(tdat, indent=2)
+    assert atser == (
+        '{\n'
+        '  "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",\n'
+        '  "hid": "hid:dns:generic.com#02",\n'
+        '  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",\n'
+        '  "changed": "2000-01-01T00:00:00+00:00",\n'
+        '  "data": {\n'
+        '    "keywords": [\n'
+        '      "Canon",\n'
+        '      "EOS Rebel T6",\n'
+        '      "251440"\n'
+        '    ],\n'
+        '    "message": "If found please return."\n'
+        '  }\n'
+        '}')
+
+    atsig = keyToKey64u(libnacl.crypto_sign(atser.encode("utf-8"), aSk)[:libnacl.crypto_sign_BYTES])
+    assert atsig == "RtlBu9sZgqhfc0QbGe7IHqwsHOARrGNjy4BKJG7gNfNP4GfKDQ8FGdjyv-EzN1OIHYlnMBFB2Kf05KZAj-g2Cg=="
+
+    # now accept offer with new thing resource using web service
+    headers = {"Content-Type": "text/html; charset=utf-8",
+               "Signature": 'signer="{}"'.format(atsig)}
+    body = atser  # client.post encodes the body
+    tDidUri = falcon.uri.encode_value(tDid)
+    rep = client.post('/thing/{}/accept?uid={}'.format(tDidUri, ouid),
+                      body=body,
+                      headers=headers)
+
+    assert rep.status == falcon.HTTP_201
+    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
+    location = falcon.uri.decode(rep.headers['location'])
+    assert location == "/thing/{}".format(tDid)
+    assert rep.json == tdat
+
+    # verify that its in database
+    vdat, vser, vsig = dbing.getSigned(tDid)
+
+    assert vdat == tdat
+    assert vser == atser
+    assert vsig == atsig
+
+    # now get it from web service
+    rep = client.get(rep.headers['location'])
+    assert rep.status == falcon.HTTP_OK
+    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
+    sigs = parseSignatureHeader(rep.headers['signature'])
+    ssig = sigs['signer']  # signature changes everytime because expiration changes
+
+    assert rep.json == tdat
+    assert rep.body == atser
+
+    assert verify64u(ssig, rep.body, keyToKey64u(aVk))
+
+    cleanupTmpBaseDir(dbEnv.path())
+    print("Done Test")

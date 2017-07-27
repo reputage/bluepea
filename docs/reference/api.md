@@ -1420,7 +1420,7 @@ An example is shown below
     "duration": 360.0,
     "expiration": "2017-07-25T18:33:57.424839+00:00",
     "signer" : "did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=#0",
-    "offerer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",
+    "offerer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#0",
     "offer": "ewogICJ1aWQiOiAib18wMDAzNWQyOTc2ZTZhMDAwXzI2YWNlOTMiLAogICJ0aGluZyI6ICJkaWQ6aWdvOjRKQ004ZEpXd19PNTd2TTRrQXRUdDB5V3FTZ0J1d2lIcFZnZDU1QmlvQ009IiwKICAiYXNwaXJhbnQiOiAiZGlkOmlnbzpRdDI3ZlRoV29OWnNhODhWclRrZXA2SC00SEE4dHI1NHNIT04xdldsNkZFPSIsCiAgImR1cmF0aW9uIjogMTIwLjAKfQ=="
 }
 ```

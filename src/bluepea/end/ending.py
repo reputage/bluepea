@@ -31,7 +31,8 @@ from ..help.helping import (parseSignatureHeader, verify64u, extractDidParts,
                             validateSignedResource, validateSignedAgentWrite,
                             validateSignedThingWrite,
                             validateMessageData, verifySignedMessageWrite,
-                            validateSignedOfferData, buildSignedServerOffer)
+                            validateSignedOfferData, buildSignedServerOffer,
+                            validateSignedThingTransfer, )
 from ..db import dbing
 from ..keep import keeping
 
@@ -678,7 +679,7 @@ class ThingDidResource:
 class ThingDidOfferResource:
     """
     Thing Did Offer Resource
-    Create proffer to transfer title to Thing at DID message
+    Create offer to transfer title to Thing at DID message
 
     /thing/{did}/offer
 
@@ -704,8 +705,14 @@ class ThingDidOfferResource:
         "offer": Base64serrequest
     }
 
+    The value of the did to offer expires entry
+    {
+        "offer": "{did}/offer/{ouid}",  # key of offer entry in core database
+        "expire": "2000-01-01T00:36:00+00:00", #  ISO-8601 expiration date of offer
+    }
+
     Database key is
-    did/offer/expire
+    did/offer/ouid
 
     Attributes:
         .store is reference to ioflo data store
@@ -854,6 +861,157 @@ class ThingDidOfferResource:
         rep.status = falcon.HTTP_200  # This is the default status
         rep.body = ser
 
+class ThingDidAcceptResource:
+    """
+    Thing Did Accept Resource
+    Accept roffer to transfer title to Thing at DID message
+
+    /thing/{did}/accept?uid=ouid
+
+    did is thing did
+
+    offer request fields
+    {
+        "uid": offeruniqueid,
+        "thing": thingDID,
+        "aspirant": AgentDID,
+        "duration": timeinsecondsofferisopen,
+    }
+
+    offer response fields
+    {
+        "uid": offeruniqueid,
+        "thing": thingDID,
+        "aspirant": AgentDID,
+        "duration": timeinsecondsofferisopen,
+        "expiration": datetimeofexpiration,
+        "signer": serverkeydid,
+        "offerer": ownerkeydid,
+        "offer": Base64serrequest
+    }
+
+    The value of the did to offer expires entry
+    {
+        "offer": "{did}/offer/{ouid}",  # key of offer entry in core database
+        "expire": "2000-01-01T00:36:00+00:00", #  ISO-8601 expiration date of offer
+    }
+
+
+    Database key is
+    did/offer/ouid
+
+
+    Attributes:
+        .store is reference to ioflo data store
+
+    """
+    def  __init__(self, store=None, **kwa):
+        """
+        Parameters:
+            store is reference to ioflo data store
+        """
+        super(**kwa)
+        self.store = store
+
+    def on_post(self, req, rep, did):
+        """
+        Handles POST requests
+
+        Post body is new Thing resource with new signer
+        """
+        ouid = req.get_param("uid") # returns url-decoded query parameter value
+
+        try:  # validate did
+            tkey = extractDidParts(did)
+        except ValueError as ex:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                           'Resource Verification Error',
+                                           'Invalid did. {}'.format(ex))
+
+        key = "{}/offer/{}".format(did, ouid)
+
+        # read offer from database
+        try:
+            odat, oser, osig = dbing.getSigned(key)
+        except dbing.DatabaseError as ex:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                            'Resource Verification Error',
+                            'Error verifying resource. {}'.format(ex))
+
+        dt = datetime.datetime.now(tz=datetime.timezone.utc)
+
+        # validate offer has not yet expired
+        odt = arrow.get(odat["expiration"])
+        if dt > odt:  # expired
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                           'Validation Error',
+                                        'Expired offer.')
+
+        # validate offer is latest
+        entries = dbing.getOfferExpires(did)
+        if entries:
+            entry = entries[-1]
+            edt = arrow.get(entry["expire"])
+            if odt != edt or entry['offer'] != key:  # not latest offer
+                raise falcon.HTTPError(falcon.HTTP_400,
+                                               'Validation Error',
+                                            'Not latest offer.')
+
+
+        adid = odat['aspirant']
+        try:  # validate validate aspirant did
+            akey = extractDidParts(adid)
+        except ValueError as ex:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                           'Resource Verification Error',
+                                           'Invalid did field. {}'.format(ex))
+
+        # read aspirant data resource from database
+        try:
+            adat, aser, asig = dbing.getSelfSigned(adid)
+        except dbing.DatabaseError as ex:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                            'Resource Verification Error',
+                            'Error verifying resource. {}'.format(ex))
+
+
+        signature = req.get_header("Signature")
+        sigs = parseSignatureHeader(signature)
+        sig = sigs.get('signer')  # str not bytes
+        if not sig:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                           'Validation Error',
+                                           'Invalid or missing Signature header.')
+
+        try:
+            serb = req.stream.read()  # bytes
+        except Exception:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                       'Read Error',
+                                       'Could not read the request body.')
+        ser = serb.decode("utf-8")
+
+        dat = validateSignedThingTransfer(adat=adat, tdid=did, sig=sig, ser=ser)
+        if not dat:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                               'Validation Error',
+                                           'Could not validate the request body.')
+
+        # write new thing resource to database
+        try:
+            dbing.putSigned(key=did, ser=ser, sig=sig, clobber=True)
+        except dbing.DatabaseError as ex:
+            raise falcon.HTTPError(falcon.HTTP_412,
+                                  'Database Error',
+                                  '{}'.format(ex.args[0]))
+
+
+
+        didUri = falcon.uri.encode_value(did)
+        rep.status = falcon.HTTP_201  # post response status with location header
+        rep.location = "{}/{}".format(THING_BASE_PATH, didUri)
+        rep.body = json.dumps(dat, indent=2)
+
 
 def loadEnds(app, store):
     """
@@ -881,3 +1039,6 @@ def loadEnds(app, store):
 
     thingOffer = ThingDidOfferResource(store=store)
     app.add_route('{}/{{did}}/offer'.format(THING_BASE_PATH), thingOffer)
+
+    thingAccept = ThingDidAcceptResource(store=store)
+    app.add_route('{}/{{did}}/accept'.format(THING_BASE_PATH), thingAccept)
