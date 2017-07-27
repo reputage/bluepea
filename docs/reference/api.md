@@ -119,8 +119,8 @@ Although all resource write requests are signed by the client and therefore can 
 
 The API consists of several ReST endpoints grouped according to the type of data resource that is being manipulated by the API. Each resource has HTTP verbs that do the manipulation.
 
-```http
-/server GET
+
+/server GET  [ServerAgentRead](#*Server* *Agent* Read)
 
 /agent  POST
 /agent?did={did} GET
@@ -136,8 +136,11 @@ The API consists of several ReST endpoints grouped according to the type of data
 /thing/{did}  GET
 /thing/{did}  PUT
 
+/thing/{did}/offer  POST
+/thing/{did}/offer?uid={ouid}  GET
 
-```
+/thing/{did}/accept?uid={ouid}  POST
+
 
 ## *Server* *Agent* Read 
 
