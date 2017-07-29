@@ -80,6 +80,7 @@ def setupDbEnv(baseDirPath=None):
     gDbEnv.open_db(b'hid2did')  # table of dids keyed by hids
     gDbEnv.open_db(b'did2offer', dupsort=True)  # table of offer expirations keyed by offer relative dids
     gDbEnv.open_db(b'track', dupsort=True)  # tracking messages
+    gDbEnv.open_db(b'expire2eid', dupsort=True)  # expiration to track
 
     # verify that the server resource is present in the database
     # need to read in saved server signing keys and query database
@@ -319,7 +320,6 @@ def exists(key, dbn='core', env=None, dup=False):
             return False
     return True
 
-
 def putDidOfferExpire(did, ouid, expire, dbn="did2offer", env=None):
     """
     Put entry into database table that maps offers to expiring offers expirations
@@ -388,7 +388,7 @@ def getOfferExpires(did, lastOnly=True, dbn='did2offer', env=None):
         raise DatabaseError("Database environment not set up")
 
     entries = []
-    subDb = gDbEnv.open_db(b"did2offer", dupsort=True)  # open named sub db named dbn within env
+    subDb = gDbEnv.open_db(dbn.encode("utf-8"), dupsort=True)  # open named sub db named dbn within env
     with gDbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
         cursor = txn.cursor()
         if cursor.set_key(did.encode("utf-8")):
@@ -399,5 +399,173 @@ def getOfferExpires(did, lastOnly=True, dbn='did2offer', env=None):
             else:
                 entries = [json.loads(value.decode("utf-8"), object_pairs_hook=ODict)
                            for value in cursor.iternext_dup()]
+
+    return entries
+
+
+def putTrack(key, data, dbn="track", env=None):
+    """
+    Put entry into database  for serialized track ser at key eid with duplicates
+
+    Database allows duplicates
+
+    where
+        key is ephemeral ID
+        data is track data
+
+    The key for the entry is just the eid
+
+    The value of the entry is serialized JSON
+    {
+        create: "2000-01-01T00:36:00+00:00", # ISO-8601 creation in server time
+        expire: "2000-01-01T12:36:00+00:00", # ISO-8601 expiration in server time
+        track:
+        {
+            eid: "abcdef01,  # lower case hex of eid
+            loc: "11112222", # lower case hex of location
+            dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of track gateway time
+        }
+    }
+    """
+    global gDbEnv
+
+    if env is None:
+        env = gDbEnv
+
+    if env is None:
+        raise DatabaseError("Database environment not set up")
+
+    ser = json.dumps(data, indent=2)
+
+    subDb = env.open_db(dbn.encode("utf-8"), dupsort=True)  # open named sub dbn within env
+    with env.begin(db=subDb, write=True) as txn:  # txn is a Transaction object
+        # if dupsort True means makes duplicates on writes to same key
+        result = txn.put(key.encode("utf-8"), ser.encode("utf-8"))  # keys and values are bytes
+        if result is None:  # error with put
+            raise DatabaseError("Could not write.")
+
+
+def getTracks(key, dbn='track', env=None):
+    """
+    Returns list earliest to latest with track entries at key eid
+    If none exist returns empty list
+
+    Each track entry is ODict
+    {
+        create: "2000-01-01T00:36:00+00:00", # ISO-8601 creation in server time
+        expire: "2000-01-01T12:36:00+00:00", # ISO-8601 expiration in server time
+        track:
+        {
+            eid: "abcdef01,  # lower case hex of eid
+            loc: "11112222", # lower case hex of location
+            dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of track gateway time
+        }
+    }
+
+
+    Parameters:
+        key is track eid
+        dbn is name str of named sub database, Default is 'track'
+        env is main LMDB database environment
+            If env is not provided then use global gDbEnv
+    """
+    global gDbEnv
+
+    if env is None:
+        env = gDbEnv
+
+    if env is None:
+        raise DatabaseError("Database environment not set up")
+
+    entries = []
+    subDb = gDbEnv.open_db(dbn.encode("utf-8"), dupsort=True)  # open named sub db named dbn within env
+    with gDbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
+        cursor = txn.cursor()
+        if cursor.set_key(key.encode("utf-8")):
+            entries = [json.loads(value.decode("utf-8"), object_pairs_hook=ODict)
+                           for value in cursor.iternext_dup()]
+
+    return entries
+
+def deleteTracks(key, dbn='track', env=None):
+    """
+    Deletes tracks at key eid
+
+    Parameters:
+        key is track eid
+        dbn is name str of named sub database, Default is 'track'
+        env is main LMDB database environment
+            If env is not provided then use global gDbEnv
+    """
+    global gDbEnv
+
+    if env is None:
+        env = gDbEnv
+
+    if env is None:
+        raise DatabaseError("Database environment not set up")
+
+    subDb = gDbEnv.open_db(dbn.encode("utf-8"), dupsort=True)  # open named sub db named dbn within env
+    with gDbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
+        result = txn.delete(key.encode("utf-8"))
+    return result
+
+
+def putExpireEid(expire, eid, dbn="expire2eid", env=None):
+    """
+    Put entry into database table that maps expiration to track
+
+    Database allows duplicates
+
+    where
+        expire is expiration datetime of track
+        eid is track ephemeral ID
+
+    The key for the entry is just the expiration datetime expire
+    The value is just the eid
+
+    """
+    global gDbEnv
+
+    if env is None:
+        env = gDbEnv
+
+    if env is None:
+        raise DatabaseError("Database environment not set up")
+
+    subDb = env.open_db(dbn.encode("utf-8"), dupsort=True)  # open named sub dbn within env
+    with env.begin(db=subDb, write=True) as txn:  # txn is a Transaction object
+        # if dupsort True means makes duplicates on writes to same key
+        result = txn.put(expire.encode("utf-8"), eid.encode("utf-8"))  # keys and values are bytes
+        if result is None:  # error with put
+            raise DatabaseError("Could not write.")
+
+def getExpireEid(key, dbn='expire2eid', env=None):
+    """
+    Returns list earliest to latest with eid entries at key expire
+    If none exist returns empty list
+
+    Each entry is eid
+
+    Parameters:
+        key is expire
+        dbn is name str of named sub database, Default is 'track'
+        env is main LMDB database environment
+            If env is not provided then use global gDbEnv
+    """
+    global gDbEnv
+
+    if env is None:
+        env = gDbEnv
+
+    if env is None:
+        raise DatabaseError("Database environment not set up")
+
+    entries = []
+    subDb = gDbEnv.open_db(dbn.encode("utf-8"), dupsort=True)  # open named sub db named dbn within env
+    with gDbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
+        cursor = txn.cursor()
+        if cursor.set_key(key.encode("utf-8")):
+            entries = [value for value in cursor.iternext_dup()]
 
     return entries

@@ -23,7 +23,7 @@ from ioflo.aid.sixing import *
 from ioflo.aid import getConsole
 from ioflo.aid import timing
 
-from ..bluepeaing import SEPARATOR
+from ..bluepeaing import SEPARATOR, TRACK_EXPIRATION_DELAY
 
 from ..help.helping import (parseSignatureHeader, verify64u, extractDidParts,
                             extractDatSignerParts, extractDidSignerParts,
@@ -41,6 +41,7 @@ console = getConsole()
 AGENT_BASE_PATH = "/agent"
 SERVER_BASE_PATH = "/server"
 THING_BASE_PATH = "/thing"
+TRACK_BASE_PATH = "/track"
 
 class ServerResource:
     """
@@ -1013,6 +1014,133 @@ class ThingDidAcceptResource:
         rep.body = json.dumps(dat, indent=2)
 
 
+class TrackResource:
+    """
+    Track Resource
+    Create and Read track messages
+    /track
+    /track?eid=abcdef12
+
+    Database key is
+    eid
+
+    {
+        create: serverdatetimecreatestamp,
+        expire: serverdatetimeexpirestamp
+        track:
+        {
+            eid: eid,
+            loc: xoredgatewaylocationstring,
+            dts: gatewaydatetimestamp,
+        }
+    }
+
+    date is iso8601 datetime stamp
+    eid is track ephemeral ID in hex lowercase
+    loc is location string in hex lowercase
+    dts is iso8601 datetime stamp
+
+    {
+        create: "2000-01-01T00:36:00+00:00", # ISO-8601 creation in server time
+        expire: "2000-01-01T12:36:00+00:00", # ISO-8601 expiration in server time
+        track:
+        {
+            eid: "abcdef01,  # lower case hex of eid
+            loc: "11112222", # lower case hex of location
+            dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of track gateway time
+        }
+    }
+
+    Attributes:
+        .store is reference to ioflo data store
+
+    """
+    def  __init__(self, store=None, **kwa):
+        """
+        Parameters:
+            store is reference to ioflo data store
+        """
+        super(**kwa)
+        self.store = store
+
+    def on_post(self, req, rep):
+        """
+        Handles POST requests
+
+        Post body is tracking message from Gateway
+        """
+        try:
+            serb = req.stream.read()  # bytes
+        except Exception:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                       'Read Error',
+                                       'Could not read the request body.')
+        ser = serb.decode("utf-8")
+
+        dat = validateTrack(ser=ser)
+        if not dat:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                               'Validation Error',
+                                           'Could not validate the request body.')
+
+        eid = dat['eid']
+        dt = datetime.datetime.now(tz=datetime.timezone.utc)
+        create = timing.iso8601(dt, aware=True)
+        td = datetime.timedelta(seconds=TRACK_EXPIRATION_DELAY)
+        expire = timing.iso8601(dt + td, aware=True)
+        sdat = ODict()
+        sdat["create"] = create
+        sdat["expire"] = expire
+        sdat["track"] = dat
+
+        # write new track data resource to database at eid
+        try:
+            dbing.putTrack(key=eid, data=sdat)
+        except dbing.DatabaseError as ex:
+            raise falcon.HTTPError(falcon.HTTP_412,
+                                  'Database Error',
+                                  '{}'.format(ex.args[0]))
+
+
+        # write new expiration of track eid to database
+        try:
+            dbing.putExpireEid(expire=expire, eid=eid)
+        except dbing.DatabaseError as ex:
+            raise falcon.HTTPError(falcon.HTTP_412,
+                                  'Database Error',
+                                  '{}'.format(ex.args[0]))
+
+
+        rep.status = falcon.HTTP_201  # post response status with location header
+        rep.location = "{}?eid={}".format(TRACK_BASE_PATH, eid)
+        rep.body = json.dumps(sdat, indent=2)
+
+    def on_get(self, req, rep):
+        """
+        Handles GET request for track resource
+        and eid in query params
+        """
+        eid = req.get_param("eid") # returns url-decoded query parameter value
+
+        # read all tracks from database
+        tracks = []
+        try:
+            tracks = dbing.getTracks(key=eid)
+        except dbing.DatabaseError as ex:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                            'Resource Error',
+                            'Resource malformed. {}'.format(ex))
+
+        if not tracks:
+            raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
+                                               'Not Found Error',
+                                               'Track does not exist')
+
+        rep.set_header("Content-Type", "application/json; charset=UTF-8")
+        rep.status = falcon.HTTP_200  # This is the default status
+        rep.body = json.dumps(tracks, indent=2)
+
+
 def loadEnds(app, store):
     """
     Load endpoints for app with store reference
@@ -1042,3 +1170,6 @@ def loadEnds(app, store):
 
     thingAccept = ThingDidAcceptResource(store=store)
     app.add_route('{}/{{did}}/accept'.format(THING_BASE_PATH), thingAccept)
+
+    track = TrackResource(store=store)
+    app.add_route('{}'.format(TRACK_BASE_PATH), track)

@@ -14,6 +14,7 @@ import binascii
 import base64
 import tempfile
 import datetime
+import binascii
 
 try:
     import simplejson as json
@@ -1106,6 +1107,66 @@ def validateSignedThingTransfer(adat, tdid, sig, ser, method="igo"):
 
         if not verify64u(sig, ser, nverkey):  # verify with new signer verify key
             return None  # signature fails
+
+    except Exception as ex:  # unknown problem
+        return None
+
+    return dat
+
+
+def validateTrack(ser):
+    """
+    Returns deserialized version of track ser if valid format
+    Otherwise returns None
+
+    ser is json encoded unicode string of gateway track message
+
+    {
+        eid: "abcdef01,  # lower case hex of eid
+        loc: "11112222", # lower case hex of location
+        dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of track gateway time
+    }
+
+    """
+    try:
+        # validate updated resource
+        try:
+            dat = json.loads(ser, object_pairs_hook=ODict)
+        except ValueError as ex:
+            return None  # invalid json
+
+        if not dat:  # registration must not be empty
+            return None
+
+        if not isinstance(dat, dict):  # must be dict subclass
+            return None
+
+        requireds = ("eid", "loc", "dts")
+        for field in requireds:
+            if field not in dat:
+                return None
+
+        if len(dat['eid']) != 8:
+            return None
+
+        try:  # verify hex formatted
+            eidb = binascii.unhexlify(dat['eid'])
+        except (binascii.Error, binascii.TypeError) as ex:
+            return None
+
+        dat['eid'] = dat['eid'].lower()
+
+        try:
+            dt = arrow.get(dat["dts"])
+        except arrow.parser.ParserError as ex:  # invalid datetime format
+            return None
+
+        try:  # verify hex formatted
+            locb = binascii.unhexlify(dat['loc'])
+        except (binascii.Error, binascii.TypeError) as ex:
+            return None
+
+        dat['loc'] = dat['loc'].lower()
 
     except Exception as ex:  # unknown problem
         return None
