@@ -410,7 +410,7 @@ def putTrack(key, data, dbn="track", env=None):
     Database allows duplicates
 
     where
-        key is ephemeral ID
+        key is ephemeral ID 16 byte hex
         data is track data
 
     The key for the entry is just the eid
@@ -443,6 +443,7 @@ def putTrack(key, data, dbn="track", env=None):
         result = txn.put(key.encode("utf-8"), ser.encode("utf-8"))  # keys and values are bytes
         if result is None:  # error with put
             raise DatabaseError("Could not write.")
+        return result
 
 
 def getTracks(key, dbn='track', env=None):
@@ -506,7 +507,7 @@ def deleteTracks(key, dbn='track', env=None):
         raise DatabaseError("Database environment not set up")
 
     subDb = gDbEnv.open_db(dbn.encode("utf-8"), dupsort=True)  # open named sub db named dbn within env
-    with gDbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
+    with gDbEnv.begin(db=subDb, write=True) as txn:  # txn is a Transaction object
         result = txn.delete(key.encode("utf-8"))
     return result
 
@@ -539,6 +540,7 @@ def putExpireEid(expire, eid, dbn="expire2eid", env=None):
         result = txn.put(expire.encode("utf-8"), eid.encode("utf-8"))  # keys and values are bytes
         if result is None:  # error with put
             raise DatabaseError("Could not write.")
+        return result
 
 def getExpireEid(key, dbn='expire2eid', env=None):
     """

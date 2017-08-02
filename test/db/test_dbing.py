@@ -430,3 +430,127 @@ def test_getOfferExpires():
 
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")
+
+def test_putGetDeleteTrack():
+    """
+    Test
+    putTrack(key, data, dbn="track", env=None)
+    getTracks(key, dbn='track', env=None)
+    deleteTracks(key, dbn='track', env=None)
+
+    where
+        key is ephemeral ID 16 byte hex
+        data is track data
+
+    The key for the entry is just the eid
+
+    The value of the entry is serialized JSON
+    {
+        create: "2000-01-01T00:36:00+00:00", # ISO-8601 creation in server time
+        expire: "2000-01-01T12:36:00+00:00", # ISO-8601 expiration in server time
+        track:
+        {
+            eid: "abcdef0123456789,  # lower case 16 char hex of 8 byte eid
+            loc: "1111222233334444", # lower case 16 char hex of 8 byte location
+            dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of track gateway time
+        }
+    }
+    """
+    print("Testing putTrack in DB Env")
+
+    dbEnv = dbing.setupTestDbEnv()
+
+    dt = datetime.datetime(2000, 1, 1, minute=30, tzinfo=datetime.timezone.utc)
+    #stamp = dt.timestamp()  # make time.time value
+    create = timing.iso8601(dt=dt, aware=True)
+    assert create == '2000-01-01T00:30:00+00:00'
+
+    td = datetime.timedelta(seconds=360)
+    expire = timing.iso8601(dt=dt+td, aware=True)
+    assert expire == '2000-01-01T00:36:00+00:00'
+
+    # local time
+    td = datetime.timedelta(seconds=5)
+    dts = timing.iso8601(dt=dt+td, aware=True)
+    assert dts == '2000-01-01T00:30:05+00:00'
+
+    eid = "010203040a0b0c0d"
+    loc = "1234567812345678"
+
+    track = ODict()
+    track['eid'] = eid
+    track['loc'] = loc
+    track['dts'] = dts
+
+    assert track == {
+        "eid": "010203040a0b0c0d",
+        "loc": "1234567812345678",
+        "dts": "2000-01-01T00:30:05+00:00",
+    }
+
+    data = ODict()
+    data['create'] = create
+    data['expire'] = expire
+    data['track'] = track
+
+    assert data == {
+        "create": "2000-01-01T00:30:00+00:00",
+        "expire": "2000-01-01T00:36:00+00:00",
+        "track":
+        {
+            "eid": "010203040a0b0c0d",
+            "loc": "1234567812345678",
+            "dts": "2000-01-01T00:30:05+00:00"
+        }
+    }
+
+    # write entry
+    result = dbing.putTrack(key=eid, data=data)
+    assert result
+
+    # read entries
+    entries = dbing.getTracks(key=eid)
+    assert len(entries) == 1
+    assert entries[0] == data
+
+    track2 = track.copy()
+    track2['loc'] = "98765432987865432"
+    data2 = ODict()
+    data2['create'] = create
+    data2['expire'] = expire
+    data2['track'] = track2
+
+    result = dbing.putTrack(key=eid, data=data2)
+    assert result
+
+    # read entries
+    entries = dbing.getTracks(key=eid)
+    assert len(entries) == 2
+    assert entries[0] == data
+    assert entries[1] == data2
+
+    eid2 = "1212121234343434"
+    track3 = track.copy()
+    track3["eid"] = eid2
+    data3 = ODict()
+    data2['create'] = create
+    data2['expire'] = expire
+    data2['track'] = track3
+
+    result = dbing.putTrack(key=eid2, data=data3)
+    assert result
+
+    # read entries
+    entries = dbing.getTracks(key=eid2)
+    assert len(entries) == 1
+    assert entries[0] == data3
+
+    # remove entries at eid
+    result = dbing.deleteTracks(key=eid)
+    assert result
+    # read deleted entries
+    entries = dbing.getTracks(key=eid)
+    assert not entries
+
+    cleanupTmpBaseDir(dbEnv.path())
+    print("Done Test")
