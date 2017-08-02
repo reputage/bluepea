@@ -512,14 +512,14 @@ def deleteTracks(key, dbn='track', env=None):
     return result
 
 
-def putExpireEid(expire, eid, dbn="expire2eid", env=None):
+def putExpireEid(key, eid, dbn="expire2eid", env=None):
     """
     Put entry into database table that maps expiration to track
 
     Database allows duplicates
 
     where
-        expire is expiration datetime of track
+        key is expiration datetime of track
         eid is track ephemeral ID
 
     The key for the entry is just the expiration datetime expire
@@ -537,7 +537,7 @@ def putExpireEid(expire, eid, dbn="expire2eid", env=None):
     subDb = env.open_db(dbn.encode("utf-8"), dupsort=True)  # open named sub dbn within env
     with env.begin(db=subDb, write=True) as txn:  # txn is a Transaction object
         # if dupsort True means makes duplicates on writes to same key
-        result = txn.put(expire.encode("utf-8"), eid.encode("utf-8"))  # keys and values are bytes
+        result = txn.put(key.encode("utf-8"), eid.encode("utf-8"))  # keys and values are bytes
         if result is None:  # error with put
             raise DatabaseError("Could not write.")
         return result
@@ -551,9 +551,7 @@ def getExpireEid(key, dbn='expire2eid', env=None):
 
     Parameters:
         key is expire
-        dbn is name str of named sub database, Default is 'track'
-        env is main LMDB database environment
-            If env is not provided then use global gDbEnv
+
     """
     global gDbEnv
 
@@ -568,6 +566,27 @@ def getExpireEid(key, dbn='expire2eid', env=None):
     with gDbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
         cursor = txn.cursor()
         if cursor.set_key(key.encode("utf-8")):
-            entries = [value for value in cursor.iternext_dup()]
+            entries = [value.decode("utf-8") for value in cursor.iternext_dup()]
 
     return entries
+
+def deleteExpireEid(key, dbn='expire2eid', env=None):
+    """
+    Deletes expire eid entries
+
+    Parameters:
+        key is expire date
+
+    """
+    global gDbEnv
+
+    if env is None:
+        env = gDbEnv
+
+    if env is None:
+        raise DatabaseError("Database environment not set up")
+
+    subDb = gDbEnv.open_db(dbn.encode("utf-8"), dupsort=True)  # open named sub db named dbn within env
+    with gDbEnv.begin(db=subDb, write=True) as txn:  # txn is a Transaction object
+        result = txn.delete(key.encode("utf-8"))
+    return result

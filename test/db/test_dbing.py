@@ -456,7 +456,7 @@ def test_putGetDeleteTrack():
         }
     }
     """
-    print("Testing putTrack in DB Env")
+    print("Testing put get delete Track in DB Env")
 
     dbEnv = dbing.setupTestDbEnv()
 
@@ -550,6 +550,77 @@ def test_putGetDeleteTrack():
     assert result
     # read deleted entries
     entries = dbing.getTracks(key=eid)
+    assert not entries
+
+    cleanupTmpBaseDir(dbEnv.path())
+    print("Done Test")
+
+
+def test_expireEid():
+    """
+    Test
+    putExpireEid(expire, eid, dbn="expire2eid", env=None)
+    getExpireEid(key, dbn='expire2eid', env=None)
+    deleteExpireEid(key, dbn='expire2eid', env=None)
+
+    where
+        key is is8601 datetime
+        data is track eid
+
+
+    """
+    print("Testing put get delete expire Eid in DB Env")
+
+    dbEnv = dbing.setupTestDbEnv()
+
+    dt = datetime.datetime(2000, 1, 3, minute=30, tzinfo=datetime.timezone.utc)
+    #stamp = dt.timestamp()  # make time.time value
+    expire = timing.iso8601(dt=dt, aware=True)
+    assert expire == '2000-01-03T00:30:00+00:00'
+
+    td = datetime.timedelta(seconds=360)
+    expire1 = timing.iso8601(dt=dt+td, aware=True)
+    assert expire1 == '2000-01-03T00:36:00+00:00'
+
+    eid = "010203040a0b0c0d"
+    eid1 = "1212121234343434"
+    eid2 = "2200000034343434"
+
+    # write entry
+    result = dbing.putExpireEid(key=expire, eid=eid)
+    assert result
+
+    # read entries
+    entries = dbing.getExpireEid(key=expire)
+    assert len(entries) == 1
+    assert entries[0] == eid
+
+    result = dbing.putExpireEid(key=expire, eid=eid1)
+    assert result
+
+    result = dbing.putExpireEid(key=expire, eid=eid2)
+    assert result
+
+    # read entries
+    entries = dbing.getExpireEid(key=expire)
+    assert len(entries) == 3
+    assert entries[0] == eid
+    assert entries[1] == eid1
+    assert entries[2] == eid2
+
+    # write entry
+    result = dbing.putExpireEid(key=expire1, eid=eid)
+    assert result
+
+    entries = dbing.getExpireEid(key=expire1)
+    assert len(entries) == 1
+    assert entries[0] == eid
+
+    # remove entries at expire
+    result = dbing.deleteExpireEid(key=expire)
+    assert result
+    # read deleted entries
+    entries = dbing.getExpireEid(key=expire)
     assert not entries
 
     cleanupTmpBaseDir(dbEnv.path())

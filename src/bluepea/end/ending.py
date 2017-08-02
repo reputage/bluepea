@@ -1104,7 +1104,7 @@ class TrackResource:
 
         # write new expiration of track eid to database
         try:
-            dbing.putExpireEid(expire=expire, eid=eid)
+            dbing.putExpireEid(key=expire, eid=eid)
         except dbing.DatabaseError as ex:
             raise falcon.HTTPError(falcon.HTTP_412,
                                   'Database Error',
