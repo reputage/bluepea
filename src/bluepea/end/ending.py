@@ -32,7 +32,7 @@ from ..help.helping import (parseSignatureHeader, verify64u, extractDidParts,
                             validateSignedThingWrite,
                             validateMessageData, verifySignedMessageWrite,
                             validateSignedOfferData, buildSignedServerOffer,
-                            validateSignedThingTransfer, )
+                            validateSignedThingTransfer, validateTrack)
 from ..db import dbing
 from ..keep import keeping
 
@@ -1040,13 +1040,14 @@ class TrackResource:
     loc is location string in hex lowercase
     dts is iso8601 datetime stamp
 
+    The value of the entry is serialized JSON
     {
         create: "2000-01-01T00:36:00+00:00", # ISO-8601 creation in server time
         expire: "2000-01-01T12:36:00+00:00", # ISO-8601 expiration in server time
         track:
         {
-            eid: "abcdef01,  # lower case hex of eid
-            loc: "11112222", # lower case hex of location
+            eid: "abcdef0123456789,  # lower case 16 char hex of 8 byte eid
+            loc: "1111222233334444", # lower case 16 char hex of 8 byte location
             dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of track gateway time
         }
     }
@@ -1068,6 +1069,13 @@ class TrackResource:
         Handles POST requests
 
         Post body is tracking message from Gateway
+
+        track:
+        {
+            eid: "abcdef0123456789,  # lower case 16 char hex of 8 byte eid
+            loc: "1111222233334444", # lower case 16 char hex of 8 byte location
+            dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of track gateway time
+        }
         """
         try:
             serb = req.stream.read()  # bytes

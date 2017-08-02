@@ -1146,7 +1146,7 @@ def validateTrack(ser):
             if field not in dat:
                 return None
 
-        if len(dat['eid']) != 8:
+        if len(dat['eid']) != 16:
             return None
 
         try:  # verify hex formatted

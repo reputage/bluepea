@@ -2019,3 +2019,93 @@ def test_post_ThingDidAccept(client):  # client is a fixture in pytest_falcon
 
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")
+
+
+def test_post_Track(client):  # client is a fixture in pytest_falcon
+    """
+    Test POST  to thing/did/accept with parameter offer uid.
+
+    date is iso8601 datetime stamp
+    eid is track ephemeral ID in hex lowercase
+    loc is location string in hex lowercase
+    dts is iso8601 datetime stamp
+
+    The value of the entry is serialized JSON
+    {
+        create: "2000-01-01T00:36:00+00:00", # ISO-8601 creation in server time
+        expire: "2000-01-01T12:36:00+00:00", # ISO-8601 expiration in server time
+        track:
+        {
+            eid: "abcdef0123456789,  # lower case 16 char hex of 8 byte eid
+            loc: "1111222233334444", # lower case 16 char hex of 8 byte location
+            dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of track gateway time
+        }
+    }
+    """
+    print("Testing POST /thing/{did}/accept?uid={ouid}")
+
+    priming.setupTest()
+    dbEnv = dbing.gDbEnv
+
+    dt = datetime.datetime(2000, 1, 1, minute=30, tzinfo=datetime.timezone.utc)
+    #stamp = dt.timestamp()  # make time.time value
+
+    # local time
+    td = datetime.timedelta(seconds=5)
+    dts = timing.iso8601(dt=dt+td, aware=True)
+    assert dts == '2000-01-01T00:30:05+00:00'
+
+    eid = "010203040a0b0c0d"
+    loc = "1234567812345678"
+
+    track = ODict()
+    track['eid'] = eid
+    track['loc'] = loc
+    track['dts'] = dts
+
+    assert track == {
+        "eid": "010203040a0b0c0d",
+        "loc": "1234567812345678",
+        "dts": "2000-01-01T00:30:05+00:00",
+    }
+
+    tser = json.dumps(track, indent=2)
+
+    # now post track
+    headers = {"Content-Type": "text/html; charset=utf-8"}
+    body = tser  # client.post encodes the body
+    rep = client.post('/track',
+                      body=body,
+                      headers=headers)
+
+    assert rep.status == falcon.HTTP_201
+    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
+    location = falcon.uri.decode(rep.headers['location'])
+    assert location == "/track?eid={}".format(eid)
+    data = rep.json
+    assert data['track'] == track
+
+    create = rep.json['create']
+    expire = rep.json['expire']
+    cdt = arrow.get(create)
+    edt = arrow.get(expire)
+    assert edt > cdt
+
+
+    # verify that track is in database
+    entries = dbing.getTracks(eid)
+    assert entries[0] == data
+
+    #verify expiration in its database
+    entries = dbing.getExpireEid(expire)
+    assert entries[0] == eid
+
+    # now get it from web service
+    rep = client.get(rep.headers['location'])
+    assert rep.status == falcon.HTTP_OK
+    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
+
+    assert rep.json[0] == data
+
+    cleanupTmpBaseDir(dbEnv.path())
+    print("Done Test")

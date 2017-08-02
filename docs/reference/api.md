@@ -124,31 +124,31 @@ The API consists of several ReST endpoints grouped according to the type of data
 /agent  POST   [api](#agent-creation)             
 /agent?did={did} GET
 
-/agent/{did}  GET
-
+/agent/{did}  GET  
 /agent/{did}  PUT
 
-/agent/{did}
+
+/thing  POST  
+/thing?did={did} GET  
+
+/thing/{did}  GET  
+/thing/{did}  PUT  
 
 
-/thing  POST
-
-/thing?did={did} GET
-
-/thing/{did}  GET
-/thing/{did}  PUT
+/agent/{did}/drop  POST  
+/agent/{did}/drop?from={did}&uid={muid}  GET  
 
 
-
-/agent/{did}/drop  POST
-/agent/{did}/drop?from={did}&uid={muid}  GET
-
-
-
-/thing/{did}/offer  POST
-/thing/{did}/offer?uid={ouid}  GET
+/thing/{did}/offer  POST  
+/thing/{did}/offer?uid={ouid}  GET  
 
 /thing/{did}/accept?uid={ouid}  POST
+
+
+/track  POST  
+/track?eid={eid}  GET  
+
+
 
 
 ## *Server* *Agent* Read
@@ -1611,4 +1611,111 @@ Date: Thu, 27 Jul 2017 22:16:15 GMT
     "message": "If found please return."
   }
 }
+```
+
+## Track Creation
+
+The tracking service stores location beacon data that is augmented with the gateway location that received the beacon. The beacon data or track includes an ephemerial ID (EID). This EID is generated using a shared cryptographic key and is an encrypted version of the date time of when the beacon was sent.  The beacon generates a 16 byte EID. The tracking service uses the upper 8 bytes as the EID or key to store the track and the lower 8 bytes to XOR with the location in order to encrypt or obscure the location.  With a synchronized clock and a copy of the shared key, a user can estimate the EID at any point in time in the future. The client application can then request track data by EID and if found retreive the location of the gateway as well as a datetime stamp.
+
+
+The request is made by sending an HTTP POST to ```/track```. The EID in the request body is the hex encoded version of the EID. Hex encoding doubles that length. So an 8 byte binary EID becomes a 16 char hex string. Likewise for the location. There are three fields in the data: "*eid*", "*loc*", and "*dts*". The *dts* field is the iso8601 datetime stamp of the gateway at the time it received the beacon and assigned the location into the *loc* field.
+
+A successful request results in a response with track data stored in the database. The response data includes the track data from the request in the *track* field as well as the datetime (in iso8601 format) on the server when the data was stored in the database in field *create* and the datetime when the data becomes stale and will be deleted from the database in field *expire*. The value of the *location* header in the response is the URL to access the track data resource via a GET request. This *location* value has already been URL encoded.
+
+A successful request will return status code 201
+An unsuccessful request will return status code 400.
+
+Example requests and responses are shown below.
+
+#### Request
+
+```http
+POST /track HTTP/1.1
+Content-Type: application/json; charset=UTF-8
+Host: localhost:8080
+Connection: close
+User-Agent: Paw/3.1.2 (Macintosh; OS X/10.12.6) GCDHTTPRequest
+Content-Length: 98
+
+{
+  "eid": "010203040a0b0c0d",
+  "loc": "1234567812345678",
+  "dts": "2000-01-01T00:30:05+00:00"
+}
+```
+
+#### Response
+
+```http
+HTTP/1.1 201 Created
+Location: /track?eid=010203040a0b0c0d
+Content-Length: 217
+Content-Type: application/json; charset=UTF-8
+Server: Ioflo WSGI Server
+Date: Wed, 02 Aug 2017 21:10:33 GMT
+
+{
+  "create": "2017-08-02T21:10:33.335595+00:00",
+  "expire": "2017-08-03T09:10:33.335595+00:00",
+  "track": {
+    "eid": "010203040a0b0c0d",
+    "loc": "1234567812345678",
+    "dts": "2000-01-01T00:30:05+00:00"
+  }
+}
+```
+
+## Track Read
+
+The tracking service stores location beacon data that is augmented with the gateway location that received the beacon. The beacon data or track includes an ephemerial ID (EID). This EID is generated using a shared cryptographic key and is an encrypted version of the date time of when the beacon was sent.  The beacon generates a 16 byte EID. The tracking service uses the upper 8 bytes as the EID or key to store the track and the lower 8 bytes to XOR with the location in order to encrypt or obscure the location.  With a synchronized clock and a copy of the shared key, a user can estimate the EID at any point in time in the future. The client application can then request track data by EID and if found retreive the location of the gateway as well as a datetime stamp.
+
+
+The read request is made by sending an HTTP GET to ```/track?eid={eid}```. The EID in the request query parameter is the hex encoded version of the EID. Hex encoding doubles that length. So an 8 byte binary EID becomes a 16 char hex string. 
+
+A successful request results in the response a JSON encoded list with all the track data for a given EID stored in the database. A single EID may have more than one track associated with it. Each item in the response data includes the track data from the request in the *track* field as well as the datetime (in iso8601 format) on the server when the data was stored in the database in field *create* and the datetime when the data becomes stale and will be deleted from the database in field *expire*. 
+
+A successful request will return status code 200
+An unsuccessful request will return an error code.
+
+Example requests and responses are shown below.
+
+#### Request
+
+```http
+GET /track?eid=010203040a0b0c0d HTTP/1.1
+Content-Type: application/json; charset=UTF-8
+Host: localhost:8080
+Connection: close
+User-Agent: Paw/3.1.2 (Macintosh; OS X/10.12.6) GCDHTTPRequest
+```
+
+#### Response
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=UTF-8
+Content-Length: 476
+Server: Ioflo WSGI Server
+Date: Wed, 02 Aug 2017 21:39:34 GMT
+
+[
+  {
+    "create": "2017-08-02T21:10:33.335595+00:00",
+    "expire": "2017-08-03T09:10:33.335595+00:00",
+    "track": {
+      "eid": "010203040a0b0c0d",
+      "loc": "1234567812345678",
+      "dts": "2000-01-01T00:30:05+00:00"
+    }
+  },
+  {
+    "create": "2017-08-02T21:39:29.382982+00:00",
+    "expire": "2017-08-03T09:39:29.382982+00:00",
+    "track": {
+      "eid": "010203040a0b0c0d",
+      "loc": "1234567812345678",
+      "dts": "2000-01-01T00:30:05+00:00"
+    }
+  }
+]
 ```
