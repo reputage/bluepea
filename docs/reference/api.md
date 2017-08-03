@@ -1619,8 +1619,32 @@ The tracking service stores location beacon data that is augmented with the gate
 
 
 The request is made by sending an HTTP POST to ```/track```. The EID in the request body is the hex encoded version of the EID. Hex encoding doubles that length. So an 8 byte binary EID becomes a 16 char hex string. Likewise for the location. There are three fields in the data: "*eid*", "*loc*", and "*dts*". The *dts* field is the iso8601 datetime stamp of the gateway at the time it received the beacon and assigned the location into the *loc* field.
+An example is shown below:
 
-A successful request results in a response with track data stored in the database. The response data includes the track data from the request in the *track* field as well as the datetime (in iso8601 format) on the server when the data was stored in the database in field *create* and the datetime when the data becomes stale and will be deleted from the database in field *expire*. The value of the *location* header in the response is the URL to access the track data resource via a GET request. This *location* value has already been URL encoded.
+```json
+{
+  eid: "abcdef0123456789,  # lower case 16 char hex of 8 byte eid
+  loc: "1111222233334444", # lower case 16 char hex of 8 byte location
+  dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of track gateway time
+}
+```
+
+A successful request results in a response with track data stored in the database. The response data includes the track data from the request in the *track* field as well as a timestamp in field *create* in server time when the data was stored in the database  and a timestamp in field *expire* in server time when the data becomes stale and will be deleted from the database. The timestamps are in microseconds since the Unix epoch. An example of the data stored in the database is as follows:
+
+```json
+{
+  "create": 1501777700028947,
+  "expire": 1501820900028947,
+  "track": {
+    "eid": "010203040a0b0c0d",
+    "loc": "1234567812345678",
+    "dts": "2000-01-01T00:30:05+00:00"
+  }
+}
+```
+
+
+The value of the *location* header in the response is the URL to access the track data resource via a GET request. This *location* value has already been URL encoded.
 
 A successful request will return status code 201
 An unsuccessful request will return status code 400.
@@ -1649,14 +1673,14 @@ Content-Length: 98
 ```http
 HTTP/1.1 201 Created
 Location: /track?eid=010203040a0b0c0d
-Content-Length: 217
+Content-Length: 181
 Content-Type: application/json; charset=UTF-8
 Server: Ioflo WSGI Server
-Date: Wed, 02 Aug 2017 21:10:33 GMT
+Date: Thu, 03 Aug 2017 16:28:20 GMT
 
 {
-  "create": "2017-08-02T21:10:33.335595+00:00",
-  "expire": "2017-08-03T09:10:33.335595+00:00",
+  "create": 1501777700028947,
+  "expire": 1501820900028947,
   "track": {
     "eid": "010203040a0b0c0d",
     "loc": "1234567812345678",
@@ -1694,14 +1718,14 @@ User-Agent: Paw/3.1.2 (Macintosh; OS X/10.12.6) GCDHTTPRequest
 ```http
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-Content-Length: 476
+Content-Length: 404
 Server: Ioflo WSGI Server
-Date: Wed, 02 Aug 2017 21:39:34 GMT
+Date: Thu, 03 Aug 2017 16:48:39 GMT
 
 [
   {
-    "create": "2017-08-02T21:10:33.335595+00:00",
-    "expire": "2017-08-03T09:10:33.335595+00:00",
+    "create": 1501777700028947,
+    "expire": 1501820900028947,
     "track": {
       "eid": "010203040a0b0c0d",
       "loc": "1234567812345678",
@@ -1709,8 +1733,8 @@ Date: Wed, 02 Aug 2017 21:39:34 GMT
     }
   },
   {
-    "create": "2017-08-02T21:39:29.382982+00:00",
-    "expire": "2017-08-03T09:39:29.382982+00:00",
+    "create": 1501778915817343,
+    "expire": 1501822115817343,
     "track": {
       "eid": "010203040a0b0c0d",
       "loc": "1234567812345678",
