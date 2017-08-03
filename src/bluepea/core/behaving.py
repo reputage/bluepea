@@ -58,14 +58,14 @@ def bluepeaTrackStaleClear(self, **kwa):
         stamp = int(dt.timestamp() * 1000000)
         date = timing.iso8601(dt, aware=True)
 
-        console.concise("Clearing Stale Tracks at '{}'\n".format(date))
+        console.verbose("Clearing Stale Tracks at '{}'\n".format(date))
         try:
             result = dbing.clearStaleTracks(key=stamp)
         except dbing.DatabaseError as ex:
             console.terse("Error clearing stale tracks. {}".format(ex))
 
         if result:
-            console.concise("Cleared Stale Tracks at '{}'\n".format(date))
+            console.verbose("Cleared Stale Tracks at '{}'\n".format(date))
 
 
 
