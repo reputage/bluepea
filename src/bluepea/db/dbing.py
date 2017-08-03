@@ -598,45 +598,6 @@ def deleteExpireEid(key, dbn='expire2eid', env=None):
         result = txn.delete(keyb)
     return result
 
-def deleteAllExpired(key, tdbn='track', edbn='expire2eid', env=None):
-    """
-    Returns list of expired eids  and
-    deletes all expired entries  at or before expire datetime provided by key
-
-
-    Parameters:
-        key is expire
-
-    """
-    global gDbEnv
-
-    if env is None:
-        env = gDbEnv
-
-    if env is None:
-        raise DatabaseError("Database environment not set up")
-
-
-    entries = []
-    keyb = key.to_bytes(8, "big")
-    # open named sub db named dbn within env
-    subDb = gDbEnv.open_db(edbn.encode("utf-8"), dupsort=True)
-    with gDbEnv.begin(db=subDb, write=True) as txn:  # txn is a Transaction object
-        cursor = txn.cursor()
-        if cursor.set_range(keyb):
-            if cursor.key() == keyb:  # current is expired
-                cursor.last_dup()  # move to last dup
-                entries.append(cursor.value())
-                result = cursor.delete(dupdata=false) # delete one dup only
-                if not result:
-                    raise DatabaseError("Problem deleting entry")
-
-            while cursor.prev():  # move to prev item if any
-                entries.append(cursor.value())
-                result = cursor.delete(dupdata=False) # delete one dup only
-                if not result:
-                    raise DatabaseError("Problem deleting entry")
-
 def popExpired(key, dbn='expire2eid', env=None):
     """
     Returns list of expired eids and then deletes them for earliest entry
@@ -675,3 +636,36 @@ def popExpired(key, dbn='expire2eid', env=None):
                         raise DatabaseError("Problem deleting entry")
 
     return entries
+
+
+def clearStaleTracks(key, tdbn='track', edbn='expire2eid', env=None):
+    """
+    Clears expired tracks at or earlier to timestamp key
+    and their entries in the track and expire2eid databases
+
+    Returns True if successfully cleared at least one stale track
+
+    Parameters:
+        key is expire timestamp in microseconds since epoch
+
+    """
+    global gDbEnv
+
+    if env is None:
+        env = gDbEnv
+
+    if env is None:
+        raise DatabaseError("Database environment not set up")
+
+    success = False
+    while True:
+        entries = popExpired(key=key, dbn=edbn, env=env)
+        if not entries:
+            break
+
+        for entry in entries:
+            result = deleteTracks(key=entry, dbn=tdbn, env=env)
+            if result:
+                success = True
+
+    return success

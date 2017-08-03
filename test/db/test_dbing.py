@@ -642,8 +642,6 @@ def test_popExpired():
     where
         key is timestamp in int microseconds since epoch
 
-
-
     """
     print("Testing put get delete expire Eid in DB Env")
 
@@ -653,7 +651,6 @@ def test_popExpired():
     expire0 = int(dt.timestamp() * 1000000)
     assert expire0 == 946859400000000
 
-    td = datetime.timedelta(seconds=360)
     expire1 = expire0 + int(360 * 1000000)
     assert expire1 == 946859760000000
 
@@ -716,6 +713,109 @@ def test_popExpired():
     entries = dbing.getExpireEid(key=expire1)
     assert not entries
 
+    cleanupTmpBaseDir(dbEnv.path())
+    print("Done Test")
+
+
+def test_clearStaleTracks():
+    """
+    Test
+    clearStaleTracks(key, tdbn='track', edbn='expire2eid', env=None)
+
+    where
+        key is timestamp in int microseconds since epoch
+
+    """
+    print("Testing put get delete expire Eid in DB Env")
+
+    dbEnv = dbing.setupTestDbEnv()
+
+    dt = datetime.datetime(2000, 1, 3, minute=30, tzinfo=datetime.timezone.utc)
+
+    # local time
+    td = datetime.timedelta(seconds=5)
+    dts = timing.iso8601(dt=dt+td, aware=True)
+    assert dts == '2000-01-03T00:30:05+00:00'
+    loc = "1234567812345678"
+
+    create0 = int(dt.timestamp() * 1000000)
+    expire0 = create0 + int(360 * 1000000)
+
+    create1 = create0 + int(10 * 1000000)
+    expire1 = create1 + int(360 * 1000000)
+
+    eids0 = ["0000000000000099", "1100000000000099", "2200000000000099"]
+    for eid in eids0:
+        track = ODict()
+        track['eid'] = eid
+        track['loc'] = loc
+        track['dts'] = dts
+
+        data = ODict()
+        data['create'] = create0
+        data['expire'] = expire0
+        data['track'] = track
+
+        # write entry
+        result = dbing.putTrack(key=eid, data=data)
+        assert result
+        result = dbing.putExpireEid(key=expire0, eid=eid)
+        assert result
+
+    # read entries
+    for eid in eids0:
+        entries = dbing.getTracks(key=eid)
+        assert entries
+
+    entries = dbing.getExpireEid(key=expire0)
+    assert len(entries) == 3
+
+
+    eids1 = ["3300000000000099", "4400000000000099", "5500000000000099"]
+    for eid in eids1:
+        track = ODict()
+        track['eid'] = eid
+        track['loc'] = loc
+        track['dts'] = dts
+
+        data = ODict()
+        data['create'] = create1
+        data['expire'] = expire1
+        data['track'] = track
+
+        # write entry
+        result = dbing.putTrack(key=eid, data=data)
+        assert result
+        result = dbing.putExpireEid(key=expire1, eid=eid)
+        assert result
+
+    # read entries
+    for eid in eids1:
+        entries = dbing.getTracks(key=eid)
+        assert entries
+
+    entries = dbing.getExpireEid(key=expire0)
+    assert len(entries) == 3
+
+    expire = expire0 - 1  # none expired
+    result = dbing.clearStaleTracks(key=expire)
+    assert not result
+
+    expire = expire1  # all expired
+    result = dbing.clearStaleTracks(key=expire)
+    assert result
+
+    # verify databases are empty
+    eids = eids0 + eids1
+    for eid in eids:
+        entries = dbing.getTracks(key=eid)
+        assert not entries
+
+    expires = [expire0, expire1]
+    for expire in expires:
+        entries = dbing.getExpireEid(key=expire)
+        assert not entries
 
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")
+
