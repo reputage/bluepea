@@ -11,7 +11,7 @@ SEPARATOR_BYTES = SEPARATOR.encode("utf-8")
 
 PROPAGATION_DELAY = 60.0  # network propagation time for consensus
 
-TRACK_EXPIRATION_DELAY = 60.0 * 60.0 * 12  # 12 hours in units of seconds
+TRACK_EXPIRATION_DELAY = 60 * 60 * 12  # 12 hours in units of seconds
 
 class BluepeaError(Exception):
     """

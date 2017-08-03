@@ -1031,19 +1031,18 @@ class TrackResource:
         {
             eid: eid,
             loc: xoredgatewaylocationstring,
-            dts: gatewaydatetimestamp,
+            dts: gatewaydatetime,
         }
     }
 
-    date is iso8601 datetime stamp
     eid is track ephemeral ID in hex lowercase
     loc is location string in hex lowercase
     dts is iso8601 datetime stamp
 
     The value of the entry is serialized JSON
     {
-        create: "2000-01-01T00:36:00+00:00", # ISO-8601 creation in server time
-        expire: "2000-01-01T12:36:00+00:00", # ISO-8601 expiration in server time
+        create: 1501774813367861, # creation in server time microseconds since epoch
+        expire: 1501818013367861, # expiration in server time microseconds since epoch
         track:
         {
             eid: "abcdef0123456789,  # lower case 16 char hex of 8 byte eid
@@ -1093,9 +1092,8 @@ class TrackResource:
 
         eid = dat['eid']
         dt = datetime.datetime.now(tz=datetime.timezone.utc)
-        create = timing.iso8601(dt, aware=True)
-        td = datetime.timedelta(seconds=TRACK_EXPIRATION_DELAY)
-        expire = timing.iso8601(dt + td, aware=True)
+        create = int(dt.timestamp() * 1000000)  # timestamp in microseconds since epoch
+        expire = create + int(TRACK_EXPIRATION_DELAY * 1000000)
         sdat = ODict()
         sdat["create"] = create
         sdat["expire"] = expire

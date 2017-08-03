@@ -56,7 +56,7 @@ def bluepeaServerOpen(self, buffer=False, **kwa):
     Ioinit attributes
         valet is Valet instance (wsgi server)
         mock is Flag if True load mock service endpoints
-        test if Flag if True load test endpoints
+        test is Flag if True load test endpoints and test database
 
     Parameters:
         buffer is boolean If True then create wire log buffer for Valet

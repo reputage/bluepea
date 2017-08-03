@@ -2025,15 +2025,14 @@ def test_post_Track(client):  # client is a fixture in pytest_falcon
     """
     Test POST  to thing/did/accept with parameter offer uid.
 
-    date is iso8601 datetime stamp
     eid is track ephemeral ID in hex lowercase
     loc is location string in hex lowercase
     dts is iso8601 datetime stamp
 
     The value of the entry is serialized JSON
     {
-        create: "2000-01-01T00:36:00+00:00", # ISO-8601 creation in server time
-        expire: "2000-01-01T12:36:00+00:00", # ISO-8601 expiration in server time
+        create: 1501774813367861, # creation in server time microseconds since epoch
+        expire: 1501818013367861, # expiration in server time microseconds since epoch
         track:
         {
             eid: "abcdef0123456789,  # lower case 16 char hex of 8 byte eid
@@ -2087,9 +2086,7 @@ def test_post_Track(client):  # client is a fixture in pytest_falcon
 
     create = rep.json['create']
     expire = rep.json['expire']
-    cdt = arrow.get(create)
-    edt = arrow.get(expire)
-    assert edt > cdt
+    assert expire > create
 
 
     # verify that track is in database

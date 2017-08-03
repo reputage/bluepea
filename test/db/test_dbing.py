@@ -444,10 +444,9 @@ def test_putGetDeleteTrack():
 
     The key for the entry is just the eid
 
-    The value of the entry is serialized JSON
     {
-        create: "2000-01-01T00:36:00+00:00", # ISO-8601 creation in server time
-        expire: "2000-01-01T12:36:00+00:00", # ISO-8601 expiration in server time
+        create: 1501774813367861, # creation in server time microseconds since epoch
+        expire: 1501818013367861, # expiration in server time microseconds since epoch
         track:
         {
             eid: "abcdef0123456789,  # lower case 16 char hex of 8 byte eid
@@ -455,6 +454,11 @@ def test_putGetDeleteTrack():
             dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of track gateway time
         }
     }
+
+    eid is track ephemeral ID in hex lowercase
+    loc is location string in hex lowercase
+    dts is iso8601 datetime stamp
+
     """
     print("Testing put get delete Track in DB Env")
 
@@ -462,12 +466,16 @@ def test_putGetDeleteTrack():
 
     dt = datetime.datetime(2000, 1, 1, minute=30, tzinfo=datetime.timezone.utc)
     #stamp = dt.timestamp()  # make time.time value
-    create = timing.iso8601(dt=dt, aware=True)
-    assert create == '2000-01-01T00:30:00+00:00'
+    #create = timing.iso8601(dt=dt, aware=True)
+    #assert create == '2000-01-01T00:30:00+00:00'
+    create = int(dt.timestamp() * 1000000)
+    assert create == 946686600000000
 
-    td = datetime.timedelta(seconds=360)
-    expire = timing.iso8601(dt=dt+td, aware=True)
-    assert expire == '2000-01-01T00:36:00+00:00'
+    #td = datetime.timedelta(seconds=360)
+    #expire = timing.iso8601(dt=dt+td, aware=True)
+    #assert expire == '2000-01-01T00:36:00+00:00'
+    expire = create + (360 * 1000000)
+    assert expire == 946686960000000
 
     # local time
     td = datetime.timedelta(seconds=5)
@@ -494,8 +502,8 @@ def test_putGetDeleteTrack():
     data['track'] = track
 
     assert data == {
-        "create": "2000-01-01T00:30:00+00:00",
-        "expire": "2000-01-01T00:36:00+00:00",
+        "create": 946686600000000,
+        "expire": 946686960000000,
         "track":
         {
             "eid": "010203040a0b0c0d",
@@ -575,12 +583,16 @@ def test_expireEid():
 
     dt = datetime.datetime(2000, 1, 3, minute=30, tzinfo=datetime.timezone.utc)
     #stamp = dt.timestamp()  # make time.time value
-    expire = timing.iso8601(dt=dt, aware=True)
-    assert expire == '2000-01-03T00:30:00+00:00'
+    #expire = timing.iso8601(dt=dt, aware=True)
+    #assert expire == '2000-01-03T00:30:00+00:00'
+    expire = int(dt.timestamp() * 1000000)
+    assert expire == 946859400000000
 
     td = datetime.timedelta(seconds=360)
-    expire1 = timing.iso8601(dt=dt+td, aware=True)
-    assert expire1 == '2000-01-03T00:36:00+00:00'
+    #expire1 = timing.iso8601(dt=dt+td, aware=True)
+    #assert expire1 == '2000-01-03T00:36:00+00:00'
+    expire1 = expire + int(360 * 1000000)
+    assert expire1 == 946859760000000
 
     eid = "010203040a0b0c0d"
     eid1 = "1212121234343434"

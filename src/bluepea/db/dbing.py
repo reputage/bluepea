@@ -16,6 +16,7 @@ except ImportError:
 
 
 import lmdb
+import arrow
 
 from ioflo.aid.sixing import *
 from ioflo.aid import getConsole
@@ -519,7 +520,7 @@ def putExpireEid(key, eid, dbn="expire2eid", env=None):
     Database allows duplicates
 
     where
-        key is expiration datetime of track
+        key is expiration datetime of track int
         eid is track ephemeral ID
 
     The key for the entry is just the expiration datetime expire
@@ -534,10 +535,12 @@ def putExpireEid(key, eid, dbn="expire2eid", env=None):
     if env is None:
         raise DatabaseError("Database environment not set up")
 
-    subDb = env.open_db(dbn.encode("utf-8"), dupsort=True)  # open named sub dbn within env
+    keyb = key.to_bytes(8, "big")
+    # open named sub dbn within env
+    subDb = env.open_db(dbn.encode("utf-8"), dupsort=True)
     with env.begin(db=subDb, write=True) as txn:  # txn is a Transaction object
         # if dupsort True means makes duplicates on writes to same key
-        result = txn.put(key.encode("utf-8"), eid.encode("utf-8"))  # keys and values are bytes
+        result = txn.put(keyb, eid.encode("utf-8"))  # keys and values are bytes
         if result is None:  # error with put
             raise DatabaseError("Could not write.")
         return result
@@ -550,7 +553,7 @@ def getExpireEid(key, dbn='expire2eid', env=None):
     Each entry is eid
 
     Parameters:
-        key is expire
+        key is expire int
 
     """
     global gDbEnv
@@ -562,10 +565,12 @@ def getExpireEid(key, dbn='expire2eid', env=None):
         raise DatabaseError("Database environment not set up")
 
     entries = []
-    subDb = gDbEnv.open_db(dbn.encode("utf-8"), dupsort=True)  # open named sub db named dbn within env
+    keyb = key.to_bytes(8, "big")
+    # open named sub db named dbn within env
+    subDb = gDbEnv.open_db(dbn.encode("utf-8"), dupsort=True)
     with gDbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
         cursor = txn.cursor()
-        if cursor.set_key(key.encode("utf-8")):
+        if cursor.set_key(keyb):
             entries = [value.decode("utf-8") for value in cursor.iternext_dup()]
 
     return entries
@@ -586,7 +591,92 @@ def deleteExpireEid(key, dbn='expire2eid', env=None):
     if env is None:
         raise DatabaseError("Database environment not set up")
 
-    subDb = gDbEnv.open_db(dbn.encode("utf-8"), dupsort=True)  # open named sub db named dbn within env
+    keyb = key.to_bytes(8, "big")
+    # open named sub db named dbn within env
+    subDb = gDbEnv.open_db(dbn.encode("utf-8"), dupsort=True)
     with gDbEnv.begin(db=subDb, write=True) as txn:  # txn is a Transaction object
-        result = txn.delete(key.encode("utf-8"))
+        result = txn.delete(keyb)
     return result
+
+def deleteAllExpired(key, tdbn='track', edbn='expire2eid', env=None):
+    """
+    Returns list of expired eids  and
+    deletes all expired entries  at or before expire datetime provided by key
+
+
+    Parameters:
+        key is expire
+
+    """
+    global gDbEnv
+
+    if env is None:
+        env = gDbEnv
+
+    if env is None:
+        raise DatabaseError("Database environment not set up")
+
+
+    entries = []
+    keyb = key.to_bytes(8, "big")
+    # open named sub db named dbn within env
+    subDb = gDbEnv.open_db(edbn.encode("utf-8"), dupsort=True)
+    with gDbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
+        cursor = txn.cursor()
+        if cursor.set_range(keyb):
+            if cursor.key() == keyb:  # current is expired
+                cursor.last_dup()  # move to last dup
+                entries.append(cursor.value())
+                result = cursor.delete(dupdata=false) # delete one dup only
+                if not result:
+                    raise DatabaseError("Problem deleting entry")
+
+            while cursor.prev():  # move to prev item if any
+                entries.append(cursor.value())
+                result = cursor.delete(dupdata=False) # delete one dup only
+                if not result:
+                    raise DatabaseError("Problem deleting entry")
+
+def getNextExpires(key, dbn='expire2eid', env=None):
+    """
+    Returns list of expired eids  and
+    deletes all expired entries  at or before expire datetime provided by key
+
+
+    Parameters:
+        key is expire
+
+    """
+    global gDbEnv
+
+    if env is None:
+        env = gDbEnv
+
+    if env is None:
+        raise DatabaseError("Database environment not set up")
+
+
+    entries = []
+    expire = key
+    keyb = key.to_bytes(8, "big")
+    # open named sub db named dbn within env
+    subDb = gDbEnv.open_db(dbn.encode("utf-8"), dupsort=True)
+    with gDbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
+        cursor = txn.cursor()
+        if cursor.first():
+            current = cursor.key()
+            cdt = arrow.get
+            if cdt <= edt:  # current entry is expired
+                cursor.first_dup()  # move to first dup
+                entries.append(cursor.value())
+                result = cursor.delete(dupdata=false) # delete one dup only
+                if not result:
+                    raise DatabaseError("Problem deleting entry")
+
+                while cursor.next_dup():  # move to next dup item if any
+                    entries.append(cursor.value())
+                    result = cursor.delete(dupdata=False) # delete one dup only
+                    if not result:
+                        raise DatabaseError("Problem deleting entry")
+
+    return entries
