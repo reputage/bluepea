@@ -16,7 +16,7 @@ try:
 except ImportError:
     import json
 
-import arrow
+import datetime
 
 # Import ioflo libs
 from ioflo.aid.sixing import *
@@ -30,19 +30,10 @@ from ..prime import priming
 
 console = getConsole()
 
-"""
-Usage pattern
-
-frame server
-  do bluepea server open at enter
-  do bluepea server service
-  do bluepea server close at exit
 
 
-"""
-
-@doify('BluepeaTrackExpire', ioinits=odict(test=""))
-def bluepeaTrackExpire(self, **kwa):
+@doify('BluepeaTrackStaleClear', ioinits=odict(test=""))
+def bluepeaTrackStaleClear(self, **kwa):
     """
     Delete Expired/Stale Tracks
 
@@ -54,23 +45,19 @@ def bluepeaTrackExpire(self, **kwa):
     Parameters:
 
 
-    Context: recure
+    Context: recur
 
     Example:
-        do bluepea track expire
+        do bluepea track stale clear
+
     """
     if dbing.gDbEnv:  # database is setup
 
         dt = datetime.datetime.now(tz=datetime.timezone.utc)
-        date = timing.iso8601(dt, aware=True)
+        stamp = int(dt.timestamp() * 1000000)
 
+        dbing.clearStaleTracks(key=stamp)
 
-        # read entries earlier than current time
-        #entries = dbing.getExpireEid(key=expire)
-
-
-        # remove entries at expire
-        #result = dbing.deleteExpireEid(key=expire)
 
 
 

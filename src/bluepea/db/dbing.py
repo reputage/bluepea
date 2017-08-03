@@ -391,15 +391,15 @@ def getOfferExpires(did, lastOnly=True, dbn='did2offer', env=None):
     entries = []
     subDb = gDbEnv.open_db(dbn.encode("utf-8"), dupsort=True)  # open named sub db named dbn within env
     with gDbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
-        cursor = txn.cursor()
-        if cursor.set_key(did.encode("utf-8")):
-            if lastOnly:
-                cursor.last_dup()
-                entries.append(json.loads(cursor.value().decode("utf-8"),
-                                          object_pairs_hook=ODict))
-            else:
-                entries = [json.loads(value.decode("utf-8"), object_pairs_hook=ODict)
-                           for value in cursor.iternext_dup()]
+        with txn.cursor() as cursor:
+            if cursor.set_key(did.encode("utf-8")):
+                if lastOnly:
+                    cursor.last_dup()
+                    entries.append(json.loads(cursor.value().decode("utf-8"),
+                                              object_pairs_hook=ODict))
+                else:
+                    entries = [json.loads(value.decode("utf-8"), object_pairs_hook=ODict)
+                               for value in cursor.iternext_dup()]
 
     return entries
 
@@ -482,10 +482,10 @@ def getTracks(key, dbn='track', env=None):
     entries = []
     subDb = gDbEnv.open_db(dbn.encode("utf-8"), dupsort=True)  # open named sub db named dbn within env
     with gDbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
-        cursor = txn.cursor()
-        if cursor.set_key(key.encode("utf-8")):
-            entries = [json.loads(value.decode("utf-8"), object_pairs_hook=ODict)
-                           for value in cursor.iternext_dup()]
+        with txn.cursor() as cursor:
+            if cursor.set_key(key.encode("utf-8")):
+                entries = [json.loads(value.decode("utf-8"), object_pairs_hook=ODict)
+                               for value in cursor.iternext_dup()]
 
     return entries
 
@@ -569,9 +569,9 @@ def getExpireEid(key, dbn='expire2eid', env=None):
     # open named sub db named dbn within env
     subDb = gDbEnv.open_db(dbn.encode("utf-8"), dupsort=True)
     with gDbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
-        cursor = txn.cursor()
-        if cursor.set_key(keyb):
-            entries = [value.decode("utf-8") for value in cursor.iternext_dup()]
+        with txn.cursor() as cursor:
+            if cursor.set_key(keyb):
+                entries = [value.decode("utf-8") for value in cursor.iternext_dup()]
 
     return entries
 
@@ -624,16 +624,16 @@ def popExpired(key, dbn='expire2eid', env=None):
     # open named sub db named dbn within env
     subDb = gDbEnv.open_db(dbn.encode("utf-8"), dupsort=True)
     with gDbEnv.begin(db=subDb, write=True) as txn:  # txn is a Transaction object
-        cursor = txn.cursor()
-        if cursor.first():
-            curb = cursor.key()
-            current = int.from_bytes(curb, "big")
-            if current <= expire:  # current entry is expired
-                entries = [value.decode("utf-8") for value in cursor.iternext_dup()]
-                if cursor.prev():  # iterator makes key() be blank so reset
-                    result = cursor.delete(dupdata=True)  # delete all dups
-                    if not result:
-                        raise DatabaseError("Problem deleting entry")
+        with txn.cursor() as cursor:
+            if cursor.first():
+                curb = cursor.key()
+                current = int.from_bytes(curb, "big")
+                if current <= expire:  # current entry is expired
+                    entries = [value.decode("utf-8") for value in cursor.iternext_dup()]
+                    if cursor.prev():  # iterator makes key() be blank so reset
+                        result = cursor.delete(dupdata=True)  # delete all dups
+                        if not result:
+                            raise DatabaseError("Problem deleting entry")
 
     return entries
 
