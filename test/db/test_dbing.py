@@ -357,10 +357,10 @@ def test_putOfferExpire():
     entries = []
     subDb = dbing.gDbEnv.open_db(b"did2offer", dupsort=True)  # open named sub db named dbn within env
     with dbing.gDbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
-        cursor = txn.cursor()
-        if cursor.set_key(did.encode("utf-8")):
-            entries = [json.loads(value.decode("utf-8"), object_pairs_hook=ODict)
-                       for value in cursor.iternext_dup()]
+        with txn.cursor() as cursor:
+            if cursor.set_key(did.encode("utf-8")):
+                entries = [json.loads(value.decode("utf-8"), object_pairs_hook=ODict)
+                           for value in cursor.iternext_dup()]
 
     assert len(entries) == 2
     assert entries[0]["expire"] == expire
