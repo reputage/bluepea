@@ -20,3 +20,10 @@ class BluepeaError(Exception):
 
     To use   raise BluepeaError("Error: message")
     """
+
+class ValidationError(BluepeaError):
+    """
+    Validation related errors
+    Usage:
+        raise ValidationError("error message")
+    """

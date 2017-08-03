@@ -40,7 +40,7 @@ class DatabaseError(BluepeaError):
     """
     Database related errors
     Usage:
-        raise DBError("error message")
+        raise DatabaseError("error message")
     """
 
 
