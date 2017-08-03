@@ -572,7 +572,7 @@ def test_expireEid():
     deleteExpireEid(key, dbn='expire2eid', env=None)
 
     where
-        key is is8601 datetime
+        key is timestamp in int microseconds since epoch
         data is track eid
 
 
@@ -582,15 +582,10 @@ def test_expireEid():
     dbEnv = dbing.setupTestDbEnv()
 
     dt = datetime.datetime(2000, 1, 3, minute=30, tzinfo=datetime.timezone.utc)
-    #stamp = dt.timestamp()  # make time.time value
-    #expire = timing.iso8601(dt=dt, aware=True)
-    #assert expire == '2000-01-03T00:30:00+00:00'
     expire = int(dt.timestamp() * 1000000)
     assert expire == 946859400000000
 
     td = datetime.timedelta(seconds=360)
-    #expire1 = timing.iso8601(dt=dt+td, aware=True)
-    #assert expire1 == '2000-01-03T00:36:00+00:00'
     expire1 = expire + int(360 * 1000000)
     assert expire1 == 946859760000000
 
@@ -634,6 +629,93 @@ def test_expireEid():
     # read deleted entries
     entries = dbing.getExpireEid(key=expire)
     assert not entries
+
+    cleanupTmpBaseDir(dbEnv.path())
+    print("Done Test")
+
+
+def test_popExpired():
+    """
+    Test
+    popExpired(key, dbn='expire2eid', env=None)
+
+    where
+        key is timestamp in int microseconds since epoch
+
+
+
+    """
+    print("Testing put get delete expire Eid in DB Env")
+
+    dbEnv = dbing.setupTestDbEnv()
+
+    dt = datetime.datetime(2000, 1, 3, minute=30, tzinfo=datetime.timezone.utc)
+    expire0 = int(dt.timestamp() * 1000000)
+    assert expire0 == 946859400000000
+
+    td = datetime.timedelta(seconds=360)
+    expire1 = expire0 + int(360 * 1000000)
+    assert expire1 == 946859760000000
+
+    eid0 = "0000000000000099"
+    eid1 = "1100000000000099"
+    eid2 = "2200000000000099"
+    eid3 = "3300000000000099"
+    eid4 = "4400000000000099"
+    eid5 = "5500000000000099"
+
+    # write entries at expire
+    result = dbing.putExpireEid(key=expire0, eid=eid0)
+    assert result
+    result = dbing.putExpireEid(key=expire0, eid=eid1)
+    assert result
+    result = dbing.putExpireEid(key=expire0, eid=eid2)
+    assert result
+
+    # read entries
+    entries = dbing.getExpireEid(key=expire0)
+    assert len(entries) == 3
+    assert entries[0] == eid0
+    assert entries[1] == eid1
+    assert entries[2] == eid2
+
+
+    # write entries
+    result = dbing.putExpireEid(key=expire1, eid=eid3)
+    assert result
+    result = dbing.putExpireEid(key=expire1, eid=eid4)
+    assert result
+    result = dbing.putExpireEid(key=expire1, eid=eid5)
+    assert result
+
+    entries = dbing.getExpireEid(key=expire1)
+    assert len(entries) == 3
+    assert entries[0] == eid3
+    assert entries[1] == eid4
+    assert entries[2] == eid5
+
+    # gets the earliest at expire0 before expire1
+    entries = dbing.popExpired(key=expire1)
+    assert len(entries) == 3
+    assert entries[0] == eid0
+    assert entries[1] == eid1
+    assert entries[2] == eid2
+
+    # attempt to read deleted entries at expire0
+    entries = dbing.getExpireEid(key=expire0)
+    assert not entries
+
+    # gets the later at expire1 since expire0 has been deleted
+    entries = dbing.popExpired(key=expire1)
+    assert len(entries) == 3
+    assert entries[0] == eid3
+    assert entries[1] == eid4
+    assert entries[2] == eid5
+
+    # attempt to read deleted entries at expire1
+    entries = dbing.getExpireEid(key=expire1)
+    assert not entries
+
 
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")

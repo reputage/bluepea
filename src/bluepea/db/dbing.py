@@ -621,7 +621,7 @@ def deleteAllExpired(key, tdbn='track', edbn='expire2eid', env=None):
     keyb = key.to_bytes(8, "big")
     # open named sub db named dbn within env
     subDb = gDbEnv.open_db(edbn.encode("utf-8"), dupsort=True)
-    with gDbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
+    with gDbEnv.begin(db=subDb, write=True) as txn:  # txn is a Transaction object
         cursor = txn.cursor()
         if cursor.set_range(keyb):
             if cursor.key() == keyb:  # current is expired
@@ -637,14 +637,16 @@ def deleteAllExpired(key, tdbn='track', edbn='expire2eid', env=None):
                 if not result:
                     raise DatabaseError("Problem deleting entry")
 
-def getNextExpires(key, dbn='expire2eid', env=None):
+def popExpired(key, dbn='expire2eid', env=None):
     """
-    Returns list of expired eids  and
-    deletes all expired entries  at or before expire datetime provided by key
+    Returns list of expired eids and then deletes them for earliest entry
+    in database that is less than or equal to key if any
+    Otherwise returns empty list
 
+    Call iteratively to get all the earlier entries in the database
 
     Parameters:
-        key is expire
+        key is expire timestamp in int microseconds since epoch
 
     """
     global gDbEnv
@@ -655,27 +657,20 @@ def getNextExpires(key, dbn='expire2eid', env=None):
     if env is None:
         raise DatabaseError("Database environment not set up")
 
-
     entries = []
     expire = key
     keyb = key.to_bytes(8, "big")
     # open named sub db named dbn within env
     subDb = gDbEnv.open_db(dbn.encode("utf-8"), dupsort=True)
-    with gDbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
+    with gDbEnv.begin(db=subDb, write=True) as txn:  # txn is a Transaction object
         cursor = txn.cursor()
         if cursor.first():
-            current = cursor.key()
-            cdt = arrow.get
-            if cdt <= edt:  # current entry is expired
-                cursor.first_dup()  # move to first dup
-                entries.append(cursor.value())
-                result = cursor.delete(dupdata=false) # delete one dup only
-                if not result:
-                    raise DatabaseError("Problem deleting entry")
-
-                while cursor.next_dup():  # move to next dup item if any
-                    entries.append(cursor.value())
-                    result = cursor.delete(dupdata=False) # delete one dup only
+            curb = cursor.key()
+            current = int.from_bytes(curb, "big")
+            if current <= expire:  # current entry is expired
+                entries = [value.decode("utf-8") for value in cursor.iternext_dup()]
+                if cursor.prev():  # iterator makes key() be blank so reset
+                    result = cursor.delete(dupdata=True)  # delete all dups
                     if not result:
                         raise DatabaseError("Problem deleting entry")
 
