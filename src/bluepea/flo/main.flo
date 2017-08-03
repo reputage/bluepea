@@ -6,8 +6,8 @@ house main
     frame startup
       print Starting Server
       bid start server
-      #print Starting Tracker
-      #bid start tracker
+      print Starting Tracker
+      bid start tracker
 
   init main.server.test to True
 

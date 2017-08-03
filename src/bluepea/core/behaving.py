@@ -22,6 +22,7 @@ import datetime
 from ioflo.aid.sixing import *
 from ioflo.aid.odicting import odict
 from ioflo.base import doify
+from ioflo.aid import  timing
 from ioflo.aid import getConsole
 
 from ..db import dbing
@@ -55,8 +56,16 @@ def bluepeaTrackStaleClear(self, **kwa):
 
         dt = datetime.datetime.now(tz=datetime.timezone.utc)
         stamp = int(dt.timestamp() * 1000000)
+        date = timing.iso8601(dt, aware=True)
 
-        dbing.clearStaleTracks(key=stamp)
+        console.concise("Clearing Stale Tracks at '{}'\n".format(date))
+        try:
+            result = dbing.clearStaleTracks(key=stamp)
+        except dbing.DatabaseError as ex:
+            console.terse("Error clearing stale tracks. {}".format(ex))
+
+        if result:
+            console.concise("Cleared Stale Tracks at '{}'\n".format(date))
 
 
 

@@ -486,7 +486,6 @@ def getTracks(key, dbn='track', env=None):
             if cursor.set_key(key.encode("utf-8")):
                 entries = [json.loads(value.decode("utf-8"), object_pairs_hook=ODict)
                                for value in cursor.iternext_dup()]
-
     return entries
 
 def deleteTracks(key, dbn='track', env=None):
@@ -510,6 +509,8 @@ def deleteTracks(key, dbn='track', env=None):
     subDb = gDbEnv.open_db(dbn.encode("utf-8"), dupsort=True)  # open named sub db named dbn within env
     with gDbEnv.begin(db=subDb, write=True) as txn:  # txn is a Transaction object
         result = txn.delete(key.encode("utf-8"))
+        if result is None:  # error with put
+            raise DatabaseError("Could not delete.")
     return result
 
 
@@ -572,7 +573,6 @@ def getExpireEid(key, dbn='expire2eid', env=None):
         with txn.cursor() as cursor:
             if cursor.set_key(keyb):
                 entries = [value.decode("utf-8") for value in cursor.iternext_dup()]
-
     return entries
 
 def deleteExpireEid(key, dbn='expire2eid', env=None):
@@ -630,11 +630,12 @@ def popExpired(key, dbn='expire2eid', env=None):
                 current = int.from_bytes(curb, "big")
                 if current <= expire:  # current entry is expired
                     entries = [value.decode("utf-8") for value in cursor.iternext_dup()]
-                    if cursor.prev():  # iterator makes key() be blank so reset
-                        result = cursor.delete(dupdata=True)  # delete all dups
-                        if not result:
-                            raise DatabaseError("Problem deleting entry")
-
+                    if entries:
+                        if not cursor.key():
+                            if not cursor.first_dup():  # iterator makes key() be blank so reset
+                                raise DatabaseError("Problem setting cursor to entry")
+                            if not cursor.delete(dupdata=True):  # delete all dups
+                                raise DatabaseError("Problem deleting entry")
     return entries
 
 
@@ -667,5 +668,4 @@ def clearStaleTracks(key, tdbn='track', edbn='expire2eid', env=None):
             result = deleteTracks(key=entry, dbn=tdbn, env=env)
             if result:
                 success = True
-
     return success
