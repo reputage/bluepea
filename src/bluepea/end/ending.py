@@ -23,7 +23,7 @@ from ioflo.aid.sixing import *
 from ioflo.aid import getConsole
 from ioflo.aid import timing
 
-from ..bluepeaing import SEPARATOR, TRACK_EXPIRATION_DELAY
+from ..bluepeaing import SEPARATOR, TRACK_EXPIRATION_DELAY, ValidationError
 
 from ..help.helping import (parseSignatureHeader, verify64u, extractDidParts,
                             extractDatSignerParts, extractDidSignerParts,
@@ -458,11 +458,12 @@ class ThingResource:
         registration = regb.decode("utf-8")
 
         # validate thing resource and verify did signature
-        result = validateSignedThingReg(dsig, registration)
-        if not result:
+        try:
+            result = validateSignedThingReg(dsig, registration)
+        except ValidationError as ex:
             raise falcon.HTTPError(falcon.HTTP_400,
                                            'Validation Error',
-                                            'Could not validate the request body.')
+                            'Could not validate the request body. {}'.format(ex))
 
         # verify signer signature by looking up signer data resource in database
         try:

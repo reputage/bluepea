@@ -35,7 +35,7 @@ from ioflo.aid import timing
 
 import libnacl
 
-from ..bluepeaing import SEPARATOR, PROPAGATION_DELAY
+from ..bluepeaing import SEPARATOR, PROPAGATION_DELAY, ValidationError
 
 console = getConsole()
 
@@ -459,65 +459,65 @@ def validateSignedThingReg(signature, registration, method="igo"):
         try:
             reg = json.loads(registration, object_pairs_hook=ODict)
         except ValueError as ex:
-            return None  # invalid json
+            raise ValidationError("Invalid JSON")  # invalid json
 
         if not reg:  # registration must not be empty
-            return None
+            raise ValidationError("Empty body")
 
         if not isinstance(reg, dict):  # must be dict subclass
-            return None
+            raise ValidationError("JSON not dict")
 
         if "changed" not in reg:  # changed field required
-            return None
+            raise ValidationError("Missing changed field")
 
         try:
             arrow.get(reg["changed"])
         except arrow.parser.ParserError as ex:  # invalid datetime format
-            return None
+            raise ValidationError("Invalid date time format of changed")
 
         if "signer" not in reg:  # signer field required
-            return None
+            raise ValidationError("Missing signer field")
 
         try:
             sdid, index = reg["signer"].rsplit("#", maxsplit=1)
             index = int(index)  # get index and sdid from signer field
         except (KeyError, ValueError) as ex:
-            return None  # missing sdid or index
+            raise ValidationError("Invalid signer key format")  # missing sdid or index
 
         try:  # correct did format  pre:method:keystr
             pre, meth, keystr = sdid.split(":")
         except ValueError as ex:
-            return None
+            raise ValidationError("Invalid signer did format")
 
         if pre != "did" or meth != method:
-            return None  # did format bad
+            raise ValidationError("Invalid signer did format")  # did format bad
 
         if "hid" not in reg:  # hid field required
-            return None
+            raise ValidationError("Missing hid field")
 
         if "did" not in reg:  # did field required
-            return None
+            raise ValidationError("Missing did field")
 
         ddid = reg["did"]
 
         try:  # correct did format  pre:method:keystr
             pre, meth, keystr = ddid.split(":")
         except ValueError as ex:
-            return None
+            raise ValidationError("Invalid did")
 
         if pre != "did" or meth != method:
-            return None  # did format bad
+            raise ValidationError("Invalid did")  # did format bad
 
         verkey = keystr
 
         if len(verkey) != 44:
-            return None  # invalid length for base64 encoded key
+            raise ValidationError("Invalid verification key")  # invalid length for base64 encoded key
 
         if not verify64u(signature, registration, verkey):
-            return None  # signature fails
+            raise ValidationError("Unverifiable signature")  # signature fails
 
     except Exception as ex:  # unknown problem
-        return None
+        raise ValidationError("Unknown problem")
 
     return reg
 
