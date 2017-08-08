@@ -148,6 +148,10 @@ class AgentResource:
 
         """
         did = req.get_param("did")  # already has url-decoded query parameter value
+        if not did:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                           'Query Parameter Error',
+                                    'Missing query did. {}')
 
         # read from database
         try:
