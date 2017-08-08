@@ -102,13 +102,13 @@ def bluepeaServerOpen(self, buffer=False, **kwa):
     if not result:
         console.terse("Error opening server '{0}' at '{1}'\n".format(
                             self.valet.name,
-                            self.valet.value.servant.eha))
+                            self.valet.value.servant.ha))
         return
 
 
     console.concise("Opened server '{0}' at '{1}'\n".format(
                             self.valet.name,
-                            self.valet.value.servant.eha,))
+                            self.valet.value.servant.ha,))
 
 @doify('BluepeaServerService',ioinits=odict(valet=""))
 def bluepeaServerService(self, **kwa):
