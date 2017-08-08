@@ -185,3 +185,15 @@ GET /server (1, 1)
 lodict([('host', '10.0.2.84:8080'), ('upgrade-insecure-requests', '1'), ('accept', 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'), ('user-agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/603.3.8 (KHTML, like Gecko) Version/10.1.2 Safari/603.3.8'), ('accept-language', 'en-us'), ('accept-encoding', 'gzip, deflate'), ('connection', 'keep-alive')])
 bytearray(b'')
 ```
+
+To change from running in test mode to real mode change this line in main.flo
+
+```
+init main.server.test to True
+```
+
+To
+
+```
+init main.server.test to False
+```
