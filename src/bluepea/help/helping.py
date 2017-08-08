@@ -545,60 +545,60 @@ def validateSignedResource(signature, resource, verkey, method="igo"):
         try:
             rsrc = json.loads(resource, object_pairs_hook=ODict)
         except ValueError as ex:
-            return None  # invalid json
+            raise ValidationError("Invalid JSON")  # invalid json
 
         if not rsrc:  # resource must not be empty
-            return None
+            raise ValidationError("Empty body")
 
         if not isinstance(rsrc, dict):  # must be dict subclass
-            return None
+            raise ValidationError("JSON not dict")
 
         if "changed" not in rsrc:  # changed field required
-            return None
+            raise ValidationError("Missing changed field")
 
         try:
             arrow.get(rsrc["changed"])
         except arrow.parser.ParserError as ex:  # invalid datetime format
-            return None
+            raise ValidationError("Invalid format changed field")
 
         if "signer" not in rsrc:  # signer field required
-            return None
+            raise ValidationError("Missing signer field")
 
         try:
             sdid, index = rsrc["signer"].rsplit("#", maxsplit=1)
             index = int(index)  # get index and sdid from signer field
         except (AttributeError, ValueError) as ex:
-            return None  # missing sdid or index
+            raise ValidationError("Invalid format signer key field")  # missing sdid or index
 
         try:  # correct did format  pre:method:keystr
             pre, meth, keystr = sdid.split(":")
         except ValueError as ex:
-            return None
+            raise ValidationError("Invalid format signer did field")
 
         if pre != "did" or meth != method:
-            return None  # did format bad
+            raise ValidationError("Invalid format signer did field")  # did format bad
 
         if "did" not in rsrc:  # did field required
-            return None
+            raise ValidationError("Missing did field")
 
         ddid = rsrc["did"]
 
         try:  # correct did format  pre:method:keystr
             pre, meth, keystr = ddid.split(":")
         except ValueError as ex:
-            return None
+            raise ValidationError("Invalid format did field")
 
         if pre != "did" or meth != method:
-            return None  # did format bad
+            raise ValidationError("Invalid format did field") # did format bad
 
         if len(verkey) != 44:
-            return None  # invalid length for base64 encoded key
+            raise ValidationError("Verkey invalid")  # invalid length for base64 encoded key
 
         if not verify64u(signature, resource, verkey):
-            return None  # signature fails
+            raise ValidationError("Unverifiable signature")  # signature fails
 
     except Exception as ex:  # unknown problem
-        return None
+        raise ValidationError("Unknown problem")
 
     return rsrc
 

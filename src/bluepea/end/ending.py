@@ -489,11 +489,12 @@ class ThingResource:
             raise falcon.HTTPError(falcon.HTTP_424,
                                            'Data Resource Error',
                                            'Missing signing key')
-
-        if not validateSignedResource(tsig, registration, tkey):
-                raise falcon.HTTPError(falcon.HTTP_400,
+        try:
+            validateSignedResource(tsig, registration, tkey)
+        except ValidationError as ex:
+            raise falcon.HTTPError(falcon.HTTP_400,
                                    'Validation Error',
-                                    'Could not validate the request body.')
+                        'Could not validate the request body. {}'.format(ex))
 
         if "hid" in result and result["hid"]:  # non-empty hid
             # validate hid control here

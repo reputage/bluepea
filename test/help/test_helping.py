@@ -343,5 +343,6 @@ def test_signedThingRegistrationWithData():
 
     sverkey = keyToKey64u(svk)
     rsrc = validateSignedResource(ssignature, resource=tregistration, verkey=sverkey)
+    assert rsrc
 
     print("Done Test")
