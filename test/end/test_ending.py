@@ -2025,8 +2025,14 @@ def test_post_Track(client):  # client is a fixture in pytest_falcon
     """
     Test POST  to thing/did/accept with parameter offer uid.
 
-    eid is track ephemeral ID in hex lowercase
-    loc is location string in hex lowercase
+    {
+        eid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
+        msg: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
+        dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of track gateway time
+    }
+
+    eid is track ephemeral ID in base64 url safe  up to 16 bytes
+    msg is location string in base 64 url safe up to 144 bytes
     dts is iso8601 datetime stamp
 
     The value of the entry is serialized JSON
@@ -2035,8 +2041,8 @@ def test_post_Track(client):  # client is a fixture in pytest_falcon
         expire: 1501818013367861, # expiration in server time microseconds since epoch
         track:
         {
-            eid: "abcdef0123456789,  # lower case 16 char hex of 8 byte eid
-            loc: "1111222233334444", # lower case 16 char hex of 8 byte location
+            eid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
+            msg: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
             dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of track gateway time
         }
     }
@@ -2054,17 +2060,17 @@ def test_post_Track(client):  # client is a fixture in pytest_falcon
     dts = timing.iso8601(dt=dt+td, aware=True)
     assert dts == '2000-01-01T00:30:05+00:00'
 
-    eid = "010203040a0b0c0d"
-    loc = "1234567812345678"
+    eid = 'AQIDBAoLDA0='
+    msg = 'EjRWeBI0Vng='
 
     track = ODict()
     track['eid'] = eid
-    track['loc'] = loc
+    track['msg'] = msg
     track['dts'] = dts
 
     assert track == {
-        "eid": "010203040a0b0c0d",
-        "loc": "1234567812345678",
+        "eid": "AQIDBAoLDA0=",
+        "msg": "EjRWeBI0Vng=",
         "dts": "2000-01-01T00:30:05+00:00",
     }
 

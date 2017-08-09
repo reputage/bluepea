@@ -434,13 +434,13 @@ def test_getOfferExpires():
 def test_putGetDeleteTrack():
     """
     Test
-    putTrack(key, data, dbn="track", env=None)
-    getTracks(key, dbn='track', env=None)
-    deleteTracks(key, dbn='track', env=None)
+    putTrack(key, data, dbn="anon", env=None)
+    getTracks(key, dbn='anon', env=None)
+    deleteTracks(key, dbn='anon', env=None)
 
     where
         key is ephemeral ID 16 byte hex
-        data is track data
+        data is anon data
 
     The key for the entry is just the eid
 
@@ -449,14 +449,14 @@ def test_putGetDeleteTrack():
         expire: 1501818013367861, # expiration in server time microseconds since epoch
         track:
         {
-            eid: "abcdef0123456789,  # lower case 16 char hex of 8 byte eid
-            loc: "1111222233334444", # lower case 16 char hex of 8 byte location
+            eid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
+            msg: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
             dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of track gateway time
         }
     }
 
     eid is track ephemeral ID in hex lowercase
-    loc is location string in hex lowercase
+    msg is location string in hex lowercase
     dts is iso8601 datetime stamp
 
     """
@@ -482,17 +482,17 @@ def test_putGetDeleteTrack():
     dts = timing.iso8601(dt=dt+td, aware=True)
     assert dts == '2000-01-01T00:30:05+00:00'
 
-    eid = "010203040a0b0c0d"
-    loc = "1234567812345678"
+    eid = "AQIDBAoLDA0="
+    msg = "EjRWeBI0Vng="
 
     track = ODict()
     track['eid'] = eid
-    track['loc'] = loc
+    track['msg'] = msg
     track['dts'] = dts
 
     assert track == {
-        "eid": "010203040a0b0c0d",
-        "loc": "1234567812345678",
+        "eid": "AQIDBAoLDA0=",
+        "msg": "EjRWeBI0Vng=",
         "dts": "2000-01-01T00:30:05+00:00",
     }
 
@@ -506,8 +506,8 @@ def test_putGetDeleteTrack():
         "expire": 946686960000000,
         "track":
         {
-            "eid": "010203040a0b0c0d",
-            "loc": "1234567812345678",
+            "eid": "AQIDBAoLDA0=",
+            "msg": "EjRWeBI0Vng=",
             "dts": "2000-01-01T00:30:05+00:00"
         }
     }
@@ -522,10 +522,10 @@ def test_putGetDeleteTrack():
     assert entries[0] == data
 
     track2 = track.copy()
-    track2['loc'] = "98765432987865432"
+    track2['msg'] = "ABRWeBI0VAA="
     data2 = ODict()
-    data2['create'] = create
-    data2['expire'] = expire
+    data2['create'] = create + 1
+    data2['expire'] = expire + 1
     data2['track'] = track2
 
     result = dbing.putTrack(key=eid, data=data2)
@@ -537,7 +537,7 @@ def test_putGetDeleteTrack():
     assert entries[0] == data
     assert entries[1] == data2
 
-    eid2 = "1212121234343434"
+    eid2 = "BBIDBAoLCCC="
     track3 = track.copy()
     track3["eid"] = eid2
     data3 = ODict()
@@ -589,9 +589,9 @@ def test_expireEid():
     expire1 = expire + int(360 * 1000000)
     assert expire1 == 946859760000000
 
-    eid = "010203040a0b0c0d"
-    eid1 = "1212121234343434"
-    eid2 = "2200000034343434"
+    eid = "00000000000="
+    eid1 = "11111111111="
+    eid2 = "22222222222="
 
     # write entry
     result = dbing.putExpireEid(key=expire, eid=eid)
@@ -654,12 +654,12 @@ def test_popExpired():
     expire1 = expire0 + int(360 * 1000000)
     assert expire1 == 946859760000000
 
-    eid0 = "0000000000000099"
-    eid1 = "1100000000000099"
-    eid2 = "2200000000000099"
-    eid3 = "3300000000000099"
-    eid4 = "4400000000000099"
-    eid5 = "5500000000000099"
+    eid0 = "00000000000="
+    eid1 = "11111111111="
+    eid2 = "22222222222="
+    eid3 = "33333333333="
+    eid4 = "44444444444="
+    eid5 = "55555555555="
 
     # write entries at expire
     result = dbing.putExpireEid(key=expire0, eid=eid0)
@@ -720,7 +720,7 @@ def test_popExpired():
 def test_clearStaleTracks():
     """
     Test
-    clearStaleTracks(key, tdbn='track', edbn='expire2eid', env=None)
+    clearStaleTracks(key, tdbn='anon', edbn='expire2eid', env=None)
 
     where
         key is timestamp in int microseconds since epoch
@@ -736,7 +736,7 @@ def test_clearStaleTracks():
     td = datetime.timedelta(seconds=5)
     dts = timing.iso8601(dt=dt+td, aware=True)
     assert dts == '2000-01-03T00:30:05+00:00'
-    loc = "1234567812345678"
+    msg = "12341234123="
 
     create0 = int(dt.timestamp() * 1000000)
     expire0 = create0 + int(360 * 1000000)
@@ -744,11 +744,11 @@ def test_clearStaleTracks():
     create1 = create0 + int(10 * 1000000)
     expire1 = create1 + int(360 * 1000000)
 
-    eids0 = ["0000000000000099", "1100000000000099", "2200000000000099"]
+    eids0 = ["00000000000=", "10000000000=", "20000000000="]
     for eid in eids0:
         track = ODict()
         track['eid'] = eid
-        track['loc'] = loc
+        track['msg'] = msg
         track['dts'] = dts
 
         data = ODict()
@@ -771,11 +771,11 @@ def test_clearStaleTracks():
     assert len(entries) == 3
 
 
-    eids1 = ["3300000000000099", "4400000000000099", "5500000000000099"]
+    eids1 = ["30000000000=", "40000000000=", "50000000000="]
     for eid in eids1:
         track = ODict()
         track['eid'] = eid
-        track['loc'] = loc
+        track['msg'] = msg
         track['dts'] = dts
 
         data = ODict()

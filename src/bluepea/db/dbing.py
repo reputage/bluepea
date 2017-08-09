@@ -80,8 +80,8 @@ def setupDbEnv(baseDirPath=None):
     gDbEnv.open_db(b'core')
     gDbEnv.open_db(b'hid2did')  # table of dids keyed by hids
     gDbEnv.open_db(b'did2offer', dupsort=True)  # table of offer expirations keyed by offer relative dids
-    gDbEnv.open_db(b'track', dupsort=True)  # tracking messages
-    gDbEnv.open_db(b'expire2eid', dupsort=True)  # expiration to track
+    gDbEnv.open_db(b'anon', dupsort=True)  # anonymous messages
+    gDbEnv.open_db(b'expire2eid', dupsort=True)  # expiration to eid anon
 
     # verify that the server resource is present in the database
     # need to read in saved server signing keys and query database
@@ -404,26 +404,32 @@ def getOfferExpires(did, lastOnly=True, dbn='did2offer', env=None):
     return entries
 
 
-def putTrack(key, data, dbn="track", env=None):
+def putTrack(key, data, dbn="anon", env=None):
     """
-    Put entry into database  for serialized track ser at key eid with duplicates
+    Put entry into database  for serialized anon message ser at key eid with duplicates
 
     Database allows duplicates
 
     where
-        key is ephemeral ID 16 byte hex
-        data is track data
+        key is ephemeral ID
+        data is anon msg data
 
     The key for the entry is just the eid
 
     The value of the entry is serialized JSON
+
+    eid is track ephemeral ID in base64 url safe  up to 16 bytes
+    msg is location string in base 64 url safe up to 144 bytes
+    dts is iso8601 datetime stamp
+
+    The value of the entry is serialized JSON
     {
-        create: "2000-01-01T00:36:00+00:00", # ISO-8601 creation in server time
-        expire: "2000-01-01T12:36:00+00:00", # ISO-8601 expiration in server time
+        create: 1501774813367861, # creation in server time microseconds since epoch
+        expire: 1501818013367861, # expiration in server time microseconds since epoch
         track:
         {
-            eid: "abcdef01,  # lower case hex of eid
-            loc: "11112222", # lower case hex of location
+            eid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
+            msg: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
             dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of track gateway time
         }
     }
@@ -441,33 +447,38 @@ def putTrack(key, data, dbn="track", env=None):
     subDb = env.open_db(dbn.encode("utf-8"), dupsort=True)  # open named sub dbn within env
     with env.begin(db=subDb, write=True) as txn:  # txn is a Transaction object
         # if dupsort True means makes duplicates on writes to same key
-        result = txn.put(key.encode("utf-8"), ser.encode("utf-8"))  # keys and values are bytes
+        result = txn.put(key.encode(), ser.encode())  # keys and values are bytes
         if result is None:  # error with put
             raise DatabaseError("Could not write.")
         return result
 
 
-def getTracks(key, dbn='track', env=None):
+def getTracks(key, dbn='anon', env=None):
     """
-    Returns list earliest to latest with track entries at key eid
+    Returns list earliest to latest with anon entries at key eid
     If none exist returns empty list
 
-    Each track entry is ODict
+    Each anon entry is ODict
+
+    eid is anon ephemeral ID in base64 url safe  up to 16 bytes
+    msg is location string in base 64 url safe up to 144 bytes
+    dts is iso8601 datetime stamp
+
+    The value of the entry is serialized JSON
     {
-        create: "2000-01-01T00:36:00+00:00", # ISO-8601 creation in server time
-        expire: "2000-01-01T12:36:00+00:00", # ISO-8601 expiration in server time
+        create: 1501774813367861, # creation in server time microseconds since epoch
+        expire: 1501818013367861, # expiration in server time microseconds since epoch
         track:
         {
-            eid: "abcdef01,  # lower case hex of eid
-            loc: "11112222", # lower case hex of location
+            eid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
+            msg: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
             dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of track gateway time
         }
     }
 
-
     Parameters:
         key is track eid
-        dbn is name str of named sub database, Default is 'track'
+        dbn is name str of named sub database, Default is 'anon'
         env is main LMDB database environment
             If env is not provided then use global gDbEnv
     """
@@ -488,13 +499,13 @@ def getTracks(key, dbn='track', env=None):
                                for value in cursor.iternext_dup()]
     return entries
 
-def deleteTracks(key, dbn='track', env=None):
+def deleteTracks(key, dbn='anon', env=None):
     """
     Deletes tracks at key eid
 
     Parameters:
         key is track eid
-        dbn is name str of named sub database, Default is 'track'
+        dbn is name str of named sub database, Default is 'anon'
         env is main LMDB database environment
             If env is not provided then use global gDbEnv
     """
@@ -516,13 +527,13 @@ def deleteTracks(key, dbn='track', env=None):
 
 def putExpireEid(key, eid, dbn="expire2eid", env=None):
     """
-    Put entry into database table that maps expiration to track
+    Put entry into database table that maps expiration to anon
 
     Database allows duplicates
 
     where
-        key is expiration datetime of track int
-        eid is track ephemeral ID
+        key is expiration datetime of anon int
+        eid is anon ephemeral ID
 
     The key for the entry is just the expiration datetime expire
     The value is just the eid
@@ -639,12 +650,12 @@ def popExpired(key, dbn='expire2eid', env=None):
     return entries
 
 
-def clearStaleTracks(key, tdbn='track', edbn='expire2eid', env=None):
+def clearStaleTracks(key, tdbn='anon', edbn='expire2eid', env=None):
     """
     Clears expired tracks at or earlier to timestamp key
-    and their entries in the track and expire2eid databases
+    and their entries in the anon and expire2eid databases
 
-    Returns True if successfully cleared at least one stale track
+    Returns True if successfully cleared at least one stale anon
 
     Parameters:
         key is expire timestamp in microseconds since epoch

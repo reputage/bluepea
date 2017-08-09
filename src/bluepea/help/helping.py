@@ -1121,11 +1121,16 @@ def validateTrack(ser):
 
     ser is json encoded unicode string of gateway track message
 
+    eid is track ephemeral ID in base64 url safe  up to 16 bytes
+    msg is location string in base 64 url safe up to 144 bytes
+    dts is iso8601 datetime stamp
+
     {
-        eid: "abcdef01,  # lower case hex of eid
-        loc: "11112222", # lower case hex of location
+        eid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
+        msg: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
         dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of track gateway time
     }
+
 
     """
     try:
@@ -1133,42 +1138,45 @@ def validateTrack(ser):
         try:
             dat = json.loads(ser, object_pairs_hook=ODict)
         except ValueError as ex:
-            return None  # invalid json
+            raise ValidationError("Invalid JSON")  # invalid json
 
-        if not dat:  # registration must not be empty
-            return None
+        if not dat:  # must not be empty
+            raise ValidationError("Empty body")
 
         if not isinstance(dat, dict):  # must be dict subclass
-            return None
+            raise ValidationError("JSON not dict")
 
-        requireds = ("eid", "loc", "dts")
+        requireds = ("eid", "msg", "dts")
         for field in requireds:
             if field not in dat:
-                return None
+                raise ValidationError("Missing required field '{}'".format(field))
 
-        if len(dat['eid']) != 16:
-            return None
+        if len(dat['eid']) > 24:
+            raise ValidationError("EID field too long")
 
-        try:  # verify hex formatted
-            eidb = binascii.unhexlify(dat['eid'])
-        except (binascii.Error, binascii.TypeError) as ex:
-            return None
+        try:  # verify base64 formatted
+            eidb = base64.b64decode(dat['eid'].encode(), altchars=b'-_', validate=True)
+        except (binascii.Error, binascii.TypeError, TypeError) as ex:
+            raise ValidationError("Invalid base64 for eid")
 
-        dat['eid'] = dat['eid'].lower()
+        dat['eid'] = dat['eid']
 
         try:
             dt = arrow.get(dat["dts"])
         except arrow.parser.ParserError as ex:  # invalid datetime format
-            return None
+            raise ValidationError("Invalid datetime for dts")
 
-        try:  # verify hex formatted
-            locb = binascii.unhexlify(dat['loc'])
-        except (binascii.Error, binascii.TypeError) as ex:
-            return None
+        if len(dat['msg']) > 192:  # no padding 4/3 * 144 = 192
+            raise ValidationError("msg field too long")
 
-        dat['loc'] = dat['loc'].lower()
+        try:  # verify base64 formatted
+            locb = base64.b64decode(dat['msg'].encode(), altchars=b'-_', validate=True)
+        except (binascii.Error, binascii.TypeError, TypeError) as ex:
+            raise ValidationError("Invalid base64 for msg")
+
+        dat['msg'] = dat['msg']
 
     except Exception as ex:  # unknown problem
-        return None
+        raise ValidationError("Unknown error")
 
     return dat

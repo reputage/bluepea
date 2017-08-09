@@ -1036,13 +1036,13 @@ class TrackResource:
         track:
         {
             eid: eid,
-            loc: xoredgatewaylocationstring,
+            msg: xoredgatewaylocationstringormsg,
             dts: gatewaydatetime,
         }
     }
 
-    eid is track ephemeral ID in hex lowercase
-    loc is location string in hex lowercase
+    eid is track ephemeral ID in base64 url safe  up to 16 bytes
+    msg is location string in base 64 url safe up to 144 bytes
     dts is iso8601 datetime stamp
 
     The value of the entry is serialized JSON
@@ -1051,8 +1051,8 @@ class TrackResource:
         expire: 1501818013367861, # expiration in server time microseconds since epoch
         track:
         {
-            eid: "abcdef0123456789,  # lower case 16 char hex of 8 byte eid
-            loc: "1111222233334444", # lower case 16 char hex of 8 byte location
+            eid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
+            msg: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
             dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of track gateway time
         }
     }
@@ -1075,11 +1075,26 @@ class TrackResource:
 
         Post body is tracking message from Gateway
 
-        track:
         {
-            eid: "abcdef0123456789,  # lower case 16 char hex of 8 byte eid
-            loc: "1111222233334444", # lower case 16 char hex of 8 byte location
+            eid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
+            msg: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
             dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of track gateway time
+        }
+
+        eid is track ephemeral ID in base64 url safe  up to 16 bytes
+        msg is location string in base 64 url safe up to 144 bytes
+        dts is iso8601 datetime stamp
+
+        This is augmented with server time stamp and stored in database
+        {
+            create: 1501774813367861, # creation in server time microseconds since epoch
+            expire: 1501818013367861, # expiration in server time microseconds since epoch
+            track:
+            {
+                eid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
+                msg: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
+                dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of track gateway time
+            }
         }
         """
         try:
@@ -1090,11 +1105,12 @@ class TrackResource:
                                        'Could not read the request body.')
         ser = serb.decode("utf-8")
 
-        dat = validateTrack(ser=ser)
-        if not dat:
+        try:
+            dat = validateTrack(ser=ser)
+        except ValidationError as ex:
             raise falcon.HTTPError(falcon.HTTP_400,
                                                'Validation Error',
-                                           'Could not validate the request body.')
+                            'Error validating the request body. {}'.format(ex))
 
         eid = dat['eid']
         dt = datetime.datetime.now(tz=datetime.timezone.utc)
