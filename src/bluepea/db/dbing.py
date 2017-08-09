@@ -404,7 +404,7 @@ def getOfferExpires(did, lastOnly=True, dbn='did2offer', env=None):
     return entries
 
 
-def putTrack(key, data, dbn="anon", env=None):
+def putAnonMsg(key, data, dbn="anon", env=None):
     """
     Put entry into database  for serialized anon message ser at key eid with duplicates
 
@@ -418,7 +418,7 @@ def putTrack(key, data, dbn="anon", env=None):
 
     The value of the entry is serialized JSON
 
-    eid is track ephemeral ID in base64 url safe  up to 16 bytes
+    eid is anon msg ephemeral ID in base64 url safe  up to 16 bytes
     msg is location string in base 64 url safe up to 144 bytes
     dts is iso8601 datetime stamp
 
@@ -426,11 +426,11 @@ def putTrack(key, data, dbn="anon", env=None):
     {
         create: 1501774813367861, # creation in server time microseconds since epoch
         expire: 1501818013367861, # expiration in server time microseconds since epoch
-        track:
+        anon:
         {
             eid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
             msg: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
-            dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of track gateway time
+            dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of anon gateway time
         }
     }
     """
@@ -453,7 +453,7 @@ def putTrack(key, data, dbn="anon", env=None):
         return result
 
 
-def getTracks(key, dbn='anon', env=None):
+def getAnonMsgs(key, dbn='anon', env=None):
     """
     Returns list earliest to latest with anon entries at key eid
     If none exist returns empty list
@@ -468,16 +468,16 @@ def getTracks(key, dbn='anon', env=None):
     {
         create: 1501774813367861, # creation in server time microseconds since epoch
         expire: 1501818013367861, # expiration in server time microseconds since epoch
-        track:
+        anon:
         {
             eid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
             msg: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
-            dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of track gateway time
+            dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of anon gateway time
         }
     }
 
     Parameters:
-        key is track eid
+        key is anon eid
         dbn is name str of named sub database, Default is 'anon'
         env is main LMDB database environment
             If env is not provided then use global gDbEnv
@@ -499,12 +499,12 @@ def getTracks(key, dbn='anon', env=None):
                                for value in cursor.iternext_dup()]
     return entries
 
-def deleteTracks(key, dbn='anon', env=None):
+def deleteAnonMsgs(key, dbn='anon', env=None):
     """
     Deletes tracks at key eid
 
     Parameters:
-        key is track eid
+        key is anon eid
         dbn is name str of named sub database, Default is 'anon'
         env is main LMDB database environment
             If env is not provided then use global gDbEnv
@@ -650,7 +650,7 @@ def popExpired(key, dbn='expire2eid', env=None):
     return entries
 
 
-def clearStaleTracks(key, tdbn='anon', edbn='expire2eid', env=None):
+def clearStaleAnonMsgs(key, tdbn='anon', edbn='expire2eid', env=None):
     """
     Clears expired tracks at or earlier to timestamp key
     and their entries in the anon and expire2eid databases
@@ -676,7 +676,7 @@ def clearStaleTracks(key, tdbn='anon', edbn='expire2eid', env=None):
             break
 
         for entry in entries:
-            result = deleteTracks(key=entry, dbn=tdbn, env=env)
+            result = deleteAnonMsgs(key=entry, dbn=tdbn, env=env)
             if result:
                 success = True
     return success

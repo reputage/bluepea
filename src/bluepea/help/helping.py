@@ -1114,21 +1114,21 @@ def validateSignedThingTransfer(adat, tdid, sig, ser, method="igo"):
     return dat
 
 
-def validateTrack(ser):
+def validateAnon(ser):
     """
-    Returns deserialized version of track ser if valid format
+    Returns deserialized version of anon ser if valid format
     Otherwise returns None
 
-    ser is json encoded unicode string of gateway track message
+    ser is json encoded unicode string of gateway anon message
 
-    eid is track ephemeral ID in base64 url safe  up to 16 bytes
+    eid is anon ephemeral ID in base64 url safe  up to 16 bytes
     msg is location string in base 64 url safe up to 144 bytes
     dts is iso8601 datetime stamp
 
     {
         eid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
         msg: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
-        dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of track gateway time
+        dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of anon gateway time
     }
 
 

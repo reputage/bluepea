@@ -33,10 +33,10 @@ console = getConsole()
 
 
 
-@doify('BluepeaTrackStaleClear', ioinits=odict(test=""))
-def bluepeaTrackStaleClear(self, **kwa):
+@doify('BluepeaAnonStaleClear', ioinits=odict(test=""))
+def bluepeaAnonStaleClear(self, **kwa):
     """
-    Delete Expired/Stale Tracks
+    Delete Expired/Stale Anon Msgs
 
     Assumes that the database has already been setup
 
@@ -49,7 +49,7 @@ def bluepeaTrackStaleClear(self, **kwa):
     Context: recur
 
     Example:
-        do bluepea track stale clear
+        do bluepea anon stale clear
 
     """
     if dbing.gDbEnv:  # database is setup
@@ -58,14 +58,14 @@ def bluepeaTrackStaleClear(self, **kwa):
         stamp = int(dt.timestamp() * 1000000)
         date = timing.iso8601(dt, aware=True)
 
-        console.verbose("Clearing Stale Tracks at '{}'\n".format(date))
+        console.verbose("Clearing Stale Anon Msgs at '{}'\n".format(date))
         try:
-            result = dbing.clearStaleTracks(key=stamp)
+            result = dbing.clearStaleAnonMsgs(key=stamp)
         except dbing.DatabaseError as ex:
-            console.terse("Error clearing stale tracks. {}".format(ex))
+            console.terse("Error clearing stale anon msgs. {}".format(ex))
 
         if result:
-            console.verbose("Cleared Stale Tracks at '{}'\n".format(date))
+            console.verbose("Cleared Stale Anon Msgs at '{}'\n".format(date))
 
 
 

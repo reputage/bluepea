@@ -7,7 +7,7 @@ house main
       print Starting Server
       bid start server
       print Starting Tracker
-      bid start tracker
+      bid start anoner
 
   init main.server.test to True
 
@@ -17,6 +17,6 @@ house main
       do bluepea server service
       do bluepea server close at exit
 
-  framer tracker be inactive via .main.tracker at 1.0
-    frame tracker
-      do bluepea track stale clear
+  framer anoner be inactive via .main.anoner at 1.0
+    frame anoner
+      do bluepea anon stale clear

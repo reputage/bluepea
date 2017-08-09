@@ -32,7 +32,7 @@ from ..help.helping import (parseSignatureHeader, verify64u, extractDidParts,
                             validateSignedThingWrite,
                             validateMessageData, verifySignedMessageWrite,
                             validateSignedOfferData, buildSignedServerOffer,
-                            validateSignedThingTransfer, validateTrack)
+                            validateSignedThingTransfer, validateAnon)
 from ..db import dbing
 from ..keep import keeping
 
@@ -41,7 +41,7 @@ console = getConsole()
 AGENT_BASE_PATH = "/agent"
 SERVER_BASE_PATH = "/server"
 THING_BASE_PATH = "/thing"
-TRACK_BASE_PATH = "/track"
+ANON_MSG_BASE_PATH = "/anon"
 
 class ServerResource:
     """
@@ -1020,12 +1020,12 @@ class ThingDidAcceptResource:
         rep.body = json.dumps(dat, indent=2)
 
 
-class TrackResource:
+class AnonMsgResource:
     """
-    Track Resource
-    Create and Read track messages
-    /track
-    /track?eid=abcdef12
+    Anonymous Message Resource
+    Create and Read anonymous messages
+    /anon
+    /anon?eid=abcdef12
 
     Database key is
     eid
@@ -1033,7 +1033,7 @@ class TrackResource:
     {
         create: serverdatetimecreatestamp,
         expire: serverdatetimeexpirestamp
-        track:
+        anon:
         {
             eid: eid,
             msg: xoredgatewaylocationstringormsg,
@@ -1041,7 +1041,7 @@ class TrackResource:
         }
     }
 
-    eid is track ephemeral ID in base64 url safe  up to 16 bytes
+    eid is anon ephemeral ID in base64 url safe  up to 16 bytes
     msg is location string in base 64 url safe up to 144 bytes
     dts is iso8601 datetime stamp
 
@@ -1049,11 +1049,11 @@ class TrackResource:
     {
         create: 1501774813367861, # creation in server time microseconds since epoch
         expire: 1501818013367861, # expiration in server time microseconds since epoch
-        track:
+        anon:
         {
             eid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
             msg: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
-            dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of track gateway time
+            dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of anon gateway time
         }
     }
 
@@ -1078,10 +1078,10 @@ class TrackResource:
         {
             eid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
             msg: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
-            dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of track gateway time
+            dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of anon gateway time
         }
 
-        eid is track ephemeral ID in base64 url safe  up to 16 bytes
+        eid is anon ephemeral ID in base64 url safe  up to 16 bytes
         msg is location string in base 64 url safe up to 144 bytes
         dts is iso8601 datetime stamp
 
@@ -1089,11 +1089,11 @@ class TrackResource:
         {
             create: 1501774813367861, # creation in server time microseconds since epoch
             expire: 1501818013367861, # expiration in server time microseconds since epoch
-            track:
+            anon:
             {
                 eid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
                 msg: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
-                dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of track gateway time
+                dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of anon gateway time
             }
         }
         """
@@ -1106,7 +1106,7 @@ class TrackResource:
         ser = serb.decode("utf-8")
 
         try:
-            dat = validateTrack(ser=ser)
+            dat = validateAnon(ser=ser)
         except ValidationError as ex:
             raise falcon.HTTPError(falcon.HTTP_400,
                                                'Validation Error',
@@ -1119,18 +1119,18 @@ class TrackResource:
         sdat = ODict()
         sdat["create"] = create
         sdat["expire"] = expire
-        sdat["track"] = dat
+        sdat["anon"] = dat
 
-        # write new track data resource to database at eid
+        # write new anon data resource to database at eid
         try:
-            dbing.putTrack(key=eid, data=sdat)
+            dbing.putAnonMsg(key=eid, data=sdat)
         except dbing.DatabaseError as ex:
             raise falcon.HTTPError(falcon.HTTP_412,
                                   'Database Error',
                                   '{}'.format(ex.args[0]))
 
 
-        # write new expiration of track eid to database
+        # write new expiration of anon eid to database
         try:
             dbing.putExpireEid(key=expire, eid=eid)
         except dbing.DatabaseError as ex:
@@ -1138,14 +1138,14 @@ class TrackResource:
                                   'Database Error',
                                   '{}'.format(ex.args[0]))
 
-
+        eidUri = falcon.uri.encode_value(eid)
         rep.status = falcon.HTTP_201  # post response status with location header
-        rep.location = "{}?eid={}".format(TRACK_BASE_PATH, eid)
+        rep.location = "{}?eid={}".format(ANON_MSG_BASE_PATH, eidUri)
         rep.body = json.dumps(sdat, indent=2)
 
     def on_get(self, req, rep):
         """
-        Handles GET request for track resource
+        Handles GET request for anon resource
         and eid in query params
         """
         eid = req.get_param("eid") # returns url-decoded query parameter value
@@ -1153,7 +1153,7 @@ class TrackResource:
         # read all tracks from database
         tracks = []
         try:
-            tracks = dbing.getTracks(key=eid)
+            tracks = dbing.getAnonMsgs(key=eid)
         except dbing.DatabaseError as ex:
             raise falcon.HTTPError(falcon.HTTP_400,
                             'Resource Error',
@@ -1199,5 +1199,5 @@ def loadEnds(app, store):
     thingAccept = ThingDidAcceptResource(store=store)
     app.add_route('{}/{{did}}/accept'.format(THING_BASE_PATH), thingAccept)
 
-    track = TrackResource(store=store)
-    app.add_route('{}'.format(TRACK_BASE_PATH), track)
+    anon = AnonMsgResource(store=store)
+    app.add_route('{}'.format(ANON_MSG_BASE_PATH), anon)

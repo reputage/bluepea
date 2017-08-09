@@ -447,15 +447,15 @@ def test_putGetDeleteTrack():
     {
         create: 1501774813367861, # creation in server time microseconds since epoch
         expire: 1501818013367861, # expiration in server time microseconds since epoch
-        track:
+        anon:
         {
             eid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
             msg: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
-            dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of track gateway time
+            dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of anon gateway time
         }
     }
 
-    eid is track ephemeral ID in hex lowercase
+    eid is anon ephemeral ID in hex lowercase
     msg is location string in hex lowercase
     dts is iso8601 datetime stamp
 
@@ -485,12 +485,12 @@ def test_putGetDeleteTrack():
     eid = "AQIDBAoLDA0="
     msg = "EjRWeBI0Vng="
 
-    track = ODict()
-    track['eid'] = eid
-    track['msg'] = msg
-    track['dts'] = dts
+    anon = ODict()
+    anon['eid'] = eid
+    anon['msg'] = msg
+    anon['dts'] = dts
 
-    assert track == {
+    assert anon == {
         "eid": "AQIDBAoLDA0=",
         "msg": "EjRWeBI0Vng=",
         "dts": "2000-01-01T00:30:05+00:00",
@@ -499,12 +499,12 @@ def test_putGetDeleteTrack():
     data = ODict()
     data['create'] = create
     data['expire'] = expire
-    data['track'] = track
+    data['anon'] = anon
 
     assert data == {
         "create": 946686600000000,
         "expire": 946686960000000,
-        "track":
+        "anon":
         {
             "eid": "AQIDBAoLDA0=",
             "msg": "EjRWeBI0Vng=",
@@ -513,51 +513,51 @@ def test_putGetDeleteTrack():
     }
 
     # write entry
-    result = dbing.putTrack(key=eid, data=data)
+    result = dbing.putAnonMsg(key=eid, data=data)
     assert result
 
     # read entries
-    entries = dbing.getTracks(key=eid)
+    entries = dbing.getAnonMsgs(key=eid)
     assert len(entries) == 1
     assert entries[0] == data
 
-    track2 = track.copy()
-    track2['msg'] = "ABRWeBI0VAA="
+    anon2 = anon.copy()
+    anon2['msg'] = "ABRWeBI0VAA="
     data2 = ODict()
     data2['create'] = create + 1
     data2['expire'] = expire + 1
-    data2['track'] = track2
+    data2['anon'] = anon2
 
-    result = dbing.putTrack(key=eid, data=data2)
+    result = dbing.putAnonMsg(key=eid, data=data2)
     assert result
 
     # read entries
-    entries = dbing.getTracks(key=eid)
+    entries = dbing.getAnonMsgs(key=eid)
     assert len(entries) == 2
     assert entries[0] == data
     assert entries[1] == data2
 
     eid2 = "BBIDBAoLCCC="
-    track3 = track.copy()
-    track3["eid"] = eid2
+    anon3 = anon.copy()
+    anon3["eid"] = eid2
     data3 = ODict()
     data2['create'] = create
     data2['expire'] = expire
-    data2['track'] = track3
+    data2['anon'] = anon3
 
-    result = dbing.putTrack(key=eid2, data=data3)
+    result = dbing.putAnonMsg(key=eid2, data=data3)
     assert result
 
     # read entries
-    entries = dbing.getTracks(key=eid2)
+    entries = dbing.getAnonMsgs(key=eid2)
     assert len(entries) == 1
     assert entries[0] == data3
 
     # remove entries at eid
-    result = dbing.deleteTracks(key=eid)
+    result = dbing.deleteAnonMsgs(key=eid)
     assert result
     # read deleted entries
-    entries = dbing.getTracks(key=eid)
+    entries = dbing.getAnonMsgs(key=eid)
     assert not entries
 
     cleanupTmpBaseDir(dbEnv.path())
@@ -746,25 +746,25 @@ def test_clearStaleTracks():
 
     eids0 = ["00000000000=", "10000000000=", "20000000000="]
     for eid in eids0:
-        track = ODict()
-        track['eid'] = eid
-        track['msg'] = msg
-        track['dts'] = dts
+        anon = ODict()
+        anon['eid'] = eid
+        anon['msg'] = msg
+        anon['dts'] = dts
 
         data = ODict()
         data['create'] = create0
         data['expire'] = expire0
-        data['track'] = track
+        data['track'] = anon
 
         # write entry
-        result = dbing.putTrack(key=eid, data=data)
+        result = dbing.putAnonMsg(key=eid, data=data)
         assert result
         result = dbing.putExpireEid(key=expire0, eid=eid)
         assert result
 
     # read entries
     for eid in eids0:
-        entries = dbing.getTracks(key=eid)
+        entries = dbing.getAnonMsgs(key=eid)
         assert entries
 
     entries = dbing.getExpireEid(key=expire0)
@@ -773,42 +773,42 @@ def test_clearStaleTracks():
 
     eids1 = ["30000000000=", "40000000000=", "50000000000="]
     for eid in eids1:
-        track = ODict()
-        track['eid'] = eid
-        track['msg'] = msg
-        track['dts'] = dts
+        anon = ODict()
+        anon['eid'] = eid
+        anon['msg'] = msg
+        anon['dts'] = dts
 
         data = ODict()
         data['create'] = create1
         data['expire'] = expire1
-        data['track'] = track
+        data['anon'] = anon
 
         # write entry
-        result = dbing.putTrack(key=eid, data=data)
+        result = dbing.putAnonMsg(key=eid, data=data)
         assert result
         result = dbing.putExpireEid(key=expire1, eid=eid)
         assert result
 
     # read entries
     for eid in eids1:
-        entries = dbing.getTracks(key=eid)
+        entries = dbing.getAnonMsgs(key=eid)
         assert entries
 
     entries = dbing.getExpireEid(key=expire0)
     assert len(entries) == 3
 
     expire = expire0 - 1  # none expired
-    result = dbing.clearStaleTracks(key=expire)
+    result = dbing.clearStaleAnonMsgs(key=expire)
     assert not result
 
     expire = expire1  # all expired
-    result = dbing.clearStaleTracks(key=expire)
+    result = dbing.clearStaleAnonMsgs(key=expire)
     assert result
 
     # verify databases are empty
     eids = eids0 + eids1
     for eid in eids:
-        entries = dbing.getTracks(key=eid)
+        entries = dbing.getAnonMsgs(key=eid)
         assert not entries
 
     expires = [expire0, expire1]

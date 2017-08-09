@@ -2028,10 +2028,10 @@ def test_post_Track(client):  # client is a fixture in pytest_falcon
     {
         eid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
         msg: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
-        dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of track gateway time
+        dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of anon gateway time
     }
 
-    eid is track ephemeral ID in base64 url safe  up to 16 bytes
+    eid is anon ephemeral ID in base64 url safe  up to 16 bytes
     msg is location string in base 64 url safe up to 144 bytes
     dts is iso8601 datetime stamp
 
@@ -2039,11 +2039,11 @@ def test_post_Track(client):  # client is a fixture in pytest_falcon
     {
         create: 1501774813367861, # creation in server time microseconds since epoch
         expire: 1501818013367861, # expiration in server time microseconds since epoch
-        track:
+        anon:
         {
             eid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
             msg: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
-            dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of track gateway time
+            dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of anon gateway time
         }
     }
     """
@@ -2063,40 +2063,40 @@ def test_post_Track(client):  # client is a fixture in pytest_falcon
     eid = 'AQIDBAoLDA0='
     msg = 'EjRWeBI0Vng='
 
-    track = ODict()
-    track['eid'] = eid
-    track['msg'] = msg
-    track['dts'] = dts
+    anon = ODict()
+    anon['eid'] = eid
+    anon['msg'] = msg
+    anon['dts'] = dts
 
-    assert track == {
+    assert anon == {
         "eid": "AQIDBAoLDA0=",
         "msg": "EjRWeBI0Vng=",
         "dts": "2000-01-01T00:30:05+00:00",
     }
 
-    tser = json.dumps(track, indent=2)
+    tser = json.dumps(anon, indent=2)
 
-    # now post track
+    # now post anon
     headers = {"Content-Type": "text/html; charset=utf-8"}
     body = tser  # client.post encodes the body
-    rep = client.post('/track',
+    rep = client.post('/anon',
                       body=body,
                       headers=headers)
 
     assert rep.status == falcon.HTTP_201
     assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
     location = falcon.uri.decode(rep.headers['location'])
-    assert location == "/track?eid={}".format(eid)
+    assert location == "/anon?eid={}".format(eid)
     data = rep.json
-    assert data['track'] == track
+    assert data['anon'] == anon
 
     create = rep.json['create']
     expire = rep.json['expire']
     assert expire > create
 
 
-    # verify that track is in database
-    entries = dbing.getTracks(eid)
+    # verify that anon is in database
+    entries = dbing.getAnonMsgs(eid)
     assert entries[0] == data
 
     #verify expiration in its database
