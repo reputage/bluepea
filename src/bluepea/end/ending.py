@@ -998,11 +998,12 @@ class ThingDidAcceptResource:
                                        'Could not read the request body.')
         ser = serb.decode("utf-8")
 
-        dat = validateSignedThingTransfer(adat=adat, tdid=did, sig=sig, ser=ser)
-        if not dat:
+        try:
+            dat = validateSignedThingTransfer(adat=adat, tdid=did, sig=sig, ser=ser)
+        except ValidationError as  ex:
             raise falcon.HTTPError(falcon.HTTP_400,
                                                'Validation Error',
-                                           'Could not validate the request body.')
+                        'Error validating the request body. {}'.format(ex))
 
         # write new thing resource to database
         try:

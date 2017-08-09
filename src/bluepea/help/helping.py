@@ -1066,50 +1066,50 @@ def validateSignedThingTransfer(adat, tdid, sig, ser, method="igo"):
         try:
             dat = json.loads(ser, object_pairs_hook=ODict)
         except ValueError as ex:
-            return None  # invalid json
+            raise ValidationError("Invalid JSON")  # invalid json
 
-        if not dat:  # registration must not be empty
-            return None
+        if not dat:  # registration must not be empt0y
+            raise ValidationError("Empty body")
 
         if not isinstance(dat, dict):  # must be dict subclass
-            return None
+            raise ValidationError("JSON not dict")
 
         if "changed" not in dat:  # changed field required
-            return None
+            raise ValidationError("Missing changed field")
 
         try:
             dt = arrow.get(dat["changed"])
         except arrow.parser.ParserError as ex:  # invalid datetime format
-            return None
+            raise ValidationError("Invalid date time")
 
         if "did" not in dat:  # did field required
-            return None
+            raise ValidationError("Missing did field")
 
         if dat['did'] != tdid:  # not same thing
-            return None
+            raise ValidationError("Data did and url did not matching")
 
         # validate new signer
         try:
             (adid, nindex, nkey) = extractDatSignerParts(dat)
         except ValueError as ex:
-            return None
+            raise ValidationError("Invalid signer field")
 
         if adid != adat['did']:  # thing signer is not aspirant
-            return None
+            raise ValidationError("Thing signer is not aspirant")
 
         try:
             nverkey = adat['keys'][nindex]['key']  # new index
         except (KeyError, IndexError) as ex:
-            return None
+            raise ValidationError("Missing key")
 
         if len(nverkey) != 44:
-            return None  # invalid length for base64 encoded key
+            raise ValidationError("Invalid key length")  # invalid length for base64 encoded key
 
         if not verify64u(sig, ser, nverkey):  # verify with new signer verify key
-            return None  # signature fails
+            ValidationError("Unverifiable signature")  # signature fails
 
     except Exception as ex:  # unknown problem
-        return None
+        ValidationError("Unknown error")
 
     return dat
 
