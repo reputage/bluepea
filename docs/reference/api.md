@@ -1613,38 +1613,39 @@ Date: Thu, 27 Jul 2017 22:16:15 GMT
 }
 ```
 
-## Track Creation
+## Anonymous Message Creation
 
-The tracking service stores location beacon data that is augmented with the gateway location that received the beacon. The beacon data or track includes an ephemerial ID (EID). This EID is generated using a shared cryptographic key and is an encrypted version of the date time of when the beacon was sent.  The beacon generates a 16 byte EID. The tracking service uses the upper 8 bytes as the EID or key to store the track and the lower 8 bytes to XOR with the location in order to encrypt or obscure the location.  With a synchronized clock and a copy of the shared key, a user can estimate the EID at any point in time in the future. The client application can then request track data by EID and if found retreive the location of the gateway as well as a datetime stamp.
+The anonymous messaging service can be used to store location beacon data that is augmented with the gateway location that received the beacon. The service can also to be used to store limited amounts of information as messages where the ID of the poster is ephemeral and therefore highly anonymous. The posted data includes an ephemerial ID (EID). The EID can but up to 16 binary bytes in length. It is provided in Base64 url/file safe encoding. When used for beacon tracking the EID is generated using a shared cryptographic key and is an encrypted version of the date time of when the beacon was sent.  The beacon generates a 16 byte EID. The upper 8 bytes are used as the EID or key to store the track and the lower 8 bytes to XOR with the location in order to encrypt or obscure the location.  With a synchronized clock and a copy of the shared key, a user can estimate the EID at any point in time in the future. The client application can then request track data by EID and if found retreive the location of the gateway as well as a datetime stamp.
 
 
-The request is made by sending an HTTP POST to ```/track```. The EID in the request body is the hex encoded version of the EID. Hex encoding doubles that length. So an 8 byte binary EID becomes a 16 char hex string. Likewise for the location. There are three fields in the data: "*eid*", "*loc*", and "*dts*". The *dts* field is the iso8601 datetime stamp of the gateway at the time it received the beacon and assigned the location into the *loc* field.
+The request is made by sending an HTTP POST to ```/anon```. The EID in the request body is the base64 url safe encoded version of the EID. Base64 encoding increased the length by 4/3. So an 8 byte binary EID becomes a 12 char base64  string with padding. Likewise for the location. There are three fields in the data: "*eid*", "*msg*", and "*dts*". The *dts* field is the iso8601 datetime stamp of the gateway at the time it received the beacon and assigned the location or message into the *msg* field.
 An example is shown below:
 
 ```json
 {
-  eid: "abcdef0123456789,  # lower case 16 char hex of 8 byte eid
-  loc: "1111222233334444", # lower case 16 char hex of 8 byte location
-  dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of track gateway time
+   eid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
+   msg: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
+   dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of anon gateway time
 }
 ```
 
-A successful request results in a response with track data stored in the database. The response data includes the track data from the request in the *track* field as well as a timestamp in field *create* in server time when the data was stored in the database  and a timestamp in field *expire* in server time when the data becomes stale and will be deleted from the database. The timestamps are in microseconds since the Unix epoch. An example of the data stored in the database is as follows:
+A successful request results in a response with anonymous message data stored in the database. The response data includes the message data from the request in the *anon* field as well as a timestamp in field *create* in server time when the data was stored in the database  and a timestamp in field *expire* in server time when the data becomes stale and will be deleted from the database. The timestamps are in microseconds since the Unix epoch. An example of the data stored in the database is as follows:
 
 ```json
 {
-  "create": 1501777700028947,
-  "expire": 1501820900028947,
-  "track": {
-    "eid": "010203040a0b0c0d",
-    "loc": "1234567812345678",
-    "dts": "2000-01-01T00:30:05+00:00"
-  }
+    create: 1501774813367861, # creation in server time microseconds since epoch
+    expire: 1501818013367861, # expiration in server time microseconds since epoch
+    anon:
+    {
+        eid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
+        msg: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
+        dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of anon gateway time
+    }
 }
 ```
 
 
-The value of the *location* header in the response is the URL to access the track data resource via a GET request. This *location* value has already been URL encoded.
+The value of the *location* header in the response is the URL to access the msg data resource via a GET request. This *location* value has already been URL encoded.
 
 A successful request will return status code 201
 An unsuccessful request will return status code 400.
@@ -1654,16 +1655,16 @@ Example requests and responses are shown below.
 #### Request
 
 ```http
-POST /track HTTP/1.1
+POST /anon HTTP/1.1
 Content-Type: application/json; charset=UTF-8
 Host: localhost:8080
 Connection: close
 User-Agent: Paw/3.1.2 (Macintosh; OS X/10.12.6) GCDHTTPRequest
-Content-Length: 98
+Content-Length: 90
 
 {
-  "eid": "010203040a0b0c0d",
-  "loc": "1234567812345678",
+  "eid": "AQIDBAoLDA0=",
+  "msg": "EjRWeBI0Vng=",
   "dts": "2000-01-01T00:30:05+00:00"
 }
 ```
@@ -1672,31 +1673,31 @@ Content-Length: 98
 
 ```http
 HTTP/1.1 201 Created
-Location: /track?eid=010203040a0b0c0d
-Content-Length: 181
+Location: /anon?eid=AQIDBAoLDA0%3D
+Content-Length: 172
 Content-Type: application/json; charset=UTF-8
 Server: Ioflo WSGI Server
-Date: Thu, 03 Aug 2017 16:28:20 GMT
+Date: Wed, 09 Aug 2017 19:47:38 GMT
 
 {
-  "create": 1501777700028947,
-  "expire": 1501820900028947,
-  "track": {
-    "eid": "010203040a0b0c0d",
-    "loc": "1234567812345678",
+  "create": 1502308058385577,
+  "expire": 1502308068385577,
+  "anon": {
+    "eid": "AQIDBAoLDA0=",
+    "msg": "EjRWeBI0Vng=",
     "dts": "2000-01-01T00:30:05+00:00"
   }
 }
 ```
 
-## Track Read
+## Anonymous Message Read
 
-The tracking service stores location beacon data that is augmented with the gateway location that received the beacon. The beacon data or track includes an ephemerial ID (EID). This EID is generated using a shared cryptographic key and is an encrypted version of the date time of when the beacon was sent.  The beacon generates a 16 byte EID. The tracking service uses the upper 8 bytes as the EID or key to store the track and the lower 8 bytes to XOR with the location in order to encrypt or obscure the location.  With a synchronized clock and a copy of the shared key, a user can estimate the EID at any point in time in the future. The client application can then request track data by EID and if found retreive the location of the gateway as well as a datetime stamp.
+The anonymous messaging service stores messages, or when used for tracking, location beacon data that is augmented with the gateway location that received the beacon. The anonymous message data includes an ephemerial ID (EID). When used for tracking beacons this EID is generated using a shared cryptographic key and is an encrypted version of the date time of when the beacon was sent.  The beacon generates a 16 byte EID. The upper 8 bytes are used as the EID or key to store the track and the lower 8 bytes to XOR with the location in order to encrypt or obscure the location.  With a synchronized clock and a copy of the shared key, a user can estimate the EID at any point in time in the future. The client application can then request track data by EID and if found retreive the location of the gateway as well as a datetime stamp.
 
 
-The read request is made by sending an HTTP GET to ```/track?eid={eid}```. The EID in the request query parameter is the hex encoded version of the EID. Hex encoding doubles that length. So an 8 byte binary EID becomes a 16 char hex string. 
+The read request is made by sending an HTTP GET to ```/anon?eid={eid}```. The EID in the request body is the base64 url safe encoded version of the EID. Base64 encoding increased the length by 4/3. So an 8 byte binary EID becomes a 12 char base64  string with padding. 
 
-A successful request results in the response a JSON encoded list with all the track data for a given EID stored in the database. A single EID may have more than one track associated with it. Each item in the response data includes the track data from the request in the *track* field as well as the datetime (in iso8601 format) on the server when the data was stored in the database in field *create* and the datetime when the data becomes stale and will be deleted from the database in field *expire*. 
+A successful request results in the response a JSON encoded list with all the message data for a given EID stored in the database. A single EID may have more than one message associated with it. Each item in the response data includes the message data from the request in the *anon* field as well as the datetime (in iso8601 format) on the server when the data was stored in the database in field *create* and the datetime when the data becomes stale and will be deleted from the database in field *expire*. 
 
 A successful request will return status code 200
 An unsuccessful request will return an error code.
@@ -1706,7 +1707,7 @@ Example requests and responses are shown below.
 #### Request
 
 ```http
-GET /track?eid=010203040a0b0c0d HTTP/1.1
+GET /anon?eid=AQIDBAoLDA0%3D HTTP/1.1
 Content-Type: application/json; charset=UTF-8
 Host: localhost:8080
 Connection: close
@@ -1718,26 +1719,44 @@ User-Agent: Paw/3.1.2 (Macintosh; OS X/10.12.6) GCDHTTPRequest
 ```http
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-Content-Length: 404
+Content-Length: 770
 Server: Ioflo WSGI Server
-Date: Thu, 03 Aug 2017 16:48:39 GMT
+Date: Wed, 09 Aug 2017 19:47:46 GMT
 
 [
   {
-    "create": 1501777700028947,
-    "expire": 1501820900028947,
-    "track": {
-      "eid": "010203040a0b0c0d",
-      "loc": "1234567812345678",
+    "create": 1502308056885544,
+    "expire": 1502308066885544,
+    "anon": {
+      "eid": "AQIDBAoLDA0=",
+      "msg": "EjRWeBI0Vng=",
       "dts": "2000-01-01T00:30:05+00:00"
     }
   },
   {
-    "create": 1501778915817343,
-    "expire": 1501822115817343,
-    "track": {
-      "eid": "010203040a0b0c0d",
-      "loc": "1234567812345678",
+    "create": 1502308057570957,
+    "expire": 1502308067570957,
+    "anon": {
+      "eid": "AQIDBAoLDA0=",
+      "msg": "EjRWeBI0Vng=",
+      "dts": "2000-01-01T00:30:05+00:00"
+    }
+  },
+  {
+    "create": 1502308058007878,
+    "expire": 1502308068007878,
+    "anon": {
+      "eid": "AQIDBAoLDA0=",
+      "msg": "EjRWeBI0Vng=",
+      "dts": "2000-01-01T00:30:05+00:00"
+    }
+  },
+  {
+    "create": 1502308058385577,
+    "expire": 1502308068385577,
+    "anon": {
+      "eid": "AQIDBAoLDA0=",
+      "msg": "EjRWeBI0Vng=",
       "dts": "2000-01-01T00:30:05+00:00"
     }
   }
