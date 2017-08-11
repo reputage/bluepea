@@ -29,9 +29,14 @@ except ImportError:
 import arrow
 
 from ioflo.aid.sixing import *
-from ioflo.aid import getConsole
+from ioflo.aid import odict
 from ioflo.aid import filing
 from ioflo.aid import timing
+from ioflo.aid.timing import StoreTimer
+from ioflo.aio import WireLog
+from ioflo.aio.http import Patron
+from ioflo.base import Store
+from ioflo.aid import getConsole
 
 import libnacl
 
@@ -1107,7 +1112,7 @@ def validateSignedThingTransfer(adat, tdid, sig, ser, method="igo"):
             ValidationError("Unverifiable signature")  # signature fails
 
     except Exception as ex:  # unknown problem
-        ValidationError("Unknown error")
+        raise ValidationError("Unexpected error")
 
     return dat
 
@@ -1175,6 +1180,81 @@ def validateAnon(ser):
         dat['msg'] = dat['msg']
 
     except Exception as ex:  # unknown problem
-        raise ValidationError("Unknown error")
+        raise ValidationError("Unexpected error")
 
     return dat
+
+
+def backendRequest(method=u'GET',
+                   scheme=u'',
+                   host=u'localhost',
+                   port=None,
+                   path=u'/',
+                   qargs=None,
+                   data=None,
+                   store=None,
+                   timeout=2.0,
+                   buffer=False,
+                   ):
+    """
+    Perform Async ReST request to Backend Server
+
+    Parameters:
+
+    Usage: (Inside a generator function)
+
+        response = yield from backendRequest()
+
+    response is the response if valid else None
+    before response is completed the yield from yields up an empty string ''
+    once completed then response has a value
+
+    """
+    store = store if store is not None else Store(stamp=0.0)
+    if buffer:
+        wlog = WireLog(buffify=buffify, same=True)
+        wlog.reopen()
+    else:
+        wlog = None
+
+    client = Patron(bufsize=131072,
+                    wlog=wlog,
+                    store=store,
+                    scheme=scheme,
+                    hostname=host,
+                    port=port,
+                    path=path,
+                    reconnectable=False,
+                    )
+
+    client.connector.reopen()
+
+    request = odict([('method', method),
+                     ('path', path),
+                     ('qargs', qargs),
+                     ('data', data),
+                     ('fragment', u''),
+                     ('headers', odict([('Accept', 'application/json'),
+                                        ('Connection', 'close')])),
+                     ])
+    console.concise("Making Backend Request {0} {1} ...\n".format(request['method'],
+                                                                  request['path']))
+    client.requests.append(request)
+    timer = timing.StoreTimer(store=store, duration=timeout)
+    while ((client.requests or client.connector.txes or not client.responses)
+           and not timer.expired):
+        try:
+            client.serviceAll()
+        except Exception as ex:
+            console.terse("Error: Servicing backend client. '{0}'\n".format(ex))
+            raise ex
+        yield ''  # this is eventually yielded by wsgi app while waiting
+
+    response = None  # in case timed out
+    if client.responses:
+        response = client.responses.popleft()
+    client.connector.close()
+    if wlog:
+        wlog.close()
+
+    return response

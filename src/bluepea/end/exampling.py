@@ -21,6 +21,8 @@ import falcon
 from ioflo.aid.sixing import *
 from ioflo.aid import getConsole
 
+from  ..help.helping import backendRequest
+
 console = getConsole()
 
 class ExampleResource:
@@ -146,6 +148,35 @@ class ExampleDidResource:
         rep.status = falcon.HTTP_200  # This is the default status
         rep.content_type = "text/html"
         rep.body = message
+
+# generator
+def backendGenerator():
+    """
+    example generator that yields empty before returning json
+    """
+    response = yield from aiding.backendRequest(method='GET',
+                                                    path=path,
+                                                    data=creds,
+                                                    store=store,
+                                                    timeout=0.5)
+
+    #if response is None:  # timed out waiting for authorization server
+        #abortify(app, code=503, text="Timed out authorizing {0}.".format(account))
+
+
+class ExampleBackendResource:
+    def  __init__(self, **kwa):
+        super(**kwa)
+
+    def on_get(self, req, rep):
+        """
+        Handles GET request that makes request to another backend endpoint
+        """
+
+
+        rep.status = falcon.HTTP_200  # This is the default status
+        rep.content_type = "application/json"
+        rep.stream = backendGenerator()
 
 
 app = falcon.API() # falcon.API instances are callable WSGI apps
