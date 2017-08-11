@@ -517,7 +517,7 @@ def validateSignedThingReg(signature, registration, method="igo"):
             raise ValidationError("Unverifiable signature")  # signature fails
 
     except Exception as ex:  # unknown problem
-        raise ValidationError("Unknown problem")
+        raise ValidationError("Unexpected error")
 
     return reg
 
@@ -598,7 +598,7 @@ def validateSignedResource(signature, resource, verkey, method="igo"):
             raise ValidationError("Unverifiable signature")  # signature fails
 
     except Exception as ex:  # unknown problem
-        raise ValidationError("Unknown problem")
+        raise ValidationError("Unexpected error")
 
     return rsrc
 
@@ -710,7 +710,7 @@ def validateSignedAgentWrite(cdat, csig, sig, ser,  method="igo"):
             raise ValidationError("Unverifiable signature")  # signature fails
 
     except Exception as ex:  # unknown problem
-        raise ValidationError("Unknown error")
+        raise ValidationError("Unexpected error")
 
     return dat
 
@@ -807,7 +807,7 @@ def validateSignedThingWrite(sdat, cdat, csig, sig, ser,  method="igo"):
             raise ValidationError("Unverifiable new signature")  # signature fails
 
     except Exception as ex:  # unknown problem
-        raise ValidationError("Unknown error")
+        raise ValidationError("Unexpected error")
 
     return dat
 
@@ -845,10 +845,9 @@ def validateMessageData(ser):
             raise ValidationError("Invalid date field")
 
     except Exception as ex:  # unknown problem
-        raise ValidationError("Unknown error")
+        raise ValidationError("Unexpected error")
 
     return dat
-
 
 def verifySignedMessageWrite(sdat, index, sig, ser):
     """
@@ -870,17 +869,17 @@ def verifySignedMessageWrite(sdat, index, sig, ser):
         try:
             sverkey = sdat["keys"][index]["key"]
         except (TypeError, KeyError, IndexError) as ex:
-            return False
+            raise ValidationError("Missing or invalid signer key")
 
         if len(sverkey) != 44:
-            return False  # invalid length for base64 encoded key
+            raise ValidationError("Invalid signer key")  # invalid length for base64 encoded key
 
         # verify request using existing resources signer verify key
         if not verify64u(sig, ser, sverkey):
-            return False  # signature fails
+            raise ValidationError("Unverifiable signature")  # signature fails
 
     except Exception as ex:  # unknown problem
-        return False
+        raise ValidationError("Unexpected error")
 
     return True
 
@@ -909,62 +908,63 @@ def validateSignedOfferData(adat, ser, sig, tdat, method="igo"):
         try:  # get signing key of request from thing resource
             (adid, index, akey) = extractDatSignerParts(tdat)
         except ValueError as ex:
-            return None
+            raise ValidationError("Missing or invalid signer")
 
         # get agent key at index from signer data. assumes that resource is valid
         try:
             averkey = adat["keys"][index]["key"]
         except (TypeError, KeyError, IndexError) as ex:
-            return None
+            raise ValidationError("Missing or invalid signer key")
 
         if len(averkey) != 44:
-            return None  # invalid length for base64 encoded key
+            raise ValidationError("Invalid signer key")  # invalid length for base64 encoded key
 
         # verify request using agent signer verify key
         if not verify64u(sig, ser, averkey):
-            return None  # signature fails
+            raise ValidationError("Unverifiable signatrue")  # signature fails
+
         # now validate offer data
         try:
             dat = json.loads(ser, object_pairs_hook=ODict)
         except ValueError as ex:
-            return None  # invalid json
+            raise ValidationError("Invalid json")  # invalid json
 
         if not dat:  # offer request must not be empty
-            return None
+            raise ValidationError("Empty body")
 
         if not isinstance(dat, dict):  # must be dict subclass
-            return None
+            raise ValidationError("JSON not dict")
 
         requireds = ("uid", "thing", "aspirant", "duration")
         for field in requireds:
             if field not in dat:
-                return None
+                raise ValidationError("Missing missing required field {}".format(field))
 
         if not dat["uid"]:  # uid must not be empty
-            return None
+            raise ValidationError("Empty uid")
 
         if dat["thing"] != tdat['did']:
-            return None
+            raise ValidationError("Not same thing")
 
         aspirant = dat["aspirant"]
         try:  # correct did format  pre:method:keystr
             pre, meth, keystr = aspirant.split(":")
         except ValueError as ex:
-            return None
+            raise ValidationError("Invalid aspirant")
 
         if pre != "did" or meth != method:
-            return None  # did format bad
+            raise ValidationError("Invalid aspirant")  # did format bad
 
         try:
             duration = float(dat["duration"])
         except ValueError as ex:
-            return None
+            raise ValidationError("Invalid duration")
 
         if duration < PROPAGATION_DELAY * 2.0:
-            return None
+            raise ValidationError("Duration too short")
 
     except Exception as ex:  # unknown problem
-        return None
+        raise ValidationError("Unexpected error")
 
     return dat
 

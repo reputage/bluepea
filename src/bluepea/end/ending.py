@@ -340,11 +340,12 @@ class AgentDidDropResource:
                                     'Error verifying signer resource. {}'.format(ex))
 
         # verify request signature
-        result = verifySignedMessageWrite(sdat=sdat, index=index, sig=msig, ser=mser)
-        if not result:
+        try:
+            result = verifySignedMessageWrite(sdat=sdat, index=index, sig=msig, ser=mser)
+        except ValidationError as ex:
             raise falcon.HTTPError(falcon.HTTP_400,
                                        'Validation Error',
-                                    'Could not validate the request body.')
+                            'Error validating the request body. {}'.format(ex))
 
         if sdid != mdat['from']:  # destination to did and did in url not same
             raise falcon.HTTPError(falcon.HTTP_400,
@@ -794,12 +795,12 @@ class ThingDidOfferResource:
                                     'Error verifying signer resource. {}'.format(ex))
 
         ser = serb.decode("utf-8")
-        dat = validateSignedOfferData(adat, ser, sig, tdat)
-
-        if not dat:  # offer must not be empty
+        try:
+            dat = validateSignedOfferData(adat, ser, sig, tdat)
+        except ValidationError as ex:
             raise falcon.HTTPError(falcon.HTTP_400,
                                     'Validation Error',
-                                    'Invalid offer data.')
+                                    'Invalid offer data. {}'.format(ex))
 
 
         dt = datetime.datetime.now(tz=datetime.timezone.utc)
