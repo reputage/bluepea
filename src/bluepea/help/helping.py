@@ -743,71 +743,71 @@ def validateSignedThingWrite(sdat, cdat, csig, sig, ser,  method="igo"):
         try:
             (sdid, index, akey) = extractDatSignerParts(cdat)
         except ValueError as ex:
-            return None
+            raise ValidationError("Missing or invalid signer field")
 
         # get signer key from signer data. assumes that resource is valid
         try:
             sverkey = sdat["keys"][index]["key"]
         except (TypeError, KeyError, IndexError) as ex:
-            return None
+            raise ValidationError("Missing or invalid signer key")
 
         if len(sverkey) != 44:
-            return None  # invalid length for base64 encoded key
+            raise ValidationError("Invalid signer key")  # invalid length for base64 encoded key
 
         # verify request using existing resources signer verify key
         if not verify64u(csig, ser, sverkey):
-            return None  # signature fails
+            raise ValidationError("Unverifiable signature")  # signature fails
 
         # now validate updated resource
         try:
             dat = json.loads(ser, object_pairs_hook=ODict)
         except ValueError as ex:
-            return None  # invalid json
+            raise ValidationError("Invalid JSON")  # invalid json
 
         if not dat:  # registration must not be empty
-            return None
+            raise ValidationError("Empty body")
 
         if not isinstance(dat, dict):  # must be dict subclass
-            return None
+            raise ValidationError("JSON not dict")
 
         if "changed" not in dat:  # changed field required
-            return None
+            raise ValidationError("Missing changed field")
 
         try:
             dt = arrow.get(dat["changed"])
         except arrow.parser.ParserError as ex:  # invalid datetime format
-            return None
+            raise ValidationError("Invalid changed field")
 
         # Compare changed
         cdt = arrow.get(cdat["changed"])
         if dt <= cdt:  # not later
-            return None
+            raise ValidationError("Not later changed")
 
         if "did" not in dat:  # did field required
-            return None
+            raise ValidationError("Missing did field")
 
         if dat['did'] != cdat['did']:  # not same resource
-            return None
+            raise ValidationError("Not same resource")
 
         # validate new signer
         try:
             (sdid, nindex, akey) = extractDatSignerParts(dat)
         except ValueError as ex:
-            return None
+            raise ValidationError("Missing or invalid new signer")
 
         try:
             nverkey = sdat['keys'][nindex]['key']  # new index
         except (KeyError, IndexError) as ex:
-            return None
+            raise ValidationError("Missing or invalid new signer key")
 
         if len(nverkey) != 44:
-            return None  # invalid length for base64 encoded key
+            raise ValidationError("Invalid new signer key")  # invalid length for base64 encoded key
 
         if not verify64u(sig, ser, nverkey):  # verify with new signer verify key
-            return None  # signature fails
+            raise ValidationError("Unverifiable new signature")  # signature fails
 
     except Exception as ex:  # unknown problem
-        return None
+        raise ValidationError("Unknown error")
 
     return dat
 
@@ -826,26 +826,26 @@ def validateMessageData(ser):
         try:
             dat = json.loads(ser, object_pairs_hook=ODict)
         except ValueError as ex:
-            return None  # invalid json
+            raise ValidationError("Invalid JSON")  # invalid json
 
         if not dat:  # registration must not be empty
-            return None
+            raise ValidationError("Empty body")
 
         if not isinstance(dat, dict):  # must be dict subclass
-            return None
+            raise ValidationError("JSON not dict")
 
         requireds = ("uid", "kind", "signer", "date", "to", "from", "subject", "content")
         for field in requireds:
             if field not in dat:
-                return None
+                raise ValidationError("Missing required field {}".format(field))
 
         try:
             dt = arrow.get(dat["date"])
         except arrow.parser.ParserError as ex:  # invalid datetime format
-            return None
+            raise ValidationError("Invalid date field")
 
     except Exception as ex:  # unknown problem
-        return None
+        raise ValidationError("Unknown error")
 
     return dat
 

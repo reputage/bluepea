@@ -310,12 +310,12 @@ class AgentDidDropResource:
                                        'Could not read the request body.')
 
         mser = mserb.decode("utf-8")
-        mdat = validateMessageData(mser)
-
-        if not mdat:  # message must not be empty
+        try:
+            mdat = validateMessageData(mser)
+        except ValidationError as ex:
             raise falcon.HTTPError(falcon.HTTP_400,
                                     'Validation Error',
-                                    'Invalid message data.')
+                                    'Invalid message data. {}'.format(ex))
 
         if did != mdat['to']:  # destination to did and did in url not same
             raise falcon.HTTPError(falcon.HTTP_400,
@@ -635,11 +635,12 @@ class ThingDidResource:
                                        'Error verifying signer resource. {}'.format(ex))
 
         # validate request
-        dat = validateSignedThingWrite(sdat=sdat, cdat=cdat, csig=csig, sig=sig, ser=ser)
-        if not dat:
+        try:
+            dat = validateSignedThingWrite(sdat=sdat, cdat=cdat, csig=csig, sig=sig, ser=ser)
+        except ValidationError as ex:
             raise falcon.HTTPError(falcon.HTTP_400,
                                                'Validation Error',
-                                           'Could not validate the request body.')
+                            'Error validating the request body. {}'.format(ex))
 
         if "hid" in dat:  # new or changed hid
             if (dat["hid"] and not "hid" in cdat) or dat["hid"] != cdat["hid"]:
