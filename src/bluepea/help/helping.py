@@ -631,86 +631,86 @@ def validateSignedAgentWrite(cdat, csig, sig, ser,  method="igo"):
             cdid, index = cdat["signer"].rsplit("#", maxsplit=1)
             index = int(index)  # get index and sdid from signer field
         except (KeyError, ValueError) as ex:
-            return None  # missing sdid or index
+            raise ValidationError("Current resource missing signer did or key index")  # missing sdid or index
 
         try:  # correct did format  pre:method:keystr
             pre, meth, keystr = cdid.split(":")
         except ValueError as ex:
-            return None
+            raise ValidationError("Invalid signer did format for current resource")
 
         if pre != "did" or meth != method:
-            return None  # did format bad
+            raise ValidationError("Invalid signer did format for current resource")  # did format bad
 
         cverkey = keystr  # existing resources verify key
 
         # verify request using existing resources signer verify key
         if not verify64u(csig, ser, cverkey):
-            return None  # signature fails
+            raise ValidationError("Unverifiable signature on request")  # signature fails
 
         # now validate updated resource
         try:
             dat = json.loads(ser, object_pairs_hook=ODict)
         except ValueError as ex:
-            return None  # invalid json
+            raise ValidationError("Invalid JSON")  # invalid json
 
         if not dat:  # registration must not be empty
-            return None
+            raise ValidationError("Empty body")
 
         if not isinstance(dat, dict):  # must be dict subclass
-            return None
+            raise ValidationError("JSON not dict")
 
         if "changed" not in dat:  # changed field required
-            return None
+            raise ValidationError("Missing changed field")
 
         try:
             dt = arrow.get(dat["changed"])
         except arrow.parser.ParserError as ex:  # invalid datetime format
-            return None
+            raise ValidationError("Invalid changed field")
 
         # Compare changed
         cdt = arrow.get(cdat["changed"])
         if dt <= cdt:  # not later
-            return None
+            raise ValidationError("Changed not later")
 
         if "signer" not in dat:  # signer field required
-            return None
+            raise ValidationError("Missing signer field in new resource")
 
         try:
             sdid, index = dat["signer"].rsplit("#", maxsplit=1)
             index = int(index)  # get index and sdid from signer field
         except (AttributeError, ValueError) as ex:
-            return None  # missing sdid or index
+            raise ValidationError("Invalid signer field in new resource") # missing sdid or index
 
         try:  # correct did format  pre:method:keystr
             pre, meth, keystr = sdid.split(":")
         except ValueError as ex:
-            return None
+            raise ValidationError("Invalid signer field in new resource")
 
         if pre != "did" or meth != method:
-            return None  # did format bad
+            raise ValidationError("Invalid signer field in new resource")  # did format bad
 
         if "did" not in dat:  # did field required
-            return None
+            raise ValidationError("Missing did field")
 
         if dat['did'] != sdid:  # not self signed
-            return None
+            raise ValidationError("Not self signed")
 
         if sdid != cdid:  # not same resource
-            return None
+            raise ValidationError("Not same resource")
 
         try:
             verkey = dat['keys'][index]['key']
         except (TypeError, KeyError, IndexError) as ex:
-            return None
+            raise ValidationError("Missing verkey")
 
         if len(verkey) != 44:
-            return None  # invalid length for base64 encoded key
+            raise ValidationError("Invalid verkey")  # invalid length for base64 encoded key
 
         if not verify64u(sig, ser, verkey):  # verify with new signer verify key
-            return None  # signature fails
+            raise ValidationError("Unverifiable signature")  # signature fails
 
     except Exception as ex:  # unknown problem
-        return None
+        raise ValidationError("Unknown error")
 
     return dat
 
@@ -967,8 +967,6 @@ def validateSignedOfferData(adat, ser, sig, tdat, method="igo"):
         return None
 
     return dat
-
-
 
 def buildSignedServerOffer(dat, ser, sig, tdat, sdat, dt, sk, **kwa):
     """

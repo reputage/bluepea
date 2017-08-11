@@ -224,11 +224,12 @@ class AgentDidResource:
                             'Error verifying signer resource. {}'.format(ex))
 
         # validate request
-        dat = validateSignedAgentWrite(cdat=rdat, csig=csig, sig=sig, ser=ser)
-        if not dat:
+        try:
+            dat = validateSignedAgentWrite(cdat=rdat, csig=csig, sig=sig, ser=ser)
+        except ValidationError as ex:
             raise falcon.HTTPError(falcon.HTTP_400,
                                                'Validation Error',
-                                           'Could not validate the request body.')
+                            'Error validating the request body. {}'.format(ex))
 
         if "issuants" in dat:
             pass  # validate hid namespaces here
