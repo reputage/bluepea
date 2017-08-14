@@ -141,7 +141,7 @@ def bluepeaServerClose(self, **kwa):
         do bluepea server close at exit
     """
     if self.valet.value:
-        self.valet.value.servant.close()
+        self.valet.value.servant.closeAll()
 
         console.concise("Closed server '{0}' at '{1}'\n".format(
                             self.valet.name,

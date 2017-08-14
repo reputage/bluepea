@@ -1248,7 +1248,7 @@ def backendRequest(method=u'GET',
         except Exception as ex:
             console.terse("Error: Servicing backend client. '{0}'\n".format(ex))
             raise ex
-        yield ''  # this is eventually yielded by wsgi app while waiting
+        yield b''  # this is eventually yielded by wsgi app while waiting
 
     response = None  # in case timed out
     if client.responses:
