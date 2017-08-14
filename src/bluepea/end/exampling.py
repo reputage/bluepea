@@ -161,13 +161,12 @@ def delegator():
     return ODict(name="John Smith", country="United States")
 
 # generator
-def backendGenerator(store=None):
+def backendGenerator(store=None, path=None):
     """
     example generator that yields empty before returning json
     """
-    #store = Stamper()
     port = 8101
-    path = "/example"
+    path = path if path is not None else "/example"
 
     rep = yield from backendRequest(method='GET',
                                     port=port,
@@ -178,20 +177,24 @@ def backendGenerator(store=None):
     #response = yield from delegator()
 
     if rep is None:  # timed out waiting for authorization server
-        pass
-        #abortify(app, code=503, text="Timed out authorizing {0}.".format(account))
+        raise falcon.HTTPError(falcon.HTTP_503,
+                         'Timeout Validation Error',
+                                           'Timeout backend validation request.')
 
     if rep['status'] != 200:
-        pass
-        #emsg = response['data'].get('error', "Unknown")
-        #abortify(app, code=response['status'], text="Error '{0}' while "
-                 #"authorizing account {1}.".format(emsg, account))
+        if rep['errored']:
+            emsg = rep['error']
+        else:
+            emsg = "unknown"
+        raise falcon.HTTPError(falcon.HTTP_503,
+                         rep['status'],
+                         "Error backend validation. {}".format(emsg))
 
     result = ODict(approved=True,
                    body=rep['body'].decode())
     body = json.dumps(result, indent=2)
     bodyb = body.encode()
-    yield bodyb  # returning here breaks
+    yield bodyb  # returning here breaks Valet, looking for stop iteration
 
 
 class ExampleBackendResource:
@@ -202,10 +205,14 @@ class ExampleBackendResource:
     def on_get(self, req, rep):
         """
         Handles GET request that makes request to another backend endpoint
+
         """
+        path = req.get_param("path")
+        if not path:
+            path = "/example"
         rep.status = falcon.HTTP_200  # This is the default status
         rep.content_type = "application/json"
-        rep.stream = backendGenerator(store=self.store)
+        rep.stream = backendGenerator(store=self.store, path=path)
 
 
 app = falcon.API() # falcon.API instances are callable WSGI apps

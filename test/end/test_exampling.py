@@ -160,6 +160,32 @@ def test_get_backend():
     assert responder.status.startswith(str(response['status']))
     assert responder.headers == response['headers']
 
+    # test for error by sending query arg path
+    request = odict([('method', 'GET'),
+                     ('path', '/example/backend'),
+                         ('qargs', odict(path='/unknown')),
+                         ('fragment', u''),
+                         ('headers', odict([('Accept', 'application/json'),
+                                            ('Content-Length', 0)])),
+                         ])
+
+    patron.requests.append(request)
+    timer = StoreTimer(store, duration=1.0)
+    while (patron.requests or patron.connector.txes or not patron.responses or
+           not valet.idle()):
+        valet.serviceAll()
+        time.sleep(0.05)
+        patron.serviceAll()
+        time.sleep(0.05)
+        store.advanceStamp(0.1)
+
+    assert len(patron.responses) == 1
+    response = patron.responses.popleft()
+    assert response['status'] == 503
+    assert response['reason'] == 'Service Unavailable'
+    assert response['body'] == bytearray(b'404\nError backend validation. unknown')
+    assert not response['data']
+
     valet.servant.closeAll()
     patron.connector.close()
     print("Done Test")
