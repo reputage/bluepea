@@ -1066,7 +1066,7 @@ All the fields in the example above are required except for ```thing```.
 
 The fields descriptions are as follows:
 
-- *uid*  is the unique message id. This must be monotonically increasing for any recipient. A useful ID scheme is the time based universal unique ID provided by the ```ioflo.aid.timing.tuuid()``` function. This uses time to order the UID up to microsecond intervals and then adds a random suffix to provide sub micro-second uniqueness. To generate a TUUID as in the examples use the function as follows:
+- *uid*  is the unique message id. This must be monotonically increasing for any paring of sender and recipient. A useful ID scheme is the time based universal unique ID provided by the ```ioflo.aid.timing.tuuid()``` function. This uses time to order the UID up to microsecond intervals and then adds a random suffix to provide sub micro-second uniqueness. To generate a TUUID as in the examples use the function as follows:
 
 ```python
 from ioflo.aid.timing import tuuid

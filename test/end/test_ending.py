@@ -38,6 +38,7 @@ from bluepea.help.helping import (key64uToKey, keyToKey64u, makeDid,
                                   verify, verify64u, parseSignatureHeader,
                                   setupTmpBaseDir, cleanupTmpBaseDir,
                                   makeSignedAgentReg, makeSignedThingReg,
+                                  extractDidSignerParts,
                                   )
 from bluepea.db.dbing import setupTestDbEnv
 
@@ -151,6 +152,30 @@ def setupTestDbAgentsThings():
     dbing.putSigned(key=fdid, ser=ser, sig=sig,  clobber=False)
 
     agents['fae'] = (fdid, fvk, fsk)
+
+    # make "ike" another issurer for demo testing
+    #seed = libnacl.randombytes(libnacl.crypto_sign_SEEDBYTES)
+    seed = (b'!\x85\xaa\x8bq\xc3\xf8n\x93]\x8c\xb18w\xb9\xd8\xd7\xc3\xcf\x8a\x1dP\xa9m'
+                   b'\x89\xb6h\xfe\x10\x80\xa6S')
+
+    # creates signing/verification key pair
+    ivk, isk = libnacl.crypto_sign_seed_keypair(seed)
+
+    issuant = ODict(kind="dns",
+                    issuer="localhost",
+                    registered=changed,
+                    validationURL="https://localhost:8080/demo/check")
+    issuants = [issuant]  # list of issuants hid name spaces
+
+    sig, ser = makeSignedAgentReg(ivk, isk, changed=changed, issuants=issuants)
+
+    idat = json.loads(ser, object_pairs_hook=ODict)
+    idid = idat['did']
+
+    dbing.putSigned(key=idid, ser=ser, sig=sig, clobber=False)
+
+    agents['ike'] = (idid, ivk, isk)
+
 
     return (agents, things)
 
@@ -2109,6 +2134,72 @@ def test_post_Track(client):  # client is a fixture in pytest_falcon
     assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
 
     assert rep.json[0] == data
+
+    cleanupTmpBaseDir(dbEnv.path())
+    print("Done Test")
+
+
+def test_get_CheckHid(client):  # client is a fixture in pytest_falcon
+    """
+    Test GET /demo/check?did={}&check={}
+
+
+    response fields
+
+    {
+        signer: keyedsignerkeyfromagent,
+        check: did|issuer|date
+    }
+    """
+    print("Testing GET /thing/{did}/offer?uid=")
+
+    priming.setupTest()
+    dbEnv = dbing.gDbEnv
+    keeper = keeping.gKeeper
+    kdid = keeper.did
+
+    agents, things = setupTestDbAgentsThings()
+    agents['sam'] = (kdid, keeper.verkey, keeper.sigkey)  # sam the server
+    sDid, sVk, sSk = agents['sam']
+    hDid, hVk, hSk = agents['ivy']
+    aDid, aVk, aSk = agents['ann']
+    tDid, tVk, tSk = things['cam']
+    iDid, iVk, iSk = agents['ike']  # issuer keys
+
+    dt = datetime.datetime(2000, 1, 3, tzinfo=datetime.timezone.utc)
+    did = iDid
+    assert did == "did:igo:3syVH2woCpOvPF0SD9Z0bu_OxNe2ZgxKjTQ961LlMnA="
+    dat, ser, sig = dbing.getSelfSigned(did)
+
+    date = timing.iso8601(dt, aware=True)
+    assert date == '2000-01-03T00:00:00+00:00'
+    issuer = dat['issuants'][0]['issuer']
+    assert issuer == "localhost"
+    check = "{}|{}|{}".format(did, issuer, date)
+    assert check == "did:igo:3syVH2woCpOvPF0SD9Z0bu_OxNe2ZgxKjTQ961LlMnA=|localhost|2000-01-03T00:00:00+00:00"
+
+    # now get it from web service
+    didUri = falcon.uri.encode_value(did)
+    checkUri = falcon.uri.encode_value(check)
+    location = "/demo/check?did={}&check={}".format(didUri, checkUri)
+    rep = client.get(location)
+
+    assert rep.status == falcon.HTTP_OK
+    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
+
+    sigs = parseSignatureHeader(rep.headers['signature'])
+    ssig = sigs['signer']  # signature changes everytime because expiration changes
+    assert ssig == 'efIU4jplMtZzjgaWc85gLjJpmmay6QoFvApMuinHn67UkQZ2it17ZPebYFvmCEKcd0weWQONaTO-ajwQxJe2DA=='
+
+    assert rep.json == {'check': 'did:igo:3syVH2woCpOvPF0SD9Z0bu_OxNe2ZgxKjTQ961LlMnA=|localhost|2000-01-03T00:00:00+00:00',
+                        'signer': 'did:igo:3syVH2woCpOvPF0SD9Z0bu_OxNe2ZgxKjTQ961LlMnA=#0'}
+    assert rep.json['check'] == check
+    sdid, sindex, keystr = extractDidSignerParts(rep.json['signer'])
+    assert keystr == dat['keys'][sindex]['key']
+    assert sindex == 0
+    assert keystr == keyToKey64u(iVk)
+
+    assert verify64u(ssig, rep.json['check'], keystr)
 
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")

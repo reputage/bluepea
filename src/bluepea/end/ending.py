@@ -18,6 +18,7 @@ import datetime
 
 import arrow
 import falcon
+import libnacl
 
 from ioflo.aid.sixing import *
 from ioflo.aid import getConsole
@@ -29,7 +30,7 @@ from ..help.helping import (parseSignatureHeader, verify64u, extractDidParts,
                             extractDatSignerParts, extractDidSignerParts,
                             validateSignedAgentReg, validateSignedThingReg,
                             validateSignedResource, validateSignedAgentWrite,
-                            validateSignedThingWrite,
+                            validateSignedThingWrite, keyToKey64u,
                             validateMessageData, verifySignedMessageWrite,
                             validateSignedOfferData, buildSignedServerOffer,
                             validateSignedThingTransfer, validateAnon)
@@ -42,6 +43,7 @@ AGENT_BASE_PATH = "/agent"
 SERVER_BASE_PATH = "/server"
 THING_BASE_PATH = "/thing"
 ANON_MSG_BASE_PATH = "/anon"
+DEMO_BASE_PATH = "/demo"
 
 class ServerResource:
     """
@@ -1172,6 +1174,89 @@ class AnonMsgResource:
         rep.status = falcon.HTTP_200  # This is the default status
         rep.body = json.dumps(tracks, indent=2)
 
+class CheckHidResource:
+    """
+    Check Hid  Resource
+
+    Responds to challenge for hid namespace
+    used as demonstration
+
+    Attributes:
+        .store is reference to ioflo data store
+
+    """
+    def  __init__(self, store=None, **kwa):
+        """
+        Parameters:
+            store is reference to ioflo data store
+        """
+        super(**kwa)
+        self.store = store
+
+    def on_get(self, req, rep):
+        """
+        Handles GET request for HID namespace check given by
+        query parameters:
+        did for issuing agent
+        check (challenge) text is concatenation of:
+               did|issuer|date
+               where issuer is from issuants in agent resource
+               date is iso-8601 date
+
+        Response is signature in signature header with json body
+        {
+            signer: keyedsignerkeyfromagent,
+            check: did|issuer|date
+        }
+
+        """
+        did = req.get_param("did")  # already has url-decoded query parameter value
+        check = req.get_param("check")  # already has url-decoded query parameter value
+        if not did or not check:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                           "Query Parameter Error",
+                                    "Missing query parameter one of ('did','check')")
+
+        # read from database
+        try:
+            dat, ser, sig = dbing.getSelfSigned(did)
+        except dbing.DatabaseError as ex:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                            'Resource Verification Error',
+                            'Error verifying resource. {}'.format(ex))
+
+        # get signing key
+        index = 0
+        key = dat['keys'][index]['key']
+
+        #seed = libnacl.randombytes(libnacl.crypto_sign_SEEDBYTES)
+        # ike's seed
+        seed = (b'!\x85\xaa\x8bq\xc3\xf8n\x93]\x8c\xb18w\xb9\xd8\xd7\xc3\xcf\x8a\x1dP\xa9m'
+                b'\x89\xb6h\xfe\x10\x80\xa6S')
+
+
+        # creates signing/verification key pair
+        vk, sk = libnacl.crypto_sign_seed_keypair(seed)
+
+        verkey = keyToKey64u(vk)
+        if verkey !=  key:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                           "Invalid Key",
+                            "Unexpected Key")
+
+        # sign and return
+        sig = keyToKey64u(libnacl.crypto_sign(check.encode("utf-8"), sk)[:libnacl.crypto_sign_BYTES])
+
+        signer = "{}#{}".format(did, index)
+        data = ODict()
+        data['signer'] = signer
+        data['check'] = check
+
+        rep.set_header("Signature", 'signer="{}"'.format(sig))
+        rep.set_header("Content-Type", "application/json; charset=UTF-8")
+        rep.status = falcon.HTTP_200  # This is the default status
+        rep.body = json.dumps(data, indent=2)
+
 
 def loadEnds(app, store):
     """
@@ -1205,3 +1290,6 @@ def loadEnds(app, store):
 
     anon = AnonMsgResource(store=store)
     app.add_route('{}'.format(ANON_MSG_BASE_PATH), anon)
+
+    checkHid = CheckHidResource(store=store)
+    app.add_route('{}/check'.format(DEMO_BASE_PATH), checkHid)
