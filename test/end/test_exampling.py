@@ -150,15 +150,15 @@ def test_get_backend():
                                                 'host': 'localhost:8101'}
 
     assert len(patron.responses) == 1
-    response = patron.responses.popleft()
-    assert response['status'] == 200
-    assert response['reason'] == 'OK'
-    assert response['body'] == bytearray(b'')
-    assert response['data'] == odict([('approved', True), ('body', '\nHello World\n\n')])
+    rep = patron.responses.popleft()
+    assert rep['status'] == 200
+    assert rep['reason'] == 'OK'
+    assert rep['body'] == bytearray(b'')
+    assert rep['data'] == odict([('approved', True), ('body', '\nHello World\n\n')])
 
     responder = valet.reps.values()[0]
-    assert responder.status.startswith(str(response['status']))
-    assert responder.headers == response['headers']
+    assert responder.status.startswith(str(rep['status']))
+    assert responder.headers == rep['headers']
 
     # test for error by sending query arg path
     request = odict([('method', 'GET'),
@@ -180,13 +180,13 @@ def test_get_backend():
         store.advanceStamp(0.1)
 
     assert len(patron.responses) == 1
-    response = patron.responses.popleft()
-    assert response['status'] == 404
-    assert response['reason'] == 'Not Found'
-    assert response['body'] == bytearray(b'404 Not Found\nBackend Validation'
+    rep = patron.responses.popleft()
+    assert rep['status'] == 404
+    assert rep['reason'] == 'Not Found'
+    assert rep['body'] == bytearray(b'404 Not Found\nBackend Validation'
                                          b' Error\nError backend validation.'
                                          b' unknown\n')
-    assert not response['data']
+    assert not rep['data']
 
     valet.servant.closeAll()
     patron.connector.close()

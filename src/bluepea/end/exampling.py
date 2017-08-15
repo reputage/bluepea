@@ -195,7 +195,7 @@ def backendGenerator(store=None, path=None):
                    body=rep['body'].decode())
     body = json.dumps(result, indent=2)
     bodyb = body.encode()
-    yield bodyb  # returning here breaks Valet, looking for stop iteration
+    return bodyb  # yield also works
 
 
 class ExampleBackendResource:
