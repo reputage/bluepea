@@ -181,9 +181,11 @@ def test_get_backend():
 
     assert len(patron.responses) == 1
     response = patron.responses.popleft()
-    assert response['status'] == 503
-    assert response['reason'] == 'Service Unavailable'
-    assert response['body'] == bytearray(b'404\nError backend validation. unknown')
+    assert response['status'] == 404
+    assert response['reason'] == 'Not Found'
+    assert response['body'] == bytearray(b'404 Not Found\nBackend Validation'
+                                         b' Error\nError backend validation.'
+                                         b' unknown\n')
     assert not response['data']
 
     valet.servant.closeAll()

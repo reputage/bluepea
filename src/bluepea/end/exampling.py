@@ -20,6 +20,7 @@ import falcon
 
 from ioflo.aid.sixing import *
 from ioflo.aid.timing import Stamper
+from ioflo.aio.http import httping
 from ioflo.aid import getConsole
 
 from  ..help.helping import backendRequest
@@ -177,18 +178,18 @@ def backendGenerator(store=None, path=None):
     #response = yield from delegator()
 
     if rep is None:  # timed out waiting for authorization server
-        raise falcon.HTTPError(falcon.HTTP_503,
-                         'Timeout Validation Error',
-                                           'Timeout backend validation request.')
+        raise httping.HTTPError(httping.SERVICE_UNAVAILABLE,
+                         title ='Timeout Validation Error',
+                         detail ='Timeout backend validation request.')
 
     if rep['status'] != 200:
         if rep['errored']:
             emsg = rep['error']
         else:
             emsg = "unknown"
-        raise falcon.HTTPError(falcon.HTTP_503,
-                         rep['status'],
-                         "Error backend validation. {}".format(emsg))
+        raise httping.HTTPError(rep['status'],
+                         title="Backend Validation Error",
+                         detail="Error backend validation. {}".format(emsg))
 
     result = ODict(approved=True,
                    body=rep['body'].decode())
