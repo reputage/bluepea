@@ -1186,9 +1186,9 @@ def validateAnon(ser):
 
 
 def backendRequest(method=u'GET',
-                   scheme=u'',
-                   host=u'localhost',
-                   port=None,
+                   scheme=u'',  #default if not in path
+                   host=u'localhost',  # default if not in path
+                   port=None, # default is not in path
                    path=u'/',
                    qargs=None,
                    data=None,
@@ -1208,6 +1208,9 @@ def backendRequest(method=u'GET',
     response is the response if valid else None
     before response is completed the yield from yields up an empty string ''
     once completed then response has a value
+
+    path can be full url with host port etc  path takes precedence over others
+
 
     """
     store = store if store is not None else Store(stamp=0.0)
@@ -1258,3 +1261,39 @@ def backendRequest(method=u'GET',
         wlog.close()
 
     return response
+
+
+def validateIssuer(store=None, path=None):
+    """
+    Generator to perform backend request to check hid
+    """
+    port = 8101
+    path = path if path is not None else "/example"
+
+    rep = yield from backendRequest(method='GET',
+                                    port=port,
+                                    path=path,
+                                    store=store,
+                                    timeout=0.5)
+
+    #response = yield from delegator()
+
+    if rep is None:  # timed out waiting for authorization server
+        raise httping.HTTPError(httping.SERVICE_UNAVAILABLE,
+                         title ='Timeout Validation Error',
+                         detail ='Timeout backend validation request.')
+
+    if rep['status'] != 200:
+        if rep['errored']:
+            emsg = rep['error']
+        else:
+            emsg = "unknown"
+        raise httping.HTTPError(rep['status'],
+                         title="Backend Validation Error",
+                         detail="Error backend validation. {}".format(emsg))
+
+    result = ODict(approved=True,
+                   body=rep['body'].decode())
+    body = json.dumps(result, indent=2)
+    bodyb = body.encode()
+    return bodyb  # yield also works

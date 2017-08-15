@@ -2203,3 +2203,104 @@ def test_get_CheckHid(client):  # client is a fixture in pytest_falcon
 
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")
+
+
+def test_post_IssuerRegisterSignedDemo(client):  # client is a fixture in pytest_falcon
+    """
+    Use libnacl and Base64 to generate compliant signed Agent Registration
+    Test both POST to create resource and subsequent GET to retrieve it.
+    """
+    print("Testing Issuer creation POST Demo /agent/register with signature ")
+
+    dbEnv = setupTestDbEnv()
+
+    # random seed used to generate private signing key
+    #seed = libnacl.randombytes(libnacl.crypto_sign_SEEDBYTES)
+    # ike's seed
+    seed = (b'!\x85\xaa\x8bq\xc3\xf8n\x93]\x8c\xb18w\xb9\xd8\xd7\xc3\xcf\x8a\x1dP\xa9m'
+                b'\x89\xb6h\xfe\x10\x80\xa6S')
+
+    # creates signing/verification key pair
+    vk, sk = libnacl.crypto_sign_seed_keypair(seed)
+
+    dt = datetime.datetime(2000, 1, 1, tzinfo=datetime.timezone.utc)
+    stamp = timing.iso8601(dt, aware=True)
+    assert  stamp == "2000-01-01T00:00:00+00:00"
+    assert arrow.get(stamp).datetime == dt
+
+    issuant = ODict(kind="dns",
+                issuer="localhost",
+                registered=stamp,
+                validationURL="http://localhost:8080/demo/check")
+    issuants = [issuant]  # list of hids
+
+    sig, ser = makeSignedAgentReg(vk,
+                                                 sk,
+                                                 changed=stamp,
+                                                 issuants=issuants)
+    assert sig == ('1HO_9ERLOe30yEQyiwgu7g9DeHC8Nsq-ybQlNtDW9D611J61gm52Na5Cx5acYu71X8g_UR4Eyj05saNBoqcnCw==')
+
+    assert ser == (
+        '{\n'
+        '  "did": "did:igo:3syVH2woCpOvPF0SD9Z0bu_OxNe2ZgxKjTQ961LlMnA=",\n'
+        '  "signer": "did:igo:3syVH2woCpOvPF0SD9Z0bu_OxNe2ZgxKjTQ961LlMnA=#0",\n'
+        '  "changed": "2000-01-01T00:00:00+00:00",\n'
+        '  "keys": [\n'
+        '    {\n'
+        '      "key": "3syVH2woCpOvPF0SD9Z0bu_OxNe2ZgxKjTQ961LlMnA=",\n'
+        '      "kind": "EdDSA"\n'
+        '    }\n'
+        '  ],\n'
+        '  "issuants": [\n'
+        '    {\n'
+        '      "kind": "dns",\n'
+        '      "issuer": "localhost",\n'
+        '      "registered": "2000-01-01T00:00:00+00:00",\n'
+        '      "validationURL": "http://localhost:8080/demo/check"\n'
+        '    }\n'
+        '  ]\n'
+        '}')
+
+    dat = json.loads(ser, object_pairs_hook=ODict)
+    did = dat['did']
+
+    headers = {"Content-Type": "text/html; charset=utf-8",
+               "Signature": 'signer="{}"'.format(sig), }
+
+    assert headers['Signature'] == ('signer="1HO_9ERLOe30yEQyiwgu7g9DeHC8Nsq-ybQlNtDW9D611J61gm52Na5Cx5acYu71X8g_UR4Eyj05saNBoqcnCw=="')
+
+    body = ser  # client.post encodes the body
+
+    rep = client.post('/agent', body=body, headers=headers)
+
+    assert rep.status == falcon.HTTP_201
+
+    location = falcon.uri.decode(rep.headers['location'])
+    assert location == "/agent?did=did:igo:3syVH2woCpOvPF0SD9Z0bu_OxNe2ZgxKjTQ961LlMnA="
+    assert rep.headers['content-type'] == "application/json; charset=UTF-8"
+
+    reg = rep.json
+    assert reg == dat
+
+    # make sure in database
+    rdat, rser, rsig = dbing.getSelfSigned(did)
+    assert rdat == dat
+    assert rser == ser
+    assert rsig == sig
+
+    # now get from location
+
+    rep = client.get(location)
+
+    assert rep.status == falcon.HTTP_OK
+    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
+    sigs = parseSignatureHeader(rep.headers['signature'])
+    assert sigs['signer'] == sig
+
+    assert rep.body == ser
+    assert rep.json == dat
+
+    assert verify64u(sig, ser, dat['keys'][0]['key'])
+
+    cleanupTmpBaseDir(dbEnv.path())
+    print("Done Test")
