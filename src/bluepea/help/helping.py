@@ -35,6 +35,7 @@ from ioflo.aid import timing
 from ioflo.aid.timing import StoreTimer
 from ioflo.aio import WireLog
 from ioflo.aio.http import Patron
+from ioflo.aio.http import httping
 from ioflo.base import Store
 from ioflo.aid import getConsole
 
@@ -1188,7 +1189,7 @@ def validateAnon(ser):
 def backendRequest(method=u'GET',
                    scheme=u'',  #default if not in path
                    host=u'localhost',  # default if not in path
-                   port=None, # default is not in path
+                   port=None, # default if not in path
                    path=u'/',
                    qargs=None,
                    data=None,
@@ -1220,29 +1221,26 @@ def backendRequest(method=u'GET',
     else:
         wlog = None
 
+    headers =  odict([('Accept', 'application/json'),
+                      ('Connection', 'close')])
+
     client = Patron(bufsize=131072,
                     wlog=wlog,
                     store=store,
                     scheme=scheme,
                     hostname=host,
                     port=port,
+                    method=method,
                     path=path,
+                    qargs=qargs,
+                    headers=headers,
+                    data=data,
                     reconnectable=False,
                     )
 
-    client.connector.reopen()
+    console.concise("Making Backend Request {0} {1} ...\n".format(method, path))
 
-    request = odict([('method', method),
-                     ('path', path),
-                     ('qargs', qargs),
-                     ('data', data),
-                     ('fragment', u''),
-                     ('headers', odict([('Accept', 'application/json'),
-                                        ('Connection', 'close')])),
-                     ])
-    console.concise("Making Backend Request {0} {1} ...\n".format(request['method'],
-                                                                  request['path']))
-    client.requests.append(request)
+    client.transmit()
     timer = timing.StoreTimer(store=store, duration=timeout)
     while ((client.requests or client.connector.txes or not client.responses)
            and not timer.expired):
@@ -1256,27 +1254,44 @@ def backendRequest(method=u'GET',
     response = None  # in case timed out
     if client.responses:
         response = client.responses.popleft()
-    client.connector.close()
+    client.close()
     if wlog:
         wlog.close()
 
     return response
 
 
-def validateIssuer(store=None, path=None):
+def validateIssuer(idata, issuant, store=None, qargs=None):
     """
     Generator to perform backend request to check hid
-    """
-    port = 8101
-    path = path if path is not None else "/example"
 
+    response = odict([('version', self.respondent.version),
+                        ('status', self.respondent.status),
+                        ('reason', self.respondent.reason),
+                        ('headers', copy.copy(self.respondent.headers)),
+                        ('body', self.respondent.body),
+                        ('data', self.respondent.data),
+                        ('request', request),
+                        ('errored', self.respondent.errored),
+                        ('error', self.respondent.error),
+                       ])
+
+    {'check': 'did|issuer|date',
+    'signer': 'did#index'}
+    """
+    did = idata["did"]
+    issuer = issuant['issuer']
+    dt = datetime.datetime.now(tz=datetime.timezone.utc)
+    date = timing.iso8601(dt, aware=True)
+    check = "{}|{}|{}".format(did, issuer, date)
+
+    qargs = ODict(did=data['did'], check=check)
+    vurl = issuant["validationURL"]
     rep = yield from backendRequest(method='GET',
-                                    port=port,
-                                    path=path,
+                                    path=vurl,
+                                    qargs=qargs,
                                     store=store,
                                     timeout=0.5)
-
-    #response = yield from delegator()
 
     if rep is None:  # timed out waiting for authorization server
         raise httping.HTTPError(httping.SERVICE_UNAVAILABLE,
@@ -1292,8 +1307,38 @@ def validateIssuer(store=None, path=None):
                          title="Backend Validation Error",
                          detail="Error backend validation. {}".format(emsg))
 
-    result = ODict(approved=True,
-                   body=rep['body'].decode())
-    body = json.dumps(result, indent=2)
-    bodyb = body.encode()
-    return bodyb  # yield also works
+    rdata = rep['data']
+    rcheck = rdata['check']
+    rsigner = rdata['signer']
+
+    if rcheck != check:
+        raise httping.HTTPError(httping.NOT_ACCEPTABLE,
+                                    title ='Validation Check Error',
+                             detail ='Validation response bad.')
+
+    sigs = rep['headers'].get("Signature", {})
+    sig = sigs.get('signer')  # str not bytes
+    if not sig:
+        raise httping.HTTPError(httping.BAD_REQUEST,
+                                       'Validation Error',
+                                       'Invalid or missing Signature header.')
+
+    sdid, sindex, keystr = extractDidSignerParts(rsigner)
+    if sdid != did:
+        raise httping.HTTPError(httping.BAD_REQUEST,
+                                    'Validation Error',
+                                'Bad validation signer')
+
+    if len(idata['keys']) < sindex:
+        raise httping.HTTPError(httping.BAD_REQUEST,
+                                    'Validation Error',
+                                        'Bad validation signer key')
+
+    key = idata['keys'][sindex][key]
+
+    if not verify64u(sig, rcheck, key):
+        raise httping.HTTPError(httping.UNAUTHORIZED,
+                                    'Validation Error',
+                                        'Unverifiable signature')
+
+    # no errors so return will be validation

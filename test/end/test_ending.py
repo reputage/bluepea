@@ -6,6 +6,7 @@ import shutil
 import binascii
 import base64
 import datetime
+import time
 
 from collections import OrderedDict as ODict
 try:
@@ -19,6 +20,9 @@ import libnacl
 
 from ioflo.base import storing
 from ioflo.aid import timing
+from ioflo.aio.http import Valet, Patron
+from ioflo.aid import odict
+
 import falcon
 
 import pytest
@@ -2210,15 +2214,32 @@ def test_post_IssuerRegisterSignedDemo(client):  # client is a fixture in pytest
     Use libnacl and Base64 to generate compliant signed Agent Registration
     Test both POST to create resource and subsequent GET to retrieve it.
     """
+    global store  # use Global store
+
     print("Testing Issuer creation POST Demo /agent/register with signature ")
 
-    dbEnv = setupTestDbEnv()
+    #store = Store(stamp=0.0)  # create store use global above
+    priming.setupTest()
+    dbEnv = dbing.gDbEnv
+    keeper = keeping.gKeeper
+    kdid = keeper.did
 
-    # random seed used to generate private signing key
+    # create local test server
+    valet = Valet(port=8101,
+                  bufsize=131072,
+                  store=store,
+                  app=exapp,)
+
+    result = valet.open()
+    assert result
+    assert valet.servant.ha == ('0.0.0.0', 8101)
+    assert valet.servant.eha == ('127.0.0.1', 8101)
+
+    # Create registration for issuer Ike
     #seed = libnacl.randombytes(libnacl.crypto_sign_SEEDBYTES)
     # ike's seed
     seed = (b'!\x85\xaa\x8bq\xc3\xf8n\x93]\x8c\xb18w\xb9\xd8\xd7\xc3\xcf\x8a\x1dP\xa9m'
-                b'\x89\xb6h\xfe\x10\x80\xa6S')
+            b'\x89\xb6h\xfe\x10\x80\xa6S')
 
     # creates signing/verification key pair
     vk, sk = libnacl.crypto_sign_seed_keypair(seed)
@@ -2229,17 +2250,13 @@ def test_post_IssuerRegisterSignedDemo(client):  # client is a fixture in pytest
     assert arrow.get(stamp).datetime == dt
 
     issuant = ODict(kind="dns",
-                issuer="localhost",
-                registered=stamp,
-                validationURL="http://localhost:8080/demo/check")
+                    issuer="localhost",
+                    registered=stamp,
+                    validationURL="http://localhost:8080/demo/check")
     issuants = [issuant]  # list of hids
 
-    sig, ser = makeSignedAgentReg(vk,
-                                                 sk,
-                                                 changed=stamp,
-                                                 issuants=issuants)
+    sig, ser = makeSignedAgentReg(vk, sk, changed=stamp, issuants=issuants)
     assert sig == ('1HO_9ERLOe30yEQyiwgu7g9DeHC8Nsq-ybQlNtDW9D611J61gm52Na5Cx5acYu71X8g_UR4Eyj05saNBoqcnCw==')
-
     assert ser == (
         '{\n'
         '  "did": "did:igo:3syVH2woCpOvPF0SD9Z0bu_OxNe2ZgxKjTQ961LlMnA=",\n'
@@ -2266,12 +2283,39 @@ def test_post_IssuerRegisterSignedDemo(client):  # client is a fixture in pytest
 
     headers = {"Content-Type": "text/html; charset=utf-8",
                "Signature": 'signer="{}"'.format(sig), }
-
     assert headers['Signature'] == ('signer="1HO_9ERLOe30yEQyiwgu7g9DeHC8Nsq-ybQlNtDW9D611J61gm52Na5Cx5acYu71X8g_UR4Eyj05saNBoqcnCw=="')
 
     body = ser  # client.post encodes the body
 
-    rep = client.post('/agent', body=body, headers=headers)
+    path = "http://{}:{}{}".format('localhost', valet.servant.eha[1], '/agent')
+
+    # instantiate Patron client
+    patron = Patron(bufsize=131072,
+                    store=store,
+                    method = 'POST',
+                    path=path,
+                    headers=headers,
+                    body=body,
+                    reconnectable=True,)
+
+    patron.transmit()
+    timer = timing.StoreTimer(store, duration=1.0)
+    while (patron.requests or patron.connector.txes or not patron.responses or
+           not valet.idle()):
+        valet.serviceAll()
+        time.sleep(0.05)
+        patron.serviceAll()
+        time.sleep(0.05)
+        store.advanceStamp(0.1)
+
+    assert len(patron.responses) == 1
+    rep = patron.responses.popleft()
+    assert rep['status'] == 404
+    assert rep['reason'] == 'Not Found'
+    assert rep['body'] == bytearray(b'404 Not Found\nBackend Validation'
+                                    b' Error\nError backend validation.'
+                                         b' unknown\n')
+    assert not rep['data']
 
     assert rep.status == falcon.HTTP_201
 
@@ -2288,19 +2332,85 @@ def test_post_IssuerRegisterSignedDemo(client):  # client is a fixture in pytest
     assert rser == ser
     assert rsig == sig
 
+
+    request = odict([('method', 'GET'),
+                     ('path', ),
+                         ('qargs', odict()),
+                         ('fragment', u''),
+                         ('headers', odict([('Accept', 'application/json'),
+                                            ('Content-Length', 0)])),
+                         ])
+
+    patron.requests.append(request)
+    timer = StoreTimer(store, duration=1.0)
+    while (patron.requests or patron.connector.txes or not patron.responses or
+           not valet.idle()):
+        valet.serviceAll()
+        time.sleep(0.05)
+        patron.serviceAll()
+        time.sleep(0.05)
+        store.advanceStamp(0.1)
+
+    assert patron.connector.accepted == True
+    assert patron.connector.connected == True
+    assert patron.connector.cutoff == False
+
+    assert len(valet.servant.ixes) == 1
+    assert len(valet.reqs) == 1
+    assert len(valet.reps) == 1
+    requestant = valet.reqs.values()[0]
+    assert requestant.method == patron.requester.method
+    assert requestant.url == patron.requester.path
+    assert requestant.headers == {'accept': 'application/json',
+                                  'accept-encoding': 'identity',
+                                              'content-length': '0',
+                                                'host': 'localhost:8101'}
+
+    assert len(patron.responses) == 1
+    rep = patron.responses.popleft()
+    assert rep['status'] == 200
+    assert rep['reason'] == 'OK'
+    assert rep['body'] == bytearray(b'')
+    assert rep['data'] == odict([('approved', True), ('body', '\nHello World\n\n')])
+
+    responder = valet.reps.values()[0]
+    assert responder.status.startswith(str(rep['status']))
+    assert responder.headers == rep['headers']
+
+
     # now get from location
+    headers = odict([('Accept', 'application/json'),
+                    ('Content-Length', 0)])
+    request = odict([('method', 'GET'),
+                     ('path', location),
+                     ('headers', headers) ])
 
-    rep = client.get(location)
+    patron.requests.append(request)
+    timer = StoreTimer(store, duration=1.0)
+    while (patron.requests or patron.connector.txes or not patron.responses or
+           not valet.idle()):
+        valet.serviceAll()
+        time.sleep(0.05)
+        patron.serviceAll()
+        time.sleep(0.05)
+        store.advanceStamp(0.1)
 
-    assert rep.status == falcon.HTTP_OK
-    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
-    sigs = parseSignatureHeader(rep.headers['signature'])
+
+    assert len(patron.responses) == 1
+    rep = patron.responses.popleft()
+    assert rep['status'] == 200
+
+    assert rep['headers']['content-type'] == 'application/json; charset=UTF-8'
+
+    sigs = parseSignatureHeader(rep['headers']['signature'])
     assert sigs['signer'] == sig
 
-    assert rep.body == ser
-    assert rep.json == dat
+    assert rep['body'] == ser
+    assert rep['data'] == dat
 
     assert verify64u(sig, ser, dat['keys'][0]['key'])
 
     cleanupTmpBaseDir(dbEnv.path())
+    valet.close()
+    patron.close()
     print("Done Test")

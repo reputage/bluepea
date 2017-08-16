@@ -90,41 +90,34 @@ def test_get_backend():
     store = Store(stamp=0.0)  # create store
     priming.setupTest()
 
-    app = exapp  # falcon.API instances are callable WSGI apps
-
     valet = Valet(port=8101,
-                    bufsize=131072,
-                store=store,
-                app=app,
-                )
+                  bufsize=131072,
+                  store=store,
+                  app=exapp,)
 
-    result = valet.servant.reopen()
+    result = valet.open()
     assert result
     assert valet.servant.ha == ('0.0.0.0', 8101)
     assert valet.servant.eha == ('127.0.0.1', 8101)
 
-    path = "http://{0}:{1}".format('localhost', valet.servant.eha[1])
-
+    path = "http://{}:{}{}".format('localhost',
+                                   valet.servant.eha[1],
+                                   "/example/backend")
+    headers = odict([('Accept', 'application/json'),
+                            ('Content-Length', 0)])
     patron = Patron(bufsize=131072,
                     store=store,
+                    method='GET',
                     path=path,
-                    reconnectable=True,
-                    )
+                    headers=headers,
+                    reconnectable=True,)
 
     assert patron.connector.reopen()
     assert patron.connector.accepted == False
     assert patron.connector.connected == False
     assert patron.connector.cutoff == False
 
-    request = odict([('method', 'GET'),
-                         ('path', '/example/backend'),
-                         ('qargs', odict()),
-                         ('fragment', u''),
-                         ('headers', odict([('Accept', 'application/json'),
-                                            ('Content-Length', 0)])),
-                         ])
-
-    patron.requests.append(request)
+    patron.transmit()
     timer = StoreTimer(store, duration=1.0)
     while (patron.requests or patron.connector.txes or not patron.responses or
                not valet.idle()):
@@ -142,8 +135,8 @@ def test_get_backend():
     assert len(valet.reqs) == 1
     assert len(valet.reps) == 1
     requestant = valet.reqs.values()[0]
-    assert requestant.method == request['method']
-    assert requestant.url == request['path']
+    assert requestant.method == patron.requester.method
+    assert requestant.url == patron.requester.path
     assert requestant.headers == {'accept': 'application/json',
                                               'accept-encoding': 'identity',
                                                 'content-length': '0',
@@ -188,8 +181,8 @@ def test_get_backend():
                                          b' unknown\n')
     assert not rep['data']
 
-    valet.servant.closeAll()
-    patron.connector.close()
+    valet.close()
+    patron.close()
     print("Done Test")
 
 
