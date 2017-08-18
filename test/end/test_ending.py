@@ -45,7 +45,6 @@ from bluepea.help.helping import (key64uToKey, keyToKey64u, makeDid,
                                   extractDidSignerParts,
                                   )
 from bluepea.db.dbing import setupTestDbEnv
-
 import bluepea.db.dbing as dbing
 import bluepea.keep.keeping as keeping
 import bluepea.prime.priming as priming
@@ -236,7 +235,7 @@ def test_post_AgentRegisterSigned(client):  # client is a fixture in pytest_falc
 
     rep = client.post('/agent', body=body, headers=headers)
 
-    assert rep.status == falcon.HTTP_201
+    assert rep.status == '200 OK'  # falcon.HTTP_201
 
     location = falcon.uri.decode(rep.headers['location'])
     assert location == "/agent?did=did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE="
@@ -448,43 +447,33 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
 
     dbEnv = setupTestDbEnv()
 
+    dt = datetime.datetime(2000, 1, 1, tzinfo=datetime.timezone.utc)
+    changed = timing.iso8601(dt, aware=True)
+
     # First create the controlling agent for thing
     # random seed used to generate private signing key
     #seed = libnacl.randombytes(libnacl.crypto_sign_SEEDBYTES)
-    seed = (b"\xb2PK\xad\x9b\x92\xa4\x07\xc6\xfa\x0f\x13\xd7\xe4\x08\xaf\xc7'~\x86"
-            b'\xd2\x92\x93rA|&9\x16Bdi')
+    # make "ivy" the issurer
+    seed = seed = (b"\xb2PK\xad\x9b\x92\xa4\x07\xc6\xfa\x0f\x13\xd7\xe4\x08\xaf\xc7'~\x86"
+                   b'\xd2\x92\x93rA|&9\x16Bdi')
 
     # creates signing/verification key pair
-    svk, ssk = libnacl.crypto_sign_seed_keypair(seed)
-
-    dt = datetime.datetime(2000, 1, 1, tzinfo=datetime.timezone.utc)
-    stamp = timing.iso8601(dt, aware=True)
-    assert  stamp == "2000-01-01T00:00:00+00:00"
-    assert arrow.get(stamp).datetime == dt
+    ivk, isk = libnacl.crypto_sign_seed_keypair(seed)
 
     issuant = ODict(kind="dns",
-                issuer="generic.com",
-                registered=stamp,
+                    issuer="generic.com",
+                registered=changed,
                 validationURL="https://generic.com/indigo")
-    issuants = [issuant]  # list of issuants of hid name spaces
+    issuants = [issuant]  # list of issuants hid name spaces
 
-    signature, registration = makeSignedAgentReg(svk,
-                                                 ssk,
-                                                 changed=stamp,
-                                                 issuants=issuants)
+    sig, ser = makeSignedAgentReg(ivk, isk, changed=changed, issuants=issuants)
 
+    idat = json.loads(ser, object_pairs_hook=ODict)
+    idid = idat['did']
 
-    headers = {"Content-Type": "text/html; charset=utf-8",
-               "Signature": 'signer="{}"'.format(signature), }
+    dbing.putSigned(key=idid, ser=ser, sig=sig, clobber=False)
 
-    body = registration  # client.post encodes the body
-
-    rep = client.post('/agent', body=body, headers=headers)
-    assert rep.status == falcon.HTTP_201
-
-    areg = rep.json
-
-    assert areg ==  {
+    assert idat ==  {
         'did': 'did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=',
         'signer': 'did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#0',
         'changed': '2000-01-01T00:00:00+00:00',
@@ -521,16 +510,16 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
                     b'L\x96\xa9(\x01\xbb\x08\x87\xa5X\x1d\xe7\x90b\xa0#')
 
 
-    signer = areg['signer']
+    signer = idat['signer']
     hid = "hid:dns:generic.com#02"
     data = ODict(keywords=["Canon", "EOS Rebel T6", "251440"],
                  message="If found please return.")
 
     dsignature, ssignature, tregistration = makeSignedThingReg(dvk,
                                                                dsk,
-                                                               ssk,
+                                                               isk,
                                                                signer,
-                                                               changed=stamp,
+                                                               changed=changed,
                                                                hid=hid,
                                                                data=data)
 
@@ -606,7 +595,7 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
     assert data == treg
     assert signatureb.decode("utf-8") == ssignature
     assert datau == tregistration
-    sverkey = keyToKey64u(svk)
+    sverkey = keyToKey64u(ivk)
     assert sverkey == 'dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY='
 
     result = verify64u(signature=ssignature,
@@ -2281,8 +2270,9 @@ def test_post_IssuerRegisterSignedDemo(client):  # client is a fixture in pytest
     dat = json.loads(ser, object_pairs_hook=ODict)
     did = dat['did']
 
-    headers = {"Content-Type": "text/html; charset=utf-8",
-               "Signature": 'signer="{}"'.format(sig), }
+    headers = ODict()
+    headers["Content-Type"] = "application/json; charset=UTF-8"
+    headers["Signature"] = 'signer="{}"'.format(sig)
     assert headers['Signature'] == ('signer="1HO_9ERLOe30yEQyiwgu7g9DeHC8Nsq-ybQlNtDW9D611J61gm52Na5Cx5acYu71X8g_UR4Eyj05saNBoqcnCw=="')
 
     body = ser  # client.post encodes the body
@@ -2298,7 +2288,7 @@ def test_post_IssuerRegisterSignedDemo(client):  # client is a fixture in pytest
                     body=body,
                     reconnectable=True,)
 
-    patron.transmit()
+    patron.convey()
     timer = timing.StoreTimer(store, duration=1.0)
     while (patron.requests or patron.connector.txes or not patron.responses or
            not valet.idle()):
@@ -2310,20 +2300,24 @@ def test_post_IssuerRegisterSignedDemo(client):  # client is a fixture in pytest
 
     assert len(patron.responses) == 1
     rep = patron.responses.popleft()
-    assert rep['status'] == 404
-    assert rep['reason'] == 'Not Found'
-    assert rep['body'] == bytearray(b'404 Not Found\nBackend Validation'
-                                    b' Error\nError backend validation.'
-                                         b' unknown\n')
-    assert not rep['data']
+    assert rep['status'] == 201
+    assert rep['reason'] == 'Created'
+    assert rep['body'] == b""
+    assert rep['data'] == {'changed': '2000-01-01T00:00:00+00:00',
+                            'did': 'did:igo:3syVH2woCpOvPF0SD9Z0bu_OxNe2ZgxKjTQ961LlMnA=',
+                            'issuants': [{'issuer': 'localhost',
+                                          'kind': 'dns',
+                                          'registered': '2000-01-01T00:00:00+00:00',
+                                          'validationURL': 'http://localhost:8080/demo/check'}],
+                            'keys': [{'key': '3syVH2woCpOvPF0SD9Z0bu_OxNe2ZgxKjTQ961LlMnA=',
+                                      'kind': 'EdDSA'}],
+                            'signer': 'did:igo:3syVH2woCpOvPF0SD9Z0bu_OxNe2ZgxKjTQ961LlMnA=#0'}
 
-    assert rep.status == falcon.HTTP_201
-
-    location = falcon.uri.decode(rep.headers['location'])
+    location = falcon.uri.decode(rep['headers']['location'])
     assert location == "/agent?did=did:igo:3syVH2woCpOvPF0SD9Z0bu_OxNe2ZgxKjTQ961LlMnA="
-    assert rep.headers['content-type'] == "application/json; charset=UTF-8"
+    assert rep['headers']['content-type'] == "application/json; charset=UTF-8"
 
-    reg = rep.json
+    reg = rep['data']
     assert reg == dat
 
     # make sure in database
@@ -2331,51 +2325,6 @@ def test_post_IssuerRegisterSignedDemo(client):  # client is a fixture in pytest
     assert rdat == dat
     assert rser == ser
     assert rsig == sig
-
-
-    request = odict([('method', 'GET'),
-                     ('path', ),
-                         ('qargs', odict()),
-                         ('fragment', u''),
-                         ('headers', odict([('Accept', 'application/json'),
-                                            ('Content-Length', 0)])),
-                         ])
-
-    patron.requests.append(request)
-    timer = StoreTimer(store, duration=1.0)
-    while (patron.requests or patron.connector.txes or not patron.responses or
-           not valet.idle()):
-        valet.serviceAll()
-        time.sleep(0.05)
-        patron.serviceAll()
-        time.sleep(0.05)
-        store.advanceStamp(0.1)
-
-    assert patron.connector.accepted == True
-    assert patron.connector.connected == True
-    assert patron.connector.cutoff == False
-
-    assert len(valet.servant.ixes) == 1
-    assert len(valet.reqs) == 1
-    assert len(valet.reps) == 1
-    requestant = valet.reqs.values()[0]
-    assert requestant.method == patron.requester.method
-    assert requestant.url == patron.requester.path
-    assert requestant.headers == {'accept': 'application/json',
-                                  'accept-encoding': 'identity',
-                                              'content-length': '0',
-                                                'host': 'localhost:8101'}
-
-    assert len(patron.responses) == 1
-    rep = patron.responses.popleft()
-    assert rep['status'] == 200
-    assert rep['reason'] == 'OK'
-    assert rep['body'] == bytearray(b'')
-    assert rep['data'] == odict([('approved', True), ('body', '\nHello World\n\n')])
-
-    responder = valet.reps.values()[0]
-    assert responder.status.startswith(str(rep['status']))
-    assert responder.headers == rep['headers']
 
 
     # now get from location
@@ -2386,7 +2335,7 @@ def test_post_IssuerRegisterSignedDemo(client):  # client is a fixture in pytest
                      ('headers', headers) ])
 
     patron.requests.append(request)
-    timer = StoreTimer(store, duration=1.0)
+    timer = timing.StoreTimer(store, duration=1.0)
     while (patron.requests or patron.connector.txes or not patron.responses or
            not valet.idle()):
         valet.serviceAll()
@@ -2395,18 +2344,16 @@ def test_post_IssuerRegisterSignedDemo(client):  # client is a fixture in pytest
         time.sleep(0.05)
         store.advanceStamp(0.1)
 
-
     assert len(patron.responses) == 1
     rep = patron.responses.popleft()
     assert rep['status'] == 200
 
     assert rep['headers']['content-type'] == 'application/json; charset=UTF-8'
-
     sigs = parseSignatureHeader(rep['headers']['signature'])
     assert sigs['signer'] == sig
 
-    assert rep['body'] == ser
     assert rep['data'] == dat
+    ser = json.dumps(rep['data'], indent=2)
 
     assert verify64u(sig, ser, dat['keys'][0]['key'])
 
