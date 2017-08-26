@@ -23,6 +23,7 @@ import libnacl
 from ioflo.aid.sixing import *
 from ioflo.aid import lodict
 from ioflo.aid import timing
+from ioflo.aid import classing
 from ioflo.aio.http import httping
 
 from ioflo.aid import getConsole
@@ -99,14 +100,15 @@ class AgentResource:
         super(**kwa)
         self.store = store
 
-    def onPostGen(self, req, rep):
+    @classing.attributize
+    def onPostGen(self, skin, req, rep):
         """
         Generator to perform Agent post with support for backend request
         to validate issuant (HID)
 
-        local variables:
-        _status
-        _headers
+        attributes:
+        skin._status
+        skin._headers
 
         are special and if assigned inside generator used by WSGI server
         to update status and headers upon first non-empty write.
@@ -128,8 +130,9 @@ class AgentResource:
         {'check': 'did|issuer|date',
         'signer': 'did#index'}
         """
-        _status = None  # used to update status in iterator if not None
-        _headers = lodict()  # used to update headers in iterator if not empty
+        skin._status = None  # used to update status in iterator if not None
+        skin._headers = lodict()  # used to update headers in iterator if not empty
+        yield b''  # ensure its a generator
 
         signature = req.get_header("Signature")
         sigs = parseSignatureHeader(signature)
@@ -154,10 +157,6 @@ class AgentResource:
                                            'Validation Error',
                                             'Could not validate the request body.')
         did = result['did']  # unicode version
-        didURI = falcon.uri.encode_value(did)
-        rep.status = falcon.HTTP_201  # post response status with location header
-        rep.location = "{}?did={}".format(AGENT_BASE_PATH, didURI)
-
 
         if "issuants" in result:
             # validate hid control here
@@ -233,64 +232,21 @@ class AgentResource:
                                        'Database Error',
                                       '{}'.format(ex.args[0]))
 
-        _status = "{} {}".format(httping.CREATED, httping.STATUS_DESCRIPTIONS[httping.CREATED])
+        skin._status = httping.CREATED
         didURI = falcon.uri.encode_value(did)
-        _headers["Location"] = "{}?did={}".format(AGENT_BASE_PATH, didURI)
+        skin._headers["Location"] = "{}?did={}".format(AGENT_BASE_PATH, didURI)
         # normally picks of content-type from type of request but set anyway to ensure
-        _headers["Content-Type"] = "application/json; charset=UTF-8"
-        # since inside rep.stream generator, body is yielded or returned,
-        # but not assigned to rep.body
+        skin._headers["Content-Type"] = "application/json; charset=UTF-8"
+
         body = json.dumps(result, indent=2).encode()
-        yield body #return body
+        # inside rep.stream generator, body is yielded or returned, not assigned to rep.body
+        return body
 
 
     def on_post(self, req, rep):
         """
         Handles POST requests
         """
-        #signature = req.get_header("Signature")
-        #sigs = parseSignatureHeader(signature)
-        #sig = sigs.get('signer')  # str not bytes
-        #if not sig:
-            #raise falcon.HTTPError(falcon.HTTP_400,
-                                           #'Validation Error',
-                                           #'Invalid or missing Signature header.')
-
-        #try:
-            #regb = req.stream.read()  # bytes
-        #except Exception:
-            #raise falcon.HTTPError(falcon.HTTP_400,
-                                       #'Read Error',
-                                       #'Could not read the request body.')
-
-        #registration = regb.decode("utf-8")
-
-        #result = validateSignedAgentReg(sig, registration)
-        #if not result:
-            #raise falcon.HTTPError(falcon.HTTP_400,
-                                           #'Validation Error',
-                                            #'Could not validate the request body.')
-        #did = result['did']  # unicode version
-
-        #if "issuants" in result:
-            ## validate hid control here
-            #pass
-
-        ## save to database
-        #try:
-            #dbing.putSigned(key=did, ser=registration, sig=sig, clobber=False)
-        #except dbing.DatabaseError as ex:
-            #raise falcon.HTTPError(falcon.HTTP_412,
-                                  #'Database Error',
-                                  #'{}'.format(ex.args[0]))
-
-        #didURI = falcon.uri.encode_value(did)
-        #rep.status = falcon.HTTP_201  # post response status with location header
-        #rep.location = "{}?did={}".format(AGENT_BASE_PATH, didURI)
-        #rep.body = json.dumps(result, indent=2)
-
-        #rep.status = falcon.HTTP_201  # have to set Falcon status before process stream
-        #rep.set_header("Content-Type", "text/html; charset=UTF-8")
         rep.stream = self.onPostGen(req, rep)  # iterate on stream generator
 
     def on_get(self, req, rep):
@@ -339,31 +295,42 @@ class AgentDidResource:
         super(**kwa)
         self.store = store
 
-    def on_put(self, req, rep, did):
+    @classing.attributize
+    def onPutGen(self, skin, req, rep, did):
         """
-        Handles PUT requests
+        Generator to perform Agent put with support for backend request
+        to validate issuant (HID)
 
-        /agent/{did}
+        attributes:
+        skin._status
+        skin._headers
 
-        Falcon url decodes path parameters such as {did}
+        are special and if assigned inside generator used by WSGI server
+        to update status and headers upon first non-empty write.
+        Does not use self. because only one instance of resource is used
+        to process all requests.
         """
+        skin._status = None  # used to update status in iterator if not None
+        skin._headers = lodict()  # used to update headers in iterator if not empty
+        yield b''  # ensure its a generator
+
         signature = req.get_header("Signature")
         sigs = parseSignatureHeader(signature)
         sig = sigs.get('signer')  # str not bytes
         if not sig:
-            raise falcon.HTTPError(falcon.HTTP_400,
+            raise httping.HTTPError(httping.BAD_REQUEST,
                                            'Validation Error',
                                            'Invalid or missing Signature header.')
         csig = sigs.get('current')  # str not bytes
         if not csig:
-            raise falcon.HTTPError(falcon.HTTP_400,
+            raise httping.HTTPError(httping.BAD_REQUEST,
                                            'Validation Error',
                                            'Invalid or missing Signature header.')
 
         try:
             serb = req.stream.read()  # bytes
         except Exception:
-            raise falcon.HTTPError(falcon.HTTP_400,
+            raise httping.HTTPError(httping.BAD_REQUEST,
                                        'Read Error',
                                        'Could not read the request body.')
         ser = serb.decode("utf-8")
@@ -372,7 +339,7 @@ class AgentDidResource:
         try:
             rdat, rser, rsig = dbing.getSelfSigned(did)
         except dbing.DatabaseError as ex:
-            raise falcon.HTTPError(falcon.HTTP_400,
+            raise httping.HTTPError(httping.BAD_REQUEST,
                             'Resource Verification Error',
                             'Error verifying signer resource. {}'.format(ex))
 
@@ -380,7 +347,7 @@ class AgentDidResource:
         try:
             dat = validateSignedAgentWrite(cdat=rdat, csig=csig, sig=sig, ser=ser)
         except ValidationError as ex:
-            raise falcon.HTTPError(falcon.HTTP_400,
+            raise httping.HTTPError(falcon.BAD_REQUEST,
                                                'Validation Error',
                             'Error validating the request body. {}'.format(ex))
 
@@ -391,14 +358,30 @@ class AgentDidResource:
         try:
             dbing.putSigned(key=did, ser=ser, sig=sig,  clobber=True)
         except dbing.DatabaseError as ex:
-            raise falcon.HTTPError(falcon.HTTP_412,
+            raise httping.HTTPError(httping.PRECONDITION_FAILED,
                                   'Database Error',
                                   '{}'.format(ex.args[0]))
 
-        rep.set_header("Signature", 'signer="{}"'.format(sig))
-        rep.set_header("Content-Type", "application/json; charset=UTF-8")
-        rep.status = falcon.HTTP_200  # This is the default status
-        rep.body = ser
+
+        # normally picks of content-type from type of request but set anyway to ensure
+        skin._headers["Content-Type"] = "application/json; charset=UTF-8"
+        skin._headers["Signature"] = 'signer="{}"'.format(sig)
+
+        skin._status = httping.OK
+        # inside rep.stream generator, body is yielded or returned, not assigned to rep.body
+        return ser.encode()
+
+
+    def on_put(self, req, rep, did):
+        """
+        Handles PUT requests
+
+        /agent/{did}
+
+        Falcon url decodes path parameters such as {did}
+        """
+        rep.stream = self.onPutGen(req, rep, did)  # iterate on stream generator
+
 
     def on_get(self, req, rep, did):
         """

@@ -21,6 +21,7 @@ import falcon
 from ioflo.aid.sixing import *
 from ioflo.aid.timing import Stamper
 from ioflo.aio.http import httping
+from ioflo.aid import classing
 from ioflo.aid import getConsole
 
 from  ..help.helping import backendRequest
@@ -161,41 +162,6 @@ def delegator():
         time.sleep(0.1)
     return ODict(name="John Smith", country="United States")
 
-# generator
-def backendGenerator(store=None, path=None):
-    """
-    example generator that yields empty before returning json
-    """
-    port = 8101
-    path = path if path is not None else "/example"
-
-    rep = yield from backendRequest(method='GET',
-                                    port=port,
-                                    path=path,
-                                    store=store,
-                                    timeout=0.5)
-
-    #response = yield from delegator()
-
-    if rep is None:  # timed out waiting for authorization server
-        raise httping.HTTPError(httping.SERVICE_UNAVAILABLE,
-                         title ='Timeout Validation Error',
-                         detail ='Timeout backend validation request.')
-
-    if rep['status'] != 200:
-        if rep['errored']:
-            emsg = rep['error']
-        else:
-            emsg = "unknown"
-        raise httping.HTTPError(rep['status'],
-                         title="Backend Validation Error",
-                         detail="Error backend validation. {}".format(emsg))
-
-    result = ODict(approved=True,
-                   body=rep['body'].decode())
-    body = json.dumps(result, indent=2)
-    bodyb = body.encode()
-    return bodyb  # yield also works
 
 
 class ExampleBackendResource:
@@ -203,17 +169,60 @@ class ExampleBackendResource:
         super(**kwa)
         self.store = store
 
+    @classing.attributize  # support injecting skin reference
+    def backendGenerator(self, skin, req=None, rep=None):
+        """
+        example generator that yields empty before returning json
+        """
+        path = req.get_param("path")
+        if not path:
+            path = "/example"
+        port = 8101
+        berep = yield from backendRequest(method='GET',
+                                        port=port,
+                                        path=path,
+                                        store=self.store,
+                                        timeout=0.5)
+
+        if berep is None:  # timed out waiting for authorization server
+            raise httping.HTTPError(httping.SERVICE_UNAVAILABLE,
+                             title ='Timeout Validation Error',
+                             detail ='Timeout backend validation request.')
+
+        if berep['status'] != 200:
+            if berep['errored']:
+                emsg = berep['error']
+            else:
+                emsg = "unknown"
+            raise httping.HTTPError(berep['status'],
+                             title="Backend Validation Error",
+                             detail="Error backend validation. {}".format(emsg))
+
+        yield b''
+        skin._status = falcon.HTTP_200  # This is the default status
+        headers = ODict()
+        headers["Content-Type"] = "application/json"
+        skin._headers = headers
+
+        result = ODict(approved=True,
+                       body=berep['body'].decode())
+        body = json.dumps(result, indent=2)
+        bodyb = body.encode()
+
+        return bodyb
+
+
     def on_get(self, req, rep):
         """
         Handles GET request that makes request to another backend endpoint
 
         """
-        path = req.get_param("path")
-        if not path:
-            path = "/example"
-        rep.status = falcon.HTTP_200  # This is the default status
-        rep.content_type = "application/json"
-        rep.stream = backendGenerator(store=self.store, path=path)
+        #path = req.get_param("path")
+        #if not path:
+            #path = "/example"
+        #rep.status = falcon.HTTP_200  # This is the default status
+        #rep.content_type = "application/json"
+        rep.stream = self.backendGenerator(req=req, rep=rep)
 
 
 app = falcon.API() # falcon.API instances are callable WSGI apps

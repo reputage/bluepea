@@ -146,7 +146,7 @@ def test_get_backend():
     rep = patron.responses.popleft()
     assert rep['status'] == 200
     assert rep['reason'] == 'OK'
-    assert rep['body'] == bytearray(b'')
+    assert rep['body'] == bytearray(b'{\n  "approved": true,\n  "body": "\\nHello World\\n\\n"\n}')
     assert rep['data'] == odict([('approved', True), ('body', '\nHello World\n\n')])
 
     responder = valet.reps.values()[0]
@@ -154,15 +154,22 @@ def test_get_backend():
     assert responder.headers == rep['headers']
 
     # test for error by sending query arg path
-    request = odict([('method', 'GET'),
-                     ('path', '/example/backend'),
-                         ('qargs', odict(path='/unknown')),
-                         ('fragment', u''),
-                         ('headers', odict([('Accept', 'application/json'),
-                                            ('Content-Length', 0)])),
-                         ])
+    #request = odict([('method', 'GET'),
+                     #('path', '/example/backend'),
+                         #('qargs', odict(path='/unknown')),
+                         #('fragment', u''),
+                         #('headers', odict([('Accept', 'application/json'),
+                                            #('Content-Length', 0)])),
+                         #])
 
-    patron.requests.append(request)
+    #patron.requests.append(request)
+
+    headers = odict([('Accept', 'application/json'),
+                    ('Content-Length', 0)])
+    patron.transmit(method='GET',
+                    path='/example/backend',
+                    qargs=odict(path='/unknown'),
+                    headers=headers)
     timer = StoreTimer(store, duration=1.0)
     while (patron.requests or patron.connector.txes or not patron.responses or
            not valet.idle()):
