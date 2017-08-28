@@ -192,7 +192,6 @@ def test_post_AgentRegisterSigned():
 
     print("Testing Issuer creation POST Demo /agent/register with signature ")
 
-    #store = Store(stamp=0.0)  # create store use global above
     priming.setupTest()
     dbEnv = dbing.gDbEnv
     keeper = keeping.gKeeper
@@ -530,9 +529,25 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
 
     Does an Agent registration to setup database
     """
+    global store  # use Global store
+
     print("Testing Thing creation POST /thing with signature ")
 
-    dbEnv = setupTestDbEnv()
+    priming.setupTest()
+    dbEnv = dbing.gDbEnv
+    keeper = keeping.gKeeper
+    kdid = keeper.did
+
+    # create local test server
+    valet = Valet(port=8101,
+                  bufsize=131072,
+                  store=store,
+                  app=exapp,)
+
+    result = valet.open()
+    assert result
+    assert valet.servant.ha == ('0.0.0.0', 8101)
+    assert valet.servant.eha == ('127.0.0.1', 8101)
 
     dt = datetime.datetime(2000, 1, 1, tzinfo=datetime.timezone.utc)
     changed = timing.iso8601(dt, aware=True)
@@ -651,45 +666,56 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
         "Content-Type": "text/html; charset=utf-8",
         "Signature": 'signer="{}";did="{}"'.format(ssignature, dsignature),
     }
-
     body = tregistration  # client.post encodes the body
+    #rep = client.post('/thing', body=body, headers=headers)
+    path = "http://{}:{}{}".format('localhost', valet.servant.eha[1], '/thing')
+    # instantiate Patron client
+    patron = Patron(bufsize=131072,
+                    store=store,
+                    method = 'POST',
+                    path=path,
+                    headers=headers,
+                    body=body,
+                    reconnectable=True,)
 
-    rep = client.post('/thing', body=body, headers=headers)
-    assert rep.status == falcon.HTTP_201
-    assert treg == rep.json
+    patron.transmit()
+    timer = timing.StoreTimer(store, duration=1.0)
+    while (patron.requests or patron.connector.txes or not patron.responses or
+           not valet.idle()):
+        valet.serviceAll()
+        time.sleep(0.05)
+        patron.serviceAll()
+        time.sleep(0.05)
+        store.advanceStamp(0.1)
 
-    location = falcon.uri.decode(rep.headers['location'])
+    assert len(patron.responses) == 1
+    rep = patron.responses.popleft()
+
+    assert rep['status'] == 201
+    assert rep['reason'] == 'Created'
+    location = falcon.uri.decode(rep['headers']['location'])
     assert location == "/thing?did=did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM="
-
     path, query = location.rsplit("?", maxsplit=1)
     assert query == "did=did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM="
-
     query = falcon.uri.parse_query_string(query)
     tdid = query['did']
     assert tdid == "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM="
 
-    assert rep.headers['content-type'] == "application/json; charset=UTF-8"
+    assert rep["headers"]['content-type'] == "application/json; charset=UTF-8"
 
+    assert rep['data'] == treg
     assert treg["did"] == tdid
 
-    dbCore = dbEnv.open_db(b'core')  # open named sub db named 'core' within env
-    with dbEnv.begin(db=dbCore) as txn:  # txn is a Transaction object
-        rsrcb = txn.get(tdid.encode('utf-8'))  # keys are bytes
-    assert rsrcb
-    datab, sep, signatureb = rsrcb.partition(SEPARATOR_BYTES)
-    data = json.loads(datab.decode("utf-8"), object_pairs_hook=ODict)
-    datau = datab.decode("utf-8")
-    assert data == treg
-    assert signatureb.decode("utf-8") == ssignature
-    assert datau == tregistration
+    # make sure in database
+    tdat, tser, tsig = dbing.getSigned(tdid)
+    assert tdat == treg
+    assert tser == tregistration
+    assert tsig == ssignature
+
     sverkey = keyToKey64u(ivk)
     assert sverkey == 'dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY='
 
-    result = verify64u(signature=ssignature,
-                       message=datau,
-                       verkey=sverkey)
-
-    assert result
+    assert verify64u(signature=tsig, message=tser, verkey=sverkey)
 
     # verify hid table entry
     dbHid2Did = dbEnv.open_db(b'hid2did')  # open named sub db named 'hid2did' within env
@@ -700,24 +726,36 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
 
     print("Testing GET /thing?did=....")
 
-    didURI = falcon.uri.encode_value(tdid)
-    rep = client.get('/thing?did={}'.format(didURI))
+    headers = odict([('Accept', 'application/json'),
+                     ('Content-Length', 0)])
 
-    assert rep.status == falcon.HTTP_OK
-    assert int(rep.headers['content-length']) == 349
-    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
-    assert rep.headers['signature'] == ('signer="bNUB37pBC5KuSVx4SKw8qQGR405wH7'
-                    'qNI2pjv2MhmyqsJ8ofTTS2WYs3ZaU7aDyoJGSIfwJcadmcok9tntdkDA=="')
-    sigs = parseSignatureHeader(rep.headers['signature'])
+    patron.transmit(method='GET', path=location, headers=headers)
+    timer = timing.StoreTimer(store, duration=1.0)
+    while (patron.requests or patron.connector.txes or not patron.responses or
+           not valet.idle()):
+        valet.serviceAll()
+        time.sleep(0.05)
+        patron.serviceAll()
+        time.sleep(0.05)
+        store.advanceStamp(0.1)
 
+    assert len(patron.responses) == 1
+    rep = patron.responses.popleft()
+
+    assert rep['status'] == 200
+    assert rep['headers']['content-type'] == 'application/json; charset=UTF-8'
+    sigs = parseSignatureHeader(rep['headers']['signature'])
     assert sigs['signer'] == ssignature
 
-    assert rep.body == tregistration
-    assert rep.json == treg
+    assert rep['data'] == treg
+    ser = rep['body'].decode()
+    assert ser == tregistration
+    assert verify64u(ssignature, ser, sverkey)
 
-    assert verify64u(ssignature, tregistration, sverkey)
 
     cleanupTmpBaseDir(dbEnv.path())
+    valet.close()
+    patron.close()
     print("Done Test")
 
 

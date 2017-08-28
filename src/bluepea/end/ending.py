@@ -571,29 +571,44 @@ class ThingResource:
         super(**kwa)
         self.store = store
 
-    def on_post(self, req, rep):
+    @classing.attributize
+    def onPostGen(self, skin, req, rep):
         """
-        Handles POST requests
+        Generator to perform Thing post with support for backend request
+        to validate issuant (HID)
+
+        attributes:
+        skin._status
+        skin._headers
+
+        are special and if assigned inside generator used by WSGI server
+        to update status and headers upon first non-empty write.
+        Does not use self. because only one instance of resource is used
+        to process all requests.
         """
+        skin._status = None  # used to update status in iterator if not None
+        skin._headers = lodict()  # used to update headers in iterator if not empty
+        yield b''  # ensure its a generator
+
         signature = req.get_header("Signature")
         sigs = parseSignatureHeader(signature)
 
         dsig = sigs.get('did')  # str not bytes thing's did signature
         if not dsig:
-            raise falcon.HTTPError(falcon.HTTP_400,
+            raise httping.HTTPError(httping.BAD_REQUEST,
                                            'Validation Error',
                                            'Invalid or missing Signature header.')
 
         tsig = sigs.get('signer')  # str not bytes thing's signer signature
         if not tsig:
-            raise falcon.HTTPError(falcon.HTTP_400,
+            raise httping.HTTPError(httping.BAD_REQUEST,
                                            'Validation Error',
                                            'Invalid or missing Signature header.')
 
         try:
             regb = req.stream.read()  # bytes
         except Exception:
-            raise falcon.HTTPError(falcon.HTTP_400,
+            raise httping.HTTPError(httping.BAD_REQUEST,
                                        'Read Error',
                                        'Could not read the request body.')
 
@@ -603,7 +618,7 @@ class ThingResource:
         try:
             result = validateSignedThingReg(dsig, registration)
         except ValidationError as ex:
-            raise falcon.HTTPError(falcon.HTTP_400,
+            raise httping.HTTPError(httping.BAD_REQUEST,
                                            'Validation Error',
                             'Could not validate the request body. {}'.format(ex))
 
@@ -612,7 +627,7 @@ class ThingResource:
             sdid, index = result["signer"].rsplit("#", maxsplit=1)
             index = int(index)  # get index and sdid from signer field
         except (AttributeError, ValueError) as ex:
-                raise falcon.HTTPError(falcon.HTTP_400,
+                raise httping.HTTPError(httping.BAD_REQUEST,
                                    'Validation Error',
                                     'Invalid or missing did key index.')   # missing sdid or index
 
@@ -620,7 +635,7 @@ class ThingResource:
         try:
             sdat, sser, ssig = dbing.getSelfSigned(sdid)
         except dbing.DatabaseError as ex:
-            raise falcon.HTTPError(falcon.HTTP_400,
+            raise httping.HTTPError(httping.BAD_REQUEST,
                             'Resource Verification Error',
                             'Error verifying signer resource. {}'.format(ex))
 
@@ -628,13 +643,13 @@ class ThingResource:
         try:
             tkey = sdat['keys'][index]['key']
         except (TypeError, IndexError, KeyError) as ex:
-            raise falcon.HTTPError(falcon.HTTP_424,
+            raise httping.HTTPError(httping.FAILED_DEPENDENCY,
                                            'Data Resource Error',
                                            'Missing signing key')
         try:
             validateSignedResource(tsig, registration, tkey)
         except ValidationError as ex:
-            raise falcon.HTTPError(falcon.HTTP_400,
+            raise httping.HTTPError(httping.BAD_REQUEST,
                                    'Validation Error',
                         'Could not validate the request body. {}'.format(ex))
 
@@ -648,7 +663,7 @@ class ThingResource:
         try:
             dbing.putSigned(key=tdid, ser=registration, sig=tsig, clobber=False)
         except dbing.DatabaseError as ex:
-            raise falcon.HTTPError(falcon.HTTP_412,
+            raise httping.HTTPError(httping.PRECONDITION_FAILED,
                                   'Database Error',
                                   '{}'.format(ex.args[0]))
 
@@ -656,14 +671,27 @@ class ThingResource:
             try:
                 dbing.putHid(result['hid'], tdid)
             except DatabaseError as ex:
-                raise falcon.HTTPError(falcon.HTTP_412,
+                raise httping.HTTPError(httping.PRECONDITION_FAILED,
                                       'Database Error',
                                       '{}'.format(ex.args[0]))
 
+        skin._status = httping.CREATED
         didURI = falcon.uri.encode_value(tdid)
-        rep.status = falcon.HTTP_201  # post response status with location header
-        rep.location = "{}?did={}".format(THING_BASE_PATH, didURI)
-        rep.body = json.dumps(result, indent=2)
+        skin._headers["Location"] = "{}?did={}".format(THING_BASE_PATH, didURI)
+        # normally picks of content-type from type of request but set anyway to ensure
+        skin._headers["Content-Type"] = "application/json; charset=UTF-8"
+
+        body = json.dumps(result, indent=2).encode()
+        # inside rep.stream generator, body is yielded or returned, not assigned to rep.body
+        return body
+
+
+    def on_post(self, req, rep):
+        """
+        Handles POST requests
+        """
+        rep.stream = self.onPostGen(req, rep)  # iterate on stream generator
+
 
     def on_get(self, req, rep):
         """
