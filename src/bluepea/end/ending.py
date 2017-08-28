@@ -37,7 +37,8 @@ from ..help.helping import (parseSignatureHeader, verify64u, extractDidParts,
                             validateSignedThingWrite, keyToKey64u,
                             validateMessageData, verifySignedMessageWrite,
                             validateSignedOfferData, buildSignedServerOffer,
-                            validateSignedThingTransfer, validateAnon)
+                            validateSignedThingTransfer, validateAnon,
+                            validateIssuerDomainGen, )
 from ..db import dbing
 from ..keep import keeping
 
@@ -83,6 +84,7 @@ class ServerResource:
         rep.set_header("Content-Type", "application/json; charset=UTF-8")
         rep.status = falcon.HTTP_200  # This is the default status
         rep.body = ser
+
 
 class AgentResource:
     """
@@ -138,97 +140,41 @@ class AgentResource:
         sigs = parseSignatureHeader(signature)
         sig = sigs.get('signer')  # str not bytes
         if not sig:
-            raise falcon.HTTPError(falcon.HTTP_400,
+            raise fhttping.HTTPError(httping.BAD_REQUEST,
                                            'Validation Error',
                                            'Invalid or missing Signature header.')
 
         try:
-            regb = req.stream.read()  # bytes
+            serb = req.stream.read()  # bytes
         except Exception:
-            raise falcon.HTTPError(falcon.HTTP_400,
+            raise httping.HTTPError(httping.BAD_REQUEST,
                                        'Read Error',
                                        'Could not read the request body.')
 
-        registration = regb.decode("utf-8")
+        ser = serb.decode("utf-8")
 
-        result = validateSignedAgentReg(sig, registration)
-        if not result:
-            raise falcon.HTTPError(falcon.HTTP_400,
-                                           'Validation Error',
-                                            'Could not validate the request body.')
-        did = result['did']  # unicode version
+        try:
+            dat = validateSignedAgentReg(sig, ser)
+        except ValidationError as ex:
+            raise httping.HTTPError(httping.BAD_REQUEST,
+                                    'Validation Error',
+                                    'Error validating the request body. {}'.format(ex))
 
-        if "issuants" in result:
-            # validate hid control here
-            pass
+        did = dat['did']  # unicode version
 
-        #did = idata["did"]
-        #issuer = issuant['issuer']
-        #dt = datetime.datetime.now(tz=datetime.timezone.utc)
-        #date = timing.iso8601(dt, aware=True)
-        #check = "{}|{}|{}".format(did, issuer, date)
-
-        #qargs = ODict(did=data['did'], check=check)
-        #vurl = issuant["validationURL"]
-        #rep = yield from backendRequest(method='GET',
-                                        #path=vurl,
-                                        #qargs=qargs,
-                                        #store=store,
-                                        #timeout=0.5)
-
-        #if rep is None:  # timed out waiting for authorization server
-            #raise httping.HTTPError(httping.SERVICE_UNAVAILABLE,
-                             #title ='Timeout Validation Error',
-                             #detail ='Timeout backend validation request.')
-
-        #if rep['status'] != 200:
-            #if rep['errored']:
-                #emsg = rep['error']
-            #else:
-                #emsg = "unknown"
-            #raise httping.HTTPError(rep['status'],
-                             #title="Backend Validation Error",
-                             #detail="Error backend validation. {}".format(emsg))
-
-        #rdata = rep['data']
-        #rcheck = rdata['check']
-        #rsigner = rdata['signer']
-
-        #if rcheck != check:
-            #raise httping.HTTPError(httping.NOT_ACCEPTABLE,
-                                        #title ='Validation Check Error',
-                                 #detail ='Validation response bad.')
-
-        #sigs = rep['headers'].get("Signature", {})
-        #sig = sigs.get('signer')  # str not bytes
-        #if not sig:
-            #raise httping.HTTPError(httping.BAD_REQUEST,
-                                           #'Validation Error',
-                                           #'Invalid or missing Signature header.')
-
-        #sdid, sindex, keystr = extractDidSignerParts(rsigner)
-        #if sdid != did:
-            #raise httping.HTTPError(httping.BAD_REQUEST,
-                                        #'Validation Error',
-                                    #'Bad validation signer')
-
-        #if len(idata['keys']) < sindex:
-            #raise httping.HTTPError(httping.BAD_REQUEST,
-                                        #'Validation Error',
-                                            #'Bad validation signer key')
-
-        #key = idata['keys'][sindex][key]
-
-        #if not verify64u(sig, rcheck, key):
-            #raise httping.HTTPError(httping.UNAUTHORIZED,
-                                        #'Validation Error',
-                                            #'Unverifiable signature')
+        if "issuants" in dat:  # validate hid control here
+            try:
+                result = yield from validateIssuerDomainGen(self.store, dat, timeout=0.5)  # raises  error if fails
+            except ValidationError as ex:
+                raise httping.HTTPError(httping.BAD_REQUEST,
+                                    'Validation Error',
+                                    'Error validating issuant. {}'.format(ex))
 
         # no error so save to database
         try:
-            dbing.putSigned(key=did, ser=registration, sig=sig, clobber=False)
+            dbing.putSigned(key=did, ser=ser, sig=sig, clobber=False)
         except dbing.DatabaseError as ex:
-            raise falcon.HTTPError(falcon.HTTP_412,
+            raise httping.HTTPError(httping.PRECONDITION_FAILED,
                                        'Database Error',
                                       '{}'.format(ex.args[0]))
 
@@ -238,7 +184,7 @@ class AgentResource:
         # normally picks of content-type from type of request but set anyway to ensure
         skin._headers["Content-Type"] = "application/json; charset=UTF-8"
 
-        body = json.dumps(result, indent=2).encode()
+        body = json.dumps(dat, indent=2).encode()
         # inside rep.stream generator, body is yielded or returned, not assigned to rep.body
         return body
 
@@ -1396,8 +1342,14 @@ class CheckHidResource:
         }
 
         """
-        did = req.get_param("did")  # already has url-decoded query parameter value
-        check = req.get_param("check")  # already has url-decoded query parameter value
+        # have to create so test verify HID has keys to respond put in demo db
+        agents, things = dbing.setupTestDbAgentsThings(dbn='demo')
+
+        qargs = httping.parseQuery(req.query_string)  # avoid double unquote bug in falcon
+        did = qargs.get('did')
+        check = qargs.get('check')
+        #did = req.get_param("did")  # already has url-decoded query parameter value
+        #check = req.get_param("check")  # already has url-decoded query parameter value
         if not did or not check:
             raise falcon.HTTPError(falcon.HTTP_400,
                                            "Query Parameter Error",
@@ -1405,7 +1357,7 @@ class CheckHidResource:
 
         # read from database
         try:
-            dat, ser, sig = dbing.getSelfSigned(did)
+            dat, ser, sig = dbing.getSelfSigned(did, dbn='demo')
         except dbing.DatabaseError as ex:
             raise falcon.HTTPError(falcon.HTTP_400,
                             'Resource Verification Error',
@@ -1419,7 +1371,6 @@ class CheckHidResource:
         # ike's seed
         seed = (b'!\x85\xaa\x8bq\xc3\xf8n\x93]\x8c\xb18w\xb9\xd8\xd7\xc3\xcf\x8a\x1dP\xa9m'
                 b'\x89\xb6h\xfe\x10\x80\xa6S')
-
 
         # creates signing/verification key pair
         vk, sk = libnacl.crypto_sign_seed_keypair(seed)

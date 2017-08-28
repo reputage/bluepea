@@ -44,7 +44,7 @@ from bluepea.help.helping import (key64uToKey, keyToKey64u, makeDid,
                                   makeSignedAgentReg, makeSignedThingReg,
                                   extractDidSignerParts,
                                   )
-from bluepea.db.dbing import setupTestDbEnv
+from bluepea.db.dbing import setupTestDbEnv, setupTestDbAgentsThings
 import bluepea.db.dbing as dbing
 import bluepea.keep.keeping as keeping
 import bluepea.prime.priming as priming
@@ -58,130 +58,6 @@ ending.loadEnds(exapp, store=store)
 @pytest.fixture
 def app():
     return exapp
-
-def setupTestDbAgentsThings():
-    """
-    Put test agents and things in db and return duple of dicts (agents, things)
-    keyed by  name each value is triple ( did, vk, sk)  where
-    vk is public verification key
-    sk is private signing key
-    """
-    agents = ODict()
-    things = ODict()
-
-    #seed = libnacl.randombytes(libnacl.crypto_sign_SEEDBYTES)
-
-    dt = datetime.datetime(2000, 1, 1, tzinfo=datetime.timezone.utc)
-    changed = timing.iso8601(dt, aware=True)
-
-    # make "ann" the agent
-    seed = (b'PTi\x15\xd5\xd3`\xf1u\x15}^r\x9bfH\x02l\xc6\x1b\x1d\x1c\x0b9\xd7{\xc0_'
-            b'\xf2K\x93`')
-
-    # creates signing/verification key pair
-    avk, ask = libnacl.crypto_sign_seed_keypair(seed)
-
-    sig, ser = makeSignedAgentReg(avk, ask, changed=changed)
-
-    adat = json.loads(ser, object_pairs_hook=ODict)
-    adid = adat['did']
-
-    dbing.putSigned(key=adid, ser=ser, sig=sig, clobber=False)
-
-    agents['ann'] = (adid, avk, ask)
-
-    # make "ivy" the issurer
-    seed = seed = (b"\xb2PK\xad\x9b\x92\xa4\x07\xc6\xfa\x0f\x13\xd7\xe4\x08\xaf\xc7'~\x86"
-                   b'\xd2\x92\x93rA|&9\x16Bdi')
-
-    # creates signing/verification key pair
-    ivk, isk = libnacl.crypto_sign_seed_keypair(seed)
-
-    issuant = ODict(kind="dns",
-                issuer="generic.com",
-                registered=changed,
-                validationURL="https://generic.com/indigo")
-    issuants = [issuant]  # list of issuants hid name spaces
-
-    sig, ser = makeSignedAgentReg(ivk, isk, changed=changed, issuants=issuants)
-
-    idat = json.loads(ser, object_pairs_hook=ODict)
-    idid = idat['did']
-
-    dbing.putSigned(key=idid, ser=ser, sig=sig, clobber=False)
-
-    agents['ivy'] = (idid, ivk, isk)
-
-    # make "cam" the thing
-    # create  thing signed by issuer and put into database
-    seed = (b'\xba^\xe4\xdd\x81\xeb\x8b\xfa\xb1k\xe2\xfd6~^\x86tC\x9c\xa7\xe3\x1d2\x9d'
-            b'P\xdd&R <\x97\x01')
-
-    cvk, csk = libnacl.crypto_sign_seed_keypair(seed)
-
-    signer = idat['signer']  # use same signer key fragment reference as issuer isaac
-    hid = "hid:dns:generic.com#02"
-    data = ODict(keywords=["Canon", "EOS Rebel T6", "251440"],
-                 message="If found please return.")
-
-    sig, isig, ser = makeSignedThingReg(cvk,
-                                          csk,
-                                            isk,
-                                            signer,
-                                            changed=changed,
-                                            hid=hid,
-                                            data=data)
-
-    cdat = json.loads(ser, object_pairs_hook=ODict)
-    cdid = cdat['did']
-
-    dbing.putSigned(key=cdid, ser=ser, sig=isig, clobber=False)
-
-    things['cam'] = (cdid, cvk, csk)
-
-    # make "fae" the finder
-    seed = (b'\xf9\x13\xf0\xff\xd4\xb3\xbdF\xa2\x80\x1d\xce\xaa\xd9\x87df\xc8\x1f\x91'
-            b';\x9bp+\x1bK\x1ey\xef6\xa7\xf9')
-
-
-    # creates signing/verification key pair
-    fvk, fsk = libnacl.crypto_sign_seed_keypair(seed)
-
-    sig, ser = makeSignedAgentReg(fvk, fsk, changed=changed)
-
-    fdat = json.loads(ser, object_pairs_hook=ODict)
-    fdid = fdat['did']
-
-    dbing.putSigned(key=fdid, ser=ser, sig=sig,  clobber=False)
-
-    agents['fae'] = (fdid, fvk, fsk)
-
-    # make "ike" another issurer for demo testing
-    #seed = libnacl.randombytes(libnacl.crypto_sign_SEEDBYTES)
-    seed = (b'!\x85\xaa\x8bq\xc3\xf8n\x93]\x8c\xb18w\xb9\xd8\xd7\xc3\xcf\x8a\x1dP\xa9m'
-                   b'\x89\xb6h\xfe\x10\x80\xa6S')
-
-    # creates signing/verification key pair
-    ivk, isk = libnacl.crypto_sign_seed_keypair(seed)
-
-    issuant = ODict(kind="dns",
-                    issuer="localhost",
-                    registered=changed,
-                    validationURL="https://localhost:8080/demo/check")
-    issuants = [issuant]  # list of issuants hid name spaces
-
-    sig, ser = makeSignedAgentReg(ivk, isk, changed=changed, issuants=issuants)
-
-    idat = json.loads(ser, object_pairs_hook=ODict)
-    idid = idat['did']
-
-    dbing.putSigned(key=idid, ser=ser, sig=sig, clobber=False)
-
-    agents['ike'] = (idid, ivk, isk)
-
-
-    return (agents, things)
-
 
 def test_post_AgentRegisterSigned():
     """
@@ -391,11 +267,11 @@ def test_post_IssuerRegisterSigned():
     issuant = ODict(kind="dns",
                     issuer="localhost",
                     registered=stamp,
-                    validationURL="http://localhost:8080/demo/check")
+                    validationURL="http://localhost:8101/demo/check")
     issuants = [issuant]  # list of hids
 
     sig, ser = makeSignedAgentReg(vk, sk, changed=stamp, issuants=issuants)
-    assert sig == ('1HO_9ERLOe30yEQyiwgu7g9DeHC8Nsq-ybQlNtDW9D611J61gm52Na5Cx5acYu71X8g_UR4Eyj05saNBoqcnCw==')
+    assert sig == ('YbLIOlRx8xh5taCxW-_aCBoPboLAZjK5-d1DP4OZ9PWn13BpPCe12ZFVZfFlSsM3Pv-zljbsJnR6Adz7iE5ZAw==')
     assert ser == (
         '{\n'
         '  "did": "did:igo:3syVH2woCpOvPF0SD9Z0bu_OxNe2ZgxKjTQ961LlMnA=",\n'
@@ -412,7 +288,7 @@ def test_post_IssuerRegisterSigned():
         '      "kind": "dns",\n'
         '      "issuer": "localhost",\n'
         '      "registered": "2000-01-01T00:00:00+00:00",\n'
-        '      "validationURL": "http://localhost:8080/demo/check"\n'
+        '      "validationURL": "http://localhost:8101/demo/check"\n'
         '    }\n'
         '  ]\n'
         '}')
@@ -423,7 +299,7 @@ def test_post_IssuerRegisterSigned():
     headers = ODict()
     headers["Content-Type"] = "application/json; charset=UTF-8"
     headers["Signature"] = 'signer="{}"'.format(sig)
-    assert headers['Signature'] == ('signer="1HO_9ERLOe30yEQyiwgu7g9DeHC8Nsq-ybQlNtDW9D611J61gm52Na5Cx5acYu71X8g_UR4Eyj05saNBoqcnCw=="')
+    assert headers['Signature'] == ('signer="YbLIOlRx8xh5taCxW-_aCBoPboLAZjK5-d1DP4OZ9PWn13BpPCe12ZFVZfFlSsM3Pv-zljbsJnR6Adz7iE5ZAw=="')
 
     body = ser  # client.post encodes the body
 
@@ -452,20 +328,33 @@ def test_post_IssuerRegisterSigned():
     rep = patron.responses.popleft()
     assert rep['status'] == 201
     assert rep['reason'] == 'Created'
-    assert rep['body'] == bytearray(b'{\n  "did": "did:igo:3syVH2woCpOvPF0SD9Z0bu_OxNe2ZgxKjTQ961LlMnA='
-                                    b'",\n  "signer": "did:igo:3syVH2woCpOvPF0SD9Z0bu_OxNe2ZgxKjTQ961Ll'
-                                    b'MnA=#0",\n  "changed": "2000-01-01T00:00:00+00:00",\n  "keys": [\n '
-                                    b'   {\n      "key": "3syVH2woCpOvPF0SD9Z0bu_OxNe2ZgxKjTQ961LlMnA="'
-                                    b',\n      "kind": "EdDSA"\n    }\n  ],\n  "issuants": [\n    {\n   '
-                                    b'   "kind": "dns",\n      "issuer": "localhost",\n      "registered'
-                                    b'": "2000-01-01T00:00:00+00:00",\n      "validationURL": "http://l'
-                                    b'ocalhost:8080/demo/check"\n    }\n  ]\n}')
+    body = rep['body'].decode()
+    assert body == (
+        '{\n'
+        '  "did": "did:igo:3syVH2woCpOvPF0SD9Z0bu_OxNe2ZgxKjTQ961LlMnA=",\n'
+        '  "signer": "did:igo:3syVH2woCpOvPF0SD9Z0bu_OxNe2ZgxKjTQ961LlMnA=#0",\n'
+        '  "changed": "2000-01-01T00:00:00+00:00",\n'
+        '  "keys": [\n'
+        '    {\n'
+        '      "key": "3syVH2woCpOvPF0SD9Z0bu_OxNe2ZgxKjTQ961LlMnA=",\n'
+        '      "kind": "EdDSA"\n'
+        '    }\n'
+        '  ],\n'
+        '  "issuants": [\n'
+        '    {\n'
+        '      "kind": "dns",\n'
+        '      "issuer": "localhost",\n'
+        '      "registered": "2000-01-01T00:00:00+00:00",\n'
+        '      "validationURL": "http://localhost:8101/demo/check"\n'
+        '    }\n'
+        '  ]\n'
+        '}')
     assert rep['data'] == {'changed': '2000-01-01T00:00:00+00:00',
                             'did': 'did:igo:3syVH2woCpOvPF0SD9Z0bu_OxNe2ZgxKjTQ961LlMnA=',
                             'issuants': [{'issuer': 'localhost',
                                           'kind': 'dns',
                                           'registered': '2000-01-01T00:00:00+00:00',
-                                          'validationURL': 'http://localhost:8080/demo/check'}],
+                                          'validationURL': 'http://localhost:8101/demo/check'}],
                             'keys': [{'key': '3syVH2woCpOvPF0SD9Z0bu_OxNe2ZgxKjTQ961LlMnA=',
                                       'kind': 'EdDSA'}],
                             'signer': 'did:igo:3syVH2woCpOvPF0SD9Z0bu_OxNe2ZgxKjTQ961LlMnA=#0'}
@@ -563,9 +452,9 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
     ivk, isk = libnacl.crypto_sign_seed_keypair(seed)
 
     issuant = ODict(kind="dns",
-                    issuer="generic.com",
+                    issuer="localhost",
                 registered=changed,
-                validationURL="https://generic.com/indigo")
+                validationURL="https://localhost:8101/demo/check")
     issuants = [issuant]  # list of issuants hid name spaces
 
     sig, ser = makeSignedAgentReg(ivk, isk, changed=changed, issuants=issuants)
@@ -589,10 +478,10 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
         'issuants':
         [
             {
-                'issuer': 'generic.com',
+                'issuer': 'localhost',
                 'kind': 'dns',
                 'registered': '2000-01-01T00:00:00+00:00',
-                'validationURL': 'https://generic.com/indigo'
+                'validationURL': 'https://localhost:8101/demo/check'
             }
          ]
     }
@@ -613,7 +502,7 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
 
 
     signer = idat['signer']
-    hid = "hid:dns:generic.com#02"
+    hid = "hid:dns:localhost#02"
     data = ODict(keywords=["Canon", "EOS Rebel T6", "251440"],
                  message="If found please return.")
 
@@ -629,7 +518,7 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
     assert tregistration == (
         '{\n'
         '  "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",\n'
-        '  "hid": "hid:dns:generic.com#02",\n'
+        '  "hid": "hid:dns:localhost#02",\n'
         '  "signer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#0",\n'
         '  "changed": "2000-01-01T00:00:00+00:00",\n'
         '  "data": {\n'
@@ -642,17 +531,15 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
         '  }\n'
         '}')
 
-    assert dsignature == ('3VUjzx_5uigvwFAv0FNYl9rlZL1g5KKSqPAIAOENXdwW14vigTxc'
-                          'tQnQgHlfF4JBvyIha43WiDrb45Gspa2RDA==')
+    assert dsignature == 'bzJDEvEprraZc9aOLYS7WaPi5UB_px0EH9wu76rFPrbRgjAUO9JJ4roMpQrD31v3WlbHHTG8WzB5L8PE6v3BCg=='
 
-    assert ssignature == ('bNUB37pBC5KuSVx4SKw8qQGR405wH7qNI2pjv2MhmyqsJ8ofTTS2'
-                          'WYs3ZaU7aDyoJGSIfwJcadmcok9tntdkDA==')
+    assert ssignature == 'FGRHzSNS70LIjwcSTAxHx5RahDwAet090fYSnsReMco_WvpTVpvfEygWDXslCBh0TqBoEOMLQ78-kN8fj6NFAg=='
 
     treg = json.loads(tregistration, object_pairs_hook=ODict)
 
     assert treg == {
       "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
-      "hid": "hid:dns:generic.com#02",
+      "hid": "hid:dns:localhost#02",
       "signer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#0",
       "changed": "2000-01-01T00:00:00+00:00",
       "data":
@@ -982,10 +869,8 @@ def test_put_AgentDid():
     nsig = keyToKey64u(libnacl.crypto_sign(nres.encode("utf-8"), nsk)[:libnacl.crypto_sign_BYTES])
     csig = keyToKey64u(libnacl.crypto_sign(nres.encode("utf-8"), sk)[:libnacl.crypto_sign_BYTES])
 
-    assert nsig == ("Y5xTb0_jTzZYrf5SSEK2f3LSLwIwhOX7GEj6YfRWmGViKAesa08UkNWukUk"
-                    "PGuKuu-EAH5U-sdFPPboBAsjRBw==")
-    assert csig == ("Xhh6WWGJGgjU5V-e57gj4HcJ87LLOhQr2Sqg5VToTSg-SI1W3A8lgISxOj"
-                    "AI5pa2qnonyz3tpGvC2cmf1VTpBg==")
+    assert nsig == 'Y5xTb0_jTzZYrf5SSEK2f3LSLwIwhOX7GEj6YfRWmGViKAesa08UkNWukUkPGuKuu-EAH5U-sdFPPboBAsjRBw=='
+    assert csig == "Xhh6WWGJGgjU5V-e57gj4HcJ87LLOhQr2Sqg5VToTSg-SI1W3A8lgISxOjAI5pa2qnonyz3tpGvC2cmf1VTpBg=="
 
     # now overwrite with new one
     headers = {"Content-Type": "text/html; charset=utf-8",
@@ -1135,9 +1020,9 @@ def test_put_IssuerDid(client):  # client is a fixture in pytest_falcon
     date = timing.iso8601(dt, aware=True)
 
     issuant = ODict(kind="dns",
-                issuer="generic.com",
+                issuer="localhost",
                 registered=date,
-                validationURL="https://generic.com/indigo")
+                validationURL="https://localhost:8101/demo/check")
     issuants = [issuant]  # list of hid issuants
 
     sig, res = makeSignedAgentReg(vk, sk, changed=date, issuants=issuants)
@@ -1182,8 +1067,8 @@ def test_put_IssuerDid(client):  # client is a fixture in pytest_falcon
     nsig = keyToKey64u(libnacl.crypto_sign(nres.encode("utf-8"), nsk)[:libnacl.crypto_sign_BYTES])
     csig = keyToKey64u(libnacl.crypto_sign(nres.encode("utf-8"), sk)[:libnacl.crypto_sign_BYTES])
 
-    assert nsig == ("P4CAY5_6Yh1-JbJRPLR11FcvFYcQZKscMeF9tsismbWZmRGSiqNpXcUAiV_zAaBtEOJl99UBR9v30XpGcUSDDw==")
-    assert csig == ("yMyy2iEeecI_BtmuAEvLxhUywciPvDn6KHF85KmVuChNr1G3LiOUcxkjmJWNiNkhdcw-0nvFQ60YBCuQbZe_CA==")
+    assert nsig == '5J2474bPpAOIZdzi-uom_L-flk1C4alolK6ODTcBUb3Gyb85zfaXvckQMbgczwemf_YF-l9Ji5Z6IWTXcaryBw=='
+    assert csig == 'r_PmOmgdpSeq9C1Qw-1GgWatxrIp647houJnLI008gQS8y9QAegiZCTLMyFQsp1PF6UINVYNXxr69jir2kGVBg=='
 
 
     # now overwrite with new one using web service
@@ -1225,10 +1110,10 @@ def test_put_IssuerDid(client):  # client is a fixture in pytest_falcon
     assert rep['data'] == dat == {
         'changed': '2000-01-02T00:00:00+00:00',
         'did': 'did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=',
-        'issuants': [{'issuer': 'generic.com',
+        'issuants': [{'issuer': 'localhost',
                       'kind': 'dns',
                       'registered': '2000-01-01T00:00:00+00:00',
-                      'validationURL': 'https://generic.com/indigo'}],
+                      'validationURL': 'https://localhost:8101/demo/check'}],
         'keys': [{'key': 'dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=',
                   'kind': 'EdDSA'},
                  {'key': '0UX5tP24WPEmAbROdXdygGAM3oDcvrqb3foX4EyayYI=',
@@ -1253,9 +1138,9 @@ def test_put_IssuerDid(client):  # client is a fixture in pytest_falcon
         '  "issuants": [\n'
         '    {\n'
         '      "kind": "dns",\n'
-        '      "issuer": "generic.com",\n'
+        '      "issuer": "localhost",\n'
         '      "registered": "2000-01-01T00:00:00+00:00",\n'
-        '      "validationURL": "https://generic.com/indigo"\n'
+        '      "validationURL": "https://localhost:8101/demo/check"\n'
         '    }\n'
         '  ]\n'
         '}')
@@ -1286,7 +1171,6 @@ def test_put_IssuerDid(client):  # client is a fixture in pytest_falcon
     assert rep['headers']['content-type'] == 'application/json; charset=UTF-8'
     sigs = parseSignatureHeader(rep['headers']['signature'])
     assert sigs['signer'] == nsig
-    assert sigs['signer'] == 'P4CAY5_6Yh1-JbJRPLR11FcvFYcQZKscMeF9tsismbWZmRGSiqNpXcUAiV_zAaBtEOJl99UBR9v30XpGcUSDDw=='
     assert rep['data']['did'] == did
     assert rep['body'].decode() == nres
     assert verify64u(sigs['signer'], rep['body'].decode(), rep['data']['keys'][1]['key'])
@@ -1343,7 +1227,7 @@ def test_get_ThingDid(client):  # client is a fixture in pytest_falcon
     dvk, dsk = libnacl.crypto_sign_seed_keypair(seed)
 
     signer = adat['signer']  # use same signer key fragment reference as agent
-    hid = "hid:dns:generic.com#02"
+    hid = "hid:dns:localhost#02"
     data = ODict(keywords=["Canon", "EOS Rebel T6", "251440"],
                  message="If found please return.")
 
@@ -1355,7 +1239,7 @@ def test_get_ThingDid(client):  # client is a fixture in pytest_falcon
                                             hid=hid,
                                             data=data)
 
-    assert ssig == 'bNUB37pBC5KuSVx4SKw8qQGR405wH7qNI2pjv2MhmyqsJ8ofTTS2WYs3ZaU7aDyoJGSIfwJcadmcok9tntdkDA=='
+    assert ssig == 'FGRHzSNS70LIjwcSTAxHx5RahDwAet090fYSnsReMco_WvpTVpvfEygWDXslCBh0TqBoEOMLQ78-kN8fj6NFAg=='
 
     tdat = json.loads(tser, object_pairs_hook=ODict)
     tdid = tdat['did']
@@ -1364,7 +1248,7 @@ def test_get_ThingDid(client):  # client is a fixture in pytest_falcon
     assert tser == (
         '{\n'
         '  "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",\n'
-        '  "hid": "hid:dns:generic.com#02",\n'
+        '  "hid": "hid:dns:localhost#02",\n'
         '  "signer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#0",\n'
         '  "changed": "2000-01-01T00:00:00+00:00",\n'
         '  "data": {\n'
@@ -1396,12 +1280,12 @@ def test_get_ThingDid(client):  # client is a fixture in pytest_falcon
     assert rep.headers['signature'] == ('signer="{}"'.format(ssig))
     sigs = parseSignatureHeader(rep.headers['signature'])
 
-    assert sigs['signer'] == 'bNUB37pBC5KuSVx4SKw8qQGR405wH7qNI2pjv2MhmyqsJ8ofTTS2WYs3ZaU7aDyoJGSIfwJcadmcok9tntdkDA=='
+    assert sigs['signer'] == 'FGRHzSNS70LIjwcSTAxHx5RahDwAet090fYSnsReMco_WvpTVpvfEygWDXslCBh0TqBoEOMLQ78-kN8fj6NFAg=='
 
     assert rep.body == (
         '{\n'
         '  "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",\n'
-        '  "hid": "hid:dns:generic.com#02",\n'
+        '  "hid": "hid:dns:localhost#02",\n'
         '  "signer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#0",\n'
         '  "changed": "2000-01-01T00:00:00+00:00",\n'
         '  "data": {\n'
@@ -1460,9 +1344,9 @@ def test_put_ThingDid(client):  # client is a fixture in pytest_falcon
     stamp = timing.iso8601(dt, aware=True)
 
     issuant = ODict(kind="dns",
-                issuer="generic.com",
+                issuer="localhost",
                 registered=stamp,
-                validationURL="https://generic.com/indigo")
+                validationURL="https://localhost:8101/demo/check")
     issuants = [issuant]  # list of hid issuants
 
     asig, aser = makeSignedAgentReg(svk, ssk, changed=stamp,  issuants=issuants)
@@ -1487,7 +1371,7 @@ def test_put_ThingDid(client):  # client is a fixture in pytest_falcon
     nser = json.dumps(adat, indent=2)
     # did not change signer so sign with prior signer
     nsig = keyToKey64u(libnacl.crypto_sign(nser.encode("utf-8"), ssk)[:libnacl.crypto_sign_BYTES])
-    assert nsig == ('sft7-SsT_n1URyXUPgO76QBw_LXKApxE0x8lv2vcoOaKFWrLSjNrxGGxiKasEgjy0lbw6ZX9O80bZE7dHcJNCg==')
+    assert nsig == 'crYr4cYmCgKnZdJlEoOtZu4jJ9M9-65Jj2YWbv0IwlwIH--rM3iJPmj7fu87fHy9HJoZ6bLE458U2Edo_mxuAg=='
 
     dbing.putSigned(key=adid, ser=nser, sig=nsig, clobber=False)
 
@@ -1507,7 +1391,7 @@ def test_put_ThingDid(client):  # client is a fixture in pytest_falcon
     dvk, dsk = libnacl.crypto_sign_seed_keypair(seed)
 
     signer = adat['signer']  # use same signer key fragment reference as agent
-    hid = "hid:dns:generic.com#02"
+    hid = "hid:dns:localhost#02"
     data = ODict(keywords=["Canon", "EOS Rebel T6", "251440"],
                  message="If found please return.")
 
@@ -1519,7 +1403,7 @@ def test_put_ThingDid(client):  # client is a fixture in pytest_falcon
                                             hid=hid,
                                             data=data)
 
-    assert ssig == 'bNUB37pBC5KuSVx4SKw8qQGR405wH7qNI2pjv2MhmyqsJ8ofTTS2WYs3ZaU7aDyoJGSIfwJcadmcok9tntdkDA=='
+    assert ssig == 'FGRHzSNS70LIjwcSTAxHx5RahDwAet090fYSnsReMco_WvpTVpvfEygWDXslCBh0TqBoEOMLQ78-kN8fj6NFAg=='
 
     tdat = json.loads(tser, object_pairs_hook=ODict)
     tdid = tdat['did']
@@ -1528,7 +1412,7 @@ def test_put_ThingDid(client):  # client is a fixture in pytest_falcon
     assert tser == (
         '{\n'
         '  "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",\n'
-        '  "hid": "hid:dns:generic.com#02",\n'
+        '  "hid": "hid:dns:localhost#02",\n'
         '  "signer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#0",\n'
         '  "changed": "2000-01-01T00:00:00+00:00",\n'
         '  "data": {\n'
@@ -1566,8 +1450,8 @@ def test_put_ThingDid(client):  # client is a fixture in pytest_falcon
     ntsig = keyToKey64u(libnacl.crypto_sign(ntser.encode("utf-8"), nsk)[:libnacl.crypto_sign_BYTES])
     ctsig = keyToKey64u(libnacl.crypto_sign(ntser.encode("utf-8"), ssk)[:libnacl.crypto_sign_BYTES])
 
-    assert ntsig == ("5SwnZroMIcOpx1vEYkcSajnU3BhrqBpovq0NnCwL43kuEs-GTfwd6bpQJ_L5bMhfRAZZEgkjVqFx4HCGGLc9DA==")
-    assert ctsig == ("3GhKWYXFL0JGTnhK3vB0087Rib4nhjfts12KjJMr5EOa2AO6uqyBZyziKVfa7WUK5mvFPyo-Hxjx4GPTV5AGBw==")
+    assert ntsig == '4IMop_e8vDbsot2kqJaZin8_xPsayWKbpsXL2qJZc3NrB6254UNi9x5VRwk-OgYn0zQPvKwtTE8GjtYZAHaKAQ=='
+    assert ctsig == 'fuSvUsNtFDzaYm5bX65SAgrZpNKEek2EJFqf-j-_QRWNXhSWpTFGIeg4AHOVaD7MHuIj6QsnjPg-jyBDiUAmCw=='
 
     # now overwrite with new one using web service
     headers = {"Content-Type": "text/html; charset=utf-8",
@@ -1608,7 +1492,7 @@ def test_put_ThingDid(client):  # client is a fixture in pytest_falcon
     assert ser == (
         '{\n'
         '  "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",\n'
-        '  "hid": "hid:dns:generic.com#02",\n'
+        '  "hid": "hid:dns:localhost#02",\n'
         '  "signer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#1",\n'
         '  "changed": "2000-01-02T00:00:00+00:00",\n'
         '  "data": {\n'
@@ -1657,7 +1541,7 @@ def test_put_ThingDid(client):  # client is a fixture in pytest_falcon
     assert ser == (
         '{\n'
         '  "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",\n'
-        '  "hid": "hid:dns:generic.com#02",\n'
+        '  "hid": "hid:dns:localhost#02",\n'
         '  "signer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#1",\n'
         '  "changed": "2000-01-02T00:00:00+00:00",\n'
         '  "data": {\n'
@@ -2274,7 +2158,7 @@ def test_post_ThingDidAccept(client):  # client is a fixture in pytest_falcon
     assert atser == (
         '{\n'
         '  "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",\n'
-        '  "hid": "hid:dns:generic.com#02",\n'
+        '  "hid": "hid:dns:localhost#02",\n'
         '  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",\n'
         '  "changed": "2000-01-01T00:00:00+00:00",\n'
         '  "data": {\n'
@@ -2288,7 +2172,7 @@ def test_post_ThingDidAccept(client):  # client is a fixture in pytest_falcon
         '}')
 
     atsig = keyToKey64u(libnacl.crypto_sign(atser.encode("utf-8"), aSk)[:libnacl.crypto_sign_BYTES])
-    assert atsig == "RtlBu9sZgqhfc0QbGe7IHqwsHOARrGNjy4BKJG7gNfNP4GfKDQ8FGdjyv-EzN1OIHYlnMBFB2Kf05KZAj-g2Cg=="
+    assert atsig == "fXYlCCfCwEPuXfphG2eJ1H4PKeskmj-sITuGoNxjbuRs0TG1lT-cGl3j4I9eFdYmzWbLb9kR-EeCDJNqiPv0CQ=="
 
     # now accept offer with new thing resource using web service
     headers = {"Content-Type": "text/html; charset=utf-8",

@@ -8,6 +8,7 @@ from __future__ import generator_stop
 import os
 from collections import OrderedDict as ODict, deque
 import enum
+import datetime
 
 try:
     import simplejson as json
@@ -17,13 +18,16 @@ except ImportError:
 
 import lmdb
 import arrow
+import libnacl
 
 from ioflo.aid.sixing import *
+from ioflo.aid import timing
 from ioflo.aid import getConsole
 
 from ..bluepeaing import SEPARATOR, BluepeaError
 
-from ..help.helping import setupTmpBaseDir, verify64u, makeSignedAgentReg
+from ..help.helping import (setupTmpBaseDir, verify64u,
+                            makeSignedAgentReg, makeSignedThingReg)
 
 console = getConsole()
 
@@ -82,10 +86,6 @@ def setupDbEnv(baseDirPath=None):
     gDbEnv.open_db(b'did2offer', dupsort=True)  # table of offer expirations keyed by offer relative dids
     gDbEnv.open_db(b'anon', dupsort=True)  # anonymous messages
     gDbEnv.open_db(b'expire2eid', dupsort=True)  # expiration to eid anon
-
-    # verify that the server resource is present in the database
-    # need to read in saved server signing keys and query database
-    # if not present then create server resource
 
     return gDbEnv
 
@@ -680,3 +680,130 @@ def clearStaleAnonMsgs(key, tdbn='anon', edbn='expire2eid', env=None):
             if result:
                 success = True
     return success
+
+
+def setupTestDbAgentsThings(dbn="core"):
+    """
+    Assumes lmdb database environment has been setup already
+
+    Put test agents and things in db and return duple of dicts (agents, things)
+    keyed by  name each value is triple ( did, vk, sk)  where
+    vk is public verification key
+    sk is private signing key
+    """
+
+    agents = ODict()
+    things = ODict()
+
+    #seed = libnacl.randombytes(libnacl.crypto_sign_SEEDBYTES)
+
+    dt = datetime.datetime(2000, 1, 1, tzinfo=datetime.timezone.utc)
+    changed = timing.iso8601(dt, aware=True)
+
+    # make "ann" the agent
+    seed = (b'PTi\x15\xd5\xd3`\xf1u\x15}^r\x9bfH\x02l\xc6\x1b\x1d\x1c\x0b9\xd7{\xc0_'
+            b'\xf2K\x93`')
+
+    # creates signing/verification key pair
+    avk, ask = libnacl.crypto_sign_seed_keypair(seed)
+
+    sig, ser = makeSignedAgentReg(avk, ask, changed=changed)
+
+    adat = json.loads(ser, object_pairs_hook=ODict)
+    adid = adat['did']
+
+    putSigned(key=adid, ser=ser, sig=sig, dbn=dbn, clobber=False)
+
+    agents['ann'] = (adid, avk, ask)
+
+    # make "ivy" the issurer
+    seed = seed = (b"\xb2PK\xad\x9b\x92\xa4\x07\xc6\xfa\x0f\x13\xd7\xe4\x08\xaf\xc7'~\x86"
+                   b'\xd2\x92\x93rA|&9\x16Bdi')
+
+    # creates signing/verification key pair
+    ivk, isk = libnacl.crypto_sign_seed_keypair(seed)
+
+    issuant = ODict(kind="dns",
+                issuer="localhost",
+                registered=changed,
+                validationURL="https://localhost:8101/demo/check")
+    issuants = [issuant]  # list of issuants hid name spaces
+
+    sig, ser = makeSignedAgentReg(ivk, isk, changed=changed, issuants=issuants)
+
+    idat = json.loads(ser, object_pairs_hook=ODict)
+    idid = idat['did']
+
+    putSigned(key=idid, ser=ser, sig=sig, dbn=dbn, clobber=False)
+
+    agents['ivy'] = (idid, ivk, isk)
+
+    # make "cam" the thing
+    # create  thing signed by issuer and put into database
+    seed = (b'\xba^\xe4\xdd\x81\xeb\x8b\xfa\xb1k\xe2\xfd6~^\x86tC\x9c\xa7\xe3\x1d2\x9d'
+            b'P\xdd&R <\x97\x01')
+
+    cvk, csk = libnacl.crypto_sign_seed_keypair(seed)
+
+    signer = idat['signer']  # use same signer key fragment reference as issuer isaac
+    hid = "hid:dns:localhost#02"
+    data = ODict(keywords=["Canon", "EOS Rebel T6", "251440"],
+                 message="If found please return.")
+
+    sig, isig, ser = makeSignedThingReg(cvk,
+                                          csk,
+                                            isk,
+                                            signer,
+                                            changed=changed,
+                                            hid=hid,
+                                            data=data)
+
+    cdat = json.loads(ser, object_pairs_hook=ODict)
+    cdid = cdat['did']
+
+    putSigned(key=cdid, ser=ser, sig=isig, dbn=dbn, clobber=False)
+
+    things['cam'] = (cdid, cvk, csk)
+
+    # make "fae" the finder
+    seed = (b'\xf9\x13\xf0\xff\xd4\xb3\xbdF\xa2\x80\x1d\xce\xaa\xd9\x87df\xc8\x1f\x91'
+            b';\x9bp+\x1bK\x1ey\xef6\xa7\xf9')
+
+
+    # creates signing/verification key pair
+    fvk, fsk = libnacl.crypto_sign_seed_keypair(seed)
+
+    sig, ser = makeSignedAgentReg(fvk, fsk, changed=changed)
+
+    fdat = json.loads(ser, object_pairs_hook=ODict)
+    fdid = fdat['did']
+
+    putSigned(key=fdid, ser=ser, sig=sig, dbn=dbn, clobber=False)
+
+    agents['fae'] = (fdid, fvk, fsk)
+
+    # make "ike" another issurer for demo testing
+    #seed = libnacl.randombytes(libnacl.crypto_sign_SEEDBYTES)
+    seed = (b'!\x85\xaa\x8bq\xc3\xf8n\x93]\x8c\xb18w\xb9\xd8\xd7\xc3\xcf\x8a\x1dP\xa9m'
+                   b'\x89\xb6h\xfe\x10\x80\xa6S')
+
+    # creates signing/verification key pair
+    ivk, isk = libnacl.crypto_sign_seed_keypair(seed)
+
+    issuant = ODict(kind="dns",
+                    issuer="localhost",
+                    registered=changed,
+                    validationURL="https://localhost:8101/demo/check")
+    issuants = [issuant]  # list of issuants hid name spaces
+
+    sig, ser = makeSignedAgentReg(ivk, isk, changed=changed, issuants=issuants)
+
+    idat = json.loads(ser, object_pairs_hook=ODict)
+    idid = idat['did']
+
+    putSigned(key=idid, ser=ser, sig=sig, dbn=dbn, clobber=False)
+
+    agents['ike'] = (idid, ivk, isk)
+
+
+    return (agents, things)

@@ -302,77 +302,76 @@ def validateSignedAgentReg(signature, registration, method="igo"):
         try:
             reg = json.loads(registration, object_pairs_hook=ODict)
         except ValueError as ex:
-            return None  # invalid json
+            raise ValidationError("Invalid JSON")    # invalid json
 
         if not reg:  # registration must not be empty
-            return None
+            raise ValidationError("Empty JSON body")
 
         if not isinstance(reg, dict):  # must be dict subclass
-            return None
+            raise ValidationError("JSON not dict")
 
         if "changed" not in reg:  # changed field required
-            return None
+            raise ValidationError("Missing changed field")
 
         try:
             arrow.get(reg["changed"])
         except arrow.parser.ParserError as ex:  # invalid datetime format
-            return None
-
+            raise ValidationError("Invalid changed field")
         if "signer" not in reg:  # signer field required
-            return None
+            raise ValidationError("Missing signer field")
 
         try:
             sdid, index = reg["signer"].rsplit("#", maxsplit=1)
             index = int(index)  # get index and sdid from signer field
         except (KeyError, ValueError) as ex:
-            return None  # missing sdid or index
+            raise ValidationError("Invalid signer field")    # missing sdid or index
 
         try:  # correct did format  pre:method:keystr
             pre, meth, keystr = sdid.split(":")
         except ValueError as ex:
-            return None
+            raise ValidationError("Invalid did signer field")
 
         if pre != "did" or meth != method:
-            return None  # did format bad
+            raise ValidationError("Invalid did")  # did format bad
 
         if "did" not in reg:  # did field required
-            return None
+            raise ValidationError("Missing did field")
 
         if reg['did'] != sdid:
-            return None  # must be self signing and same key in signer
+            raise ValidationError("Not self signing")  # must be self signing and same key in signer
 
         if "keys" not in reg:  # must have key field
-            return None
+            raise ValidationError("Missing keys")
 
         try:
             keyer = reg["keys"][index]
         except IndexError as ex:
-            return None  # missing index
+            raise ValidationError("Missing key at index")  # missing index
 
         if "key" not in keyer:  # missing key
-            return None
+            raise ValidationError("Missing key")
 
         if "kind" not in keyer:  # missing kind
-            return None
+            raise ValidationError("Missing kind")
 
         kind = keyer["kind"]
 
         if kind not in ("EdDSA", "Ed25519"):
-            return None  # invalid key kind
+            raise ValidationError("Invalid kind")  # invalid key kind
 
         verkey = keyer["key"]
 
         if verkey != keystr:
-            return None  # must be same key that created did and signer
+            raise ValidationError("Not same owner")  # must be same key that created did and signer
 
         if len(verkey) != 44:
-            return None  # invalid length for base64 encoded key
+            raise ValidationError("Invalid key")  # invalid length for base64 encoded key
 
         if not verify64u(signature, registration, verkey):
-            return None  # signature fails
+            raise ValidationError("Unverifiable signature")  # signature fails
 
     except Exception as ex:  # unknown problem
-        return None
+        raise ValidationError("Unexpected error")
 
     return reg
 
@@ -1259,3 +1258,62 @@ def backendRequest(method=u'GET',
         wlog.close()
 
     return response
+
+def validateIssuerDomainGen(store, idat, timeout=0.5):
+    """
+    Validate issuer HID namespace for web (DNS) domain
+    """
+    did = idat["did"]
+    for issuant in idat["issuants"]:
+        issuer = issuant['issuer']
+        if issuant['kind'] != 'dns':  # only support dns for now
+            raise ValidationError('Invalid issuant kind for issuer {}'.format(issuer))
+
+        dt = datetime.datetime.now(tz=datetime.timezone.utc)
+        date = timing.iso8601(dt, aware=True)
+        check = "{}|{}|{}".format(did, issuer, date)
+
+        qargs = ODict(did=did, check=check)
+        vurl = issuant["validationURL"]
+        rep = yield from backendRequest(method='GET',
+                                        path=vurl,
+                                        qargs=qargs,
+                                        store=store,
+                                        timeout=timeout)
+
+        if rep is None:  # timed out waiting for authorization server
+            raise ValidationError('Timeout backend validation request for issuer {}'.format(issuer))
+
+        if rep['status'] != 200:
+            if rep['errored']:
+                emsg = rep['error']
+            else:
+                emsg = "unknown"
+            raise ValidationError('Error backend validation for issuer {} error {}'.format(issuer, emsg))
+
+        rdata = rep['data']
+        rcheck = rdata['check']
+        rsigner = rdata['signer']
+
+        if rcheck != check:
+            raise ValidationError('Validation check response bad for issuer {}'.format(issuer))
+
+        sigs = parseSignatureHeader(rep['headers'].get("Signature", ""))
+        sig = sigs.get('signer')  # str not bytes
+        if not sig:
+            raise ValidationError('Invalid or missing Signature header for issuer {}'.format(issuer))
+
+        sdid, sindex, keystr = extractDidSignerParts(rsigner)
+        if sdid != did:
+            raise ValidationError('Bad validation signer for issuer {}'.format(issuer))
+
+        if len(idat['keys']) < sindex:
+            raise ValidationError('Bad validation signer key for issuer {}'.format(issuer))
+
+        key = idat['keys'][sindex]["key"]
+
+        if not verify64u(sig, rcheck, key):
+            raise ValidationError('Unverifiable signature for issuer {}'.format(issuer))
+
+        # validated if no errors raised
+
