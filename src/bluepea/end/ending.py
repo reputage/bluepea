@@ -293,12 +293,17 @@ class AgentDidResource:
         try:
             dat = validateSignedAgentWrite(cdat=rdat, csig=csig, sig=sig, ser=ser)
         except ValidationError as ex:
-            raise httping.HTTPError(falcon.BAD_REQUEST,
+            raise httping.HTTPError(httping.BAD_REQUEST,
                                                'Validation Error',
                             'Error validating the request body. {}'.format(ex))
 
-        if "issuants" in dat:
-            pass  # validate hid namespaces here
+        if "issuants" in dat:  # validate hid control here
+            try:
+                result = yield from validateIssuerDomainGen(self.store, dat, timeout=0.5)  # raises  error if fails
+            except ValidationError as ex:
+                raise httping.HTTPError(httping.BAD_REQUEST,
+                                    'Validation Error',
+                                    'Error validating issuant. {}'.format(ex))
 
         # save to database
         try:
@@ -1363,20 +1368,35 @@ class CheckHidResource:
                             'Resource Verification Error',
                             'Error verifying resource. {}'.format(ex))
 
-        # get signing key
+        # get verification key
         index = 0
         key = dat['keys'][index]['key']
 
+        # find signing key
+        sk = None
+        vk = None
+        for agent in agents.values():  # find match
+            adid, avk, ask = agent
+            if adid == did:  # found
+                sk = ask
+                vk = avk
+                break
+
+        if not sk or not vk:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                    'Resource Verification Error',
+                                    'DID not match. {}'.format(ex))
+
         #seed = libnacl.randombytes(libnacl.crypto_sign_SEEDBYTES)
         # ike's seed
-        seed = (b'!\x85\xaa\x8bq\xc3\xf8n\x93]\x8c\xb18w\xb9\xd8\xd7\xc3\xcf\x8a\x1dP\xa9m'
-                b'\x89\xb6h\xfe\x10\x80\xa6S')
+        #seed = (b'!\x85\xaa\x8bq\xc3\xf8n\x93]\x8c\xb18w\xb9\xd8\xd7\xc3\xcf\x8a\x1dP\xa9m'
+                #b'\x89\xb6h\xfe\x10\x80\xa6S')
 
-        # creates signing/verification key pair
-        vk, sk = libnacl.crypto_sign_seed_keypair(seed)
+        ## creates signing/verification key pair
+        #vk, sk = libnacl.crypto_sign_seed_keypair(seed)
 
         verkey = keyToKey64u(vk)
-        if verkey !=  key:
+        if verkey != key:
             raise falcon.HTTPError(falcon.HTTP_400,
                                            "Invalid Key",
                             "Unexpected Key")

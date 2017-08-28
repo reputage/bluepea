@@ -454,7 +454,7 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
     issuant = ODict(kind="dns",
                     issuer="localhost",
                 registered=changed,
-                validationURL="https://localhost:8101/demo/check")
+                validationURL="http://localhost:8101/demo/check")
     issuants = [issuant]  # list of issuants hid name spaces
 
     sig, ser = makeSignedAgentReg(ivk, isk, changed=changed, issuants=issuants)
@@ -481,7 +481,7 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
                 'issuer': 'localhost',
                 'kind': 'dns',
                 'registered': '2000-01-01T00:00:00+00:00',
-                'validationURL': 'https://localhost:8101/demo/check'
+                'validationURL': 'http://localhost:8101/demo/check'
             }
          ]
     }
@@ -1022,7 +1022,7 @@ def test_put_IssuerDid(client):  # client is a fixture in pytest_falcon
     issuant = ODict(kind="dns",
                 issuer="localhost",
                 registered=date,
-                validationURL="https://localhost:8101/demo/check")
+                validationURL="http://localhost:8101/demo/check")
     issuants = [issuant]  # list of hid issuants
 
     sig, res = makeSignedAgentReg(vk, sk, changed=date, issuants=issuants)
@@ -1067,8 +1067,8 @@ def test_put_IssuerDid(client):  # client is a fixture in pytest_falcon
     nsig = keyToKey64u(libnacl.crypto_sign(nres.encode("utf-8"), nsk)[:libnacl.crypto_sign_BYTES])
     csig = keyToKey64u(libnacl.crypto_sign(nres.encode("utf-8"), sk)[:libnacl.crypto_sign_BYTES])
 
-    assert nsig == '5J2474bPpAOIZdzi-uom_L-flk1C4alolK6ODTcBUb3Gyb85zfaXvckQMbgczwemf_YF-l9Ji5Z6IWTXcaryBw=='
-    assert csig == 'r_PmOmgdpSeq9C1Qw-1GgWatxrIp647houJnLI008gQS8y9QAegiZCTLMyFQsp1PF6UINVYNXxr69jir2kGVBg=='
+    assert nsig == 'n6Rpwa17V7_mjROO4ZAZYfJ7IejuL8XjaMHx6ylFgMvaa9AxNJ9KAcfXYe8PTSIdws81yvUSpWzQtqPFi2tHBQ=='
+    assert csig == 'mKH2K-EHbARadyDufNnu-_YB8LoHjh3pL6NpJk4Z6Cn3MCdCAvGtyncuUssF-6e8DxFnmo0um-vBb3-Hr2UkAA=='
 
 
     # now overwrite with new one using web service
@@ -1113,7 +1113,7 @@ def test_put_IssuerDid(client):  # client is a fixture in pytest_falcon
         'issuants': [{'issuer': 'localhost',
                       'kind': 'dns',
                       'registered': '2000-01-01T00:00:00+00:00',
-                      'validationURL': 'https://localhost:8101/demo/check'}],
+                      'validationURL': 'http://localhost:8101/demo/check'}],
         'keys': [{'key': 'dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=',
                   'kind': 'EdDSA'},
                  {'key': '0UX5tP24WPEmAbROdXdygGAM3oDcvrqb3foX4EyayYI=',
@@ -1140,7 +1140,7 @@ def test_put_IssuerDid(client):  # client is a fixture in pytest_falcon
         '      "kind": "dns",\n'
         '      "issuer": "localhost",\n'
         '      "registered": "2000-01-01T00:00:00+00:00",\n'
-        '      "validationURL": "https://localhost:8101/demo/check"\n'
+        '      "validationURL": "http://localhost:8101/demo/check"\n'
         '    }\n'
         '  ]\n'
         '}')
@@ -1346,7 +1346,7 @@ def test_put_ThingDid(client):  # client is a fixture in pytest_falcon
     issuant = ODict(kind="dns",
                 issuer="localhost",
                 registered=stamp,
-                validationURL="https://localhost:8101/demo/check")
+                validationURL="http://localhost:8101/demo/check")
     issuants = [issuant]  # list of hid issuants
 
     asig, aser = makeSignedAgentReg(svk, ssk, changed=stamp,  issuants=issuants)
@@ -1371,7 +1371,7 @@ def test_put_ThingDid(client):  # client is a fixture in pytest_falcon
     nser = json.dumps(adat, indent=2)
     # did not change signer so sign with prior signer
     nsig = keyToKey64u(libnacl.crypto_sign(nser.encode("utf-8"), ssk)[:libnacl.crypto_sign_BYTES])
-    assert nsig == 'crYr4cYmCgKnZdJlEoOtZu4jJ9M9-65Jj2YWbv0IwlwIH--rM3iJPmj7fu87fHy9HJoZ6bLE458U2Edo_mxuAg=='
+    assert nsig == 'EH_KoQBJU7u8gWuheKQyfpj1rP17cDycOsmn5X_ZXQfkRtORrsBc0bUK3G_MSZ80zM5AaghKqAJXQbLquBZPAw=='
 
     dbing.putSigned(key=adid, ser=nser, sig=nsig, clobber=False)
 
