@@ -739,73 +739,84 @@ class ThingDidResource:
         super(**kwa)
         self.store = store
 
-    def on_put(self, req, rep, did):
+    @classing.attributize
+    def onPutGen(self, skin, req, rep, did):
         """
-        Handles PUT requests
+        Generator to perform Agent put with support for backend request
+        to validate issuant (HID)
 
-        /thing/{did}
+        attributes:
+        skin._status
+        skin._headers
 
-        Falcon url decodes path parameters such as {did}
+        are special and if assigned inside generator used by WSGI server
+        to update status and headers upon first non-empty write.
+        Does not use self. because only one instance of resource is used
+        to process all requests.
         """
+        skin._status = None  # used to update status in iterator if not None
+        skin._headers = lodict()  # used to update headers in iterator if not empty
+        yield b''  # ensure its a generator
+
         signature = req.get_header("Signature")
         sigs = parseSignatureHeader(signature)
         sig = sigs.get('signer')  # str not bytes
         if not sig:
             raise falcon.HTTPError(falcon.HTTP_400,
-                                           'Validation Error',
-                                           'Invalid or missing Signature header.')
+                                       'Validation Error',
+                                               'Invalid or missing Signature header.')
         csig = sigs.get('current')  # str not bytes
         if not csig:
             raise falcon.HTTPError(falcon.HTTP_400,
-                                           'Validation Error',
-                                           'Invalid or missing Signature header.')
+                                       'Validation Error',
+                                               'Invalid or missing Signature header.')
 
         try:
             serb = req.stream.read()  # bytes
         except Exception:
             raise falcon.HTTPError(falcon.HTTP_400,
                                        'Read Error',
-                                       'Could not read the request body.')
+                                           'Could not read the request body.')
         ser = serb.decode("utf-8")
 
         try:  # validate did
             ckey = extractDidParts(did)
         except ValueError as ex:
             raise falcon.HTTPError(falcon.HTTP_400,
-                                           'Resource Verification Error',
-                                           'Invalid did field. {}'.format(ex))
+                                       'Resource Verification Error',
+                                               'Invalid did field. {}'.format(ex))
 
 
         try: # Get validated existing resource from database
             cdat, cser, psig = dbing.getSigned(did)
         except dbing.DatabaseError as ex:
             raise falcon.HTTPError(falcon.HTTP_400,
-                            'Resource Verification Error',
-                            'Error verifying current thing resource. {}'.format(ex))
+                                       'Resource Verification Error',
+                                'Error verifying current thing resource. {}'.format(ex))
 
         # extract sdid and keystr from signer field
         try:
             (sdid, index, akey) = extractDatSignerParts(cdat)
         except ValueError as ex:
             raise falcon.HTTPError(falcon.HTTP_400,
-                                           'Resource Verification Error',
-                                'Missing or Invalid signer field. {}'.format(ex))
+                                       'Resource Verification Error',
+                                               'Missing or Invalid signer field. {}'.format(ex))
 
-       # Get validated signer resource from database
+        # Get validated signer resource from database
         try:
             sdat, sser, ssig = dbing.getSelfSigned(sdid)
         except dbing.DatabaseError as ex:
             raise falcon.HTTPError(falcon.HTTP_400,
                                        'Resource Verification Error',
-                                       'Error verifying signer resource. {}'.format(ex))
+                                           'Error verifying signer resource. {}'.format(ex))
 
         # validate request
         try:
             dat = validateSignedThingWrite(sdat=sdat, cdat=cdat, csig=csig, sig=sig, ser=ser)
         except ValidationError as ex:
             raise falcon.HTTPError(falcon.HTTP_400,
-                                               'Validation Error',
-                            'Error validating the request body. {}'.format(ex))
+                                       'Validation Error',
+                                                   'Error validating the request body. {}'.format(ex))
 
         if "hid" in dat:  # new or changed hid
             if (dat["hid"] and not "hid" in cdat) or dat["hid"] != cdat["hid"]:
@@ -816,13 +827,26 @@ class ThingDidResource:
             dbing.putSigned(key=did, ser=ser, sig=sig, clobber=True)
         except dbing.DatabaseError as ex:
             raise falcon.HTTPError(falcon.HTTP_412,
-                                  'Database Error',
-                                  '{}'.format(ex.args[0]))
+                                       'Database Error',
+                                      '{}'.format(ex.args[0]))
 
-        rep.set_header("Signature", 'signer="{}"'.format(sig))
-        rep.set_header("Content-Type", "application/json; charset=UTF-8")
-        rep.status = falcon.HTTP_200  # This is the default status
-        rep.body = ser
+        # normally picks of content-type from type of request but set anyway to ensure
+        skin._headers["Content-Type"] = "application/json; charset=UTF-8"
+        skin._headers["Signature"] = 'signer="{}"'.format(sig)
+
+        skin._status = httping.OK
+        # inside rep.stream generator, body is yielded or returned, not assigned to rep.body
+        return ser.encode()
+
+    def on_put(self, req, rep, did):
+        """
+        Handles PUT requests
+
+        /thing/{did}
+
+        Falcon url decodes path parameters such as {did}
+        """
+        rep.stream = self.onPutGen(req, rep, did)  # iterate on stream generator
 
     def on_get(self, req, rep, did):
         """

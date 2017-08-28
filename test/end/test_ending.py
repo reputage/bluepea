@@ -1426,12 +1426,25 @@ def test_put_ThingDid(client):  # client is a fixture in pytest_falcon
     """
     Test PUT to thing at did.
     """
+    global store  # use Global store
+
     print("Testing PUT /thing/{did}")
 
     priming.setupTest()
     dbEnv = dbing.gDbEnv
     keeper = keeping.gKeeper
     kdid = keeper.did
+
+    # create local test server
+    valet = Valet(port=8101,
+                  bufsize=131072,
+                  store=store,
+                  app=exapp,)
+
+    result = valet.open()
+    assert result
+    assert valet.servant.ha == ('0.0.0.0', 8101)
+    assert valet.servant.eha == ('127.0.0.1', 8101)
 
     # To put thing into database first need to put owning agent and then thing
     # put agent into database
@@ -1560,14 +1573,39 @@ def test_put_ThingDid(client):  # client is a fixture in pytest_falcon
     headers = {"Content-Type": "text/html; charset=utf-8",
                "Signature": 'signer="{}";current="{}"'.format(ntsig, ctsig)}
     body = ntser  # client.post encodes the body
-    didURI = falcon.uri.encode_value(tdid)
-    rep = client.put('/thing/{}'.format(didURI), body=body, headers=headers)
-    assert rep.status == falcon.HTTP_200
-    assert rep.json == tdat
-    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
-    sigs = parseSignatureHeader(rep.headers['signature'])
+    # patron url quotes path for us so don't quote before
+    path = "http://{}:{}/thing/{}".format('localhost', valet.servant.eha[1], tdid)
+
+    # instantiate Patron client
+    patron = Patron(bufsize=131072,
+                    store=store,
+                    method = 'PUT',
+                    path=path,
+                    headers=headers,
+                    body=body,
+                    reconnectable=True,)
+
+    patron.transmit()
+    timer = timing.StoreTimer(store, duration=1.0)
+    while (patron.requests or patron.connector.txes or not patron.responses or
+           not valet.idle()):
+        valet.serviceAll()
+        time.sleep(0.05)
+        patron.serviceAll()
+        time.sleep(0.05)
+        store.advanceStamp(0.1)
+
+    assert len(patron.responses) == 1
+    rep = patron.responses.popleft()
+    assert rep['status'] == 200
+    assert rep['reason'] == 'OK'
+    assert rep['headers']['content-type'] == 'application/json; charset=UTF-8'
+    sigs = parseSignatureHeader(rep['headers']['signature'])
     assert sigs['signer'] == ntsig
-    assert rep.body == (
+
+    assert rep['data'] == tdat
+    ser = rep['body'].decode()
+    assert ser == (
         '{\n'
         '  "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",\n'
         '  "hid": "hid:dns:generic.com#02",\n'
@@ -1583,8 +1621,9 @@ def test_put_ThingDid(client):  # client is a fixture in pytest_falcon
         '  }\n'
         '}')
 
-    # verify that its in database
+    assert verify64u(sigs['signer'], ser, adat['keys'][1]['key'])
 
+    # verify that its in database
     vdat, vser, vsig = dbing.getSigned(tdid)
 
     assert vdat == tdat
@@ -1592,16 +1631,30 @@ def test_put_ThingDid(client):  # client is a fixture in pytest_falcon
     assert vsig == ntsig
 
     # now get it from web service
-    didURI = falcon.uri.encode_value(tdid)
-    rep = client.get('/thing/{}'.format(didURI))
+    headers = odict([('Accept', 'application/json'),
+                     ('Content-Length', 0)])
+    path = "http://{}:{}/thing/{}".format('localhost', valet.servant.eha[1], tdid)
+    patron.transmit(method='GET', path=path, headers=headers)
+    timer = timing.StoreTimer(store, duration=1.0)
+    while (patron.requests or patron.connector.txes or not patron.responses or
+           not valet.idle()):
+        valet.serviceAll()
+        time.sleep(0.05)
+        patron.serviceAll()
+        time.sleep(0.05)
+        store.advanceStamp(0.1)
 
-    assert rep.status == falcon.HTTP_OK
-    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
-    sigs = parseSignatureHeader(rep.headers['signature'])
+    assert len(patron.responses) == 1
+    rep = patron.responses.popleft()
 
+    assert rep['status'] == 200
+    assert rep['headers']['content-type'] == 'application/json; charset=UTF-8'
+    sigs = parseSignatureHeader(rep['headers']['signature'])
     assert sigs['signer'] == ntsig
 
-    assert rep.body == (
+    assert rep['data'] == tdat
+    ser = rep['body'].decode()
+    assert ser == (
         '{\n'
         '  "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",\n'
         '  "hid": "hid:dns:generic.com#02",\n'
@@ -1617,11 +1670,11 @@ def test_put_ThingDid(client):  # client is a fixture in pytest_falcon
         '  }\n'
         '}')
 
-
-    assert rep.json['did'] == tdid
-    assert verify64u(sigs['signer'], rep.body, adat['keys'][1]['key'])
+    assert verify64u(sigs['signer'], ser, adat['keys'][1]['key'])
 
     cleanupTmpBaseDir(dbEnv.path())
+    valet.close()
+    patron.close()
     print("Done Test")
 
 
