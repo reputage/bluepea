@@ -499,19 +499,22 @@ def test_signedThingRegistrationWithData():
     rsrc = validateSignedResource(ssig, resource=ser, verkey=sverkey)
     assert rsrc
 
+    # make copy
+    ndat = copy.copy(dat)
+
     # change signer
-    # make new key
+    # make new key  another key for someone
     seed = (b'Z\xda?\x93M\xf8|\xe2!d\x16{s\x9d\x07\xd2\x98\xf2!\xff\xb8\xb6\xf9Z'
             b'\xe5I\xbc\x97}IFV')
     # creates signing/verification key pair
     nvk, nsk = libnacl.crypto_sign_seed_keypair(seed)
 
     signer = "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#1"
-    dat['signer'] = signer
+    ndat['signer'] = signer
     ndt = datetime.datetime(2000, 1, 2, tzinfo=datetime.timezone.utc)
     ndate = timing.iso8601(ndt, aware=True)
-    dat['changed'] = ndate
-    ser = json.dumps(dat, indent=2)
+    ndat['changed'] = ndate
+    ser = json.dumps(ndat, indent=2)
     assert ser == (
         '{\n'
         '  "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",\n'
@@ -538,5 +541,42 @@ def test_signedThingRegistrationWithData():
     sverkey = keyToKey64u(nvk)
     rsrc = validateSignedResource(nsig, resource=ser, verkey=sverkey)
     assert rsrc
+
+    # make copy
+    ndat = copy.copy(dat)
+
+    # change signer to ann
+    # make new key with Ann's seed
+    seed = (b'PTi\x15\xd5\xd3`\xf1u\x15}^r\x9bfH\x02l\xc6\x1b\x1d\x1c\x0b9\xd7{\xc0_'
+            b'\xf2K\x93`')
+    # creates signing/verification key pair
+    nvk, nsk = libnacl.crypto_sign_seed_keypair(seed)
+    signer = "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0"
+    ndat['signer'] = signer
+    # remove hid
+    del ndat['hid']
+    ser = json.dumps(ndat, indent=2)
+    assert ser == (
+        '{\n'
+        '  "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",\n'
+        '  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",\n'
+        '  "changed": "2000-01-01T00:00:00+00:00",\n'
+        '  "data": {\n'
+        '    "keywords": [\n'
+        '      "Canon",\n'
+        '      "EOS Rebel T6",\n'
+        '      "251440"\n'
+        '    ],\n'
+        '    "message": "If found please return."\n'
+        '  }\n'
+        '}')
+
+    # sign new record with new key
+    nsig = keyToKey64u(libnacl.crypto_sign(ser.encode("utf-8"), nsk)[:libnacl.crypto_sign_BYTES])
+    assert nsig == 'c04xu10KP_O8gfWoVvHRw8sO7ww9WrQ91BT_HXNGtSEMTf_BsKikxSUyQz0ASxjscEJVvV6E7yaldQ0dECQgAQ=='
+    sverkey = keyToKey64u(nvk)
+    rsrc = validateSignedResource(nsig, resource=ser, verkey=sverkey)
+    assert rsrc
+
 
     print("Done Test")

@@ -846,7 +846,7 @@ class ThingDidResource:
                 if not found:
                     raise httping.HTTPError(httping.FAILED_DEPENDENCY,
                                                         'Validation Error',
-                                'Controlling Agent does not corresponding issuant')
+                                'Controlling Agent does not control corresponding issuant')
         if ("hid" in cdat and cdat["hid"] and
                 (not "hid" in dat or dat["hid"] != cdat["hid"])):
             try:  # put empty in old cdat hid entry
@@ -1144,37 +1144,52 @@ class ThingDidAcceptResource:
         super(**kwa)
         self.store = store
 
-    def on_post(self, req, rep, did):
+    @classing.attributize
+    def onPostGen(self, skin, req, rep, did):
         """
-        Handles POST requests
+        Generator to perform Agent put with support for backend request
+        to validate issuant (HID)
 
-        Post body is new Thing resource with new signer
+        attributes:
+        skin._status
+        skin._headers
+
+        are special and if assigned inside generator used by WSGI server
+        to update status and headers upon first non-empty write.
+        Does not use self. because only one instance of resource is used
+        to process all requests.
         """
+        skin._status = None  # used to update status in iterator if not None
+        skin._headers = lodict()  # used to update headers in iterator if not empty
+        yield b''  # ensure its a generator
+
         ouid = req.get_param("uid") # returns url-decoded query parameter value
+        if not ouid:
+            raise httping.HTTPError(httping.BAD_REQUEST,
+                                           'Query Validation Error',
+                                    'Invalid or missing query parameter uid')
 
         try:  # validate did
             tkey = extractDidParts(did)
         except ValueError as ex:
-            raise falcon.HTTPError(falcon.HTTP_400,
+            raise httping.HTTPError(httping.BAD_REQUEST,
                                            'Resource Verification Error',
                                            'Invalid did. {}'.format(ex))
 
-        key = "{}/offer/{}".format(did, ouid)
-
         # read offer from database
+        key = "{}/offer/{}".format(did, ouid)
         try:
             odat, oser, osig = dbing.getSigned(key)
         except dbing.DatabaseError as ex:
-            raise falcon.HTTPError(falcon.HTTP_400,
+            raise httping.HTTPError(httping.BAD_REQUEST,
                             'Resource Verification Error',
                             'Error verifying resource. {}'.format(ex))
 
         dt = datetime.datetime.now(tz=datetime.timezone.utc)
-
         # validate offer has not yet expired
         odt = arrow.get(odat["expiration"])
         if dt > odt:  # expired
-            raise falcon.HTTPError(falcon.HTTP_400,
+            raise httping.HTTPError(httping.BAD_REQUEST,
                                            'Validation Error',
                                         'Expired offer.')
 
@@ -1184,16 +1199,15 @@ class ThingDidAcceptResource:
             entry = entries[-1]
             edt = arrow.get(entry["expire"])
             if odt != edt or entry['offer'] != key:  # not latest offer
-                raise falcon.HTTPError(falcon.HTTP_400,
+                raise httping.HTTPError(httping.BAD_REQUEST,
                                                'Validation Error',
                                             'Not latest offer.')
-
 
         adid = odat['aspirant']
         try:  # validate validate aspirant did
             akey = extractDidParts(adid)
         except ValueError as ex:
-            raise falcon.HTTPError(falcon.HTTP_400,
+            raise httping.HTTPError(httping.BAD_REQUEST,
                                            'Resource Verification Error',
                                            'Invalid did field. {}'.format(ex))
 
@@ -1201,7 +1215,7 @@ class ThingDidAcceptResource:
         try:
             adat, aser, asig = dbing.getSelfSigned(adid)
         except dbing.DatabaseError as ex:
-            raise falcon.HTTPError(falcon.HTTP_400,
+            raise httping.HTTPError(httping.BAD_REQUEST,
                             'Resource Verification Error',
                             'Error verifying resource. {}'.format(ex))
 
@@ -1210,14 +1224,14 @@ class ThingDidAcceptResource:
         sigs = parseSignatureHeader(signature)
         sig = sigs.get('signer')  # str not bytes
         if not sig:
-            raise falcon.HTTPError(falcon.HTTP_400,
+            raise httping.HTTPError(httping.BAD_REQUEST,
                                            'Validation Error',
                                            'Invalid or missing Signature header.')
 
         try:
             serb = req.stream.read()  # bytes
         except Exception:
-            raise falcon.HTTPError(falcon.HTTP_400,
+            raise httping.HTTPError(httping.BAD_REQUEST,
                                        'Read Error',
                                        'Could not read the request body.')
         ser = serb.decode("utf-8")
@@ -1225,24 +1239,94 @@ class ThingDidAcceptResource:
         try:
             dat = validateSignedThingTransfer(adat=adat, tdid=did, sig=sig, ser=ser)
         except ValidationError as  ex:
-            raise falcon.HTTPError(falcon.HTTP_400,
+            raise httping.HTTPError(httping.BAD_REQUEST,
                                                'Validation Error',
                         'Error validating the request body. {}'.format(ex))
+
+        try: # Get validated existing thing resource from database
+            cdat, cser, psig = dbing.getSigned(did)
+        except dbing.DatabaseError as ex:
+            raise httping.HTTPError(httping.BAD_REQUEST,
+                                       'Resource Verification Error',
+                                'Error verifying current thing resource. {}'.format(ex))
+
+
+        if "hid" in dat:  # new or changed hid
+            if ((dat["hid"] and not "hid" in cdat) or
+                    (dat["hid"] and dat["hid"] != cdat["hid"])):
+                # validate hid control here
+                found = False
+                for issuant in adat.get("issuants", []):
+                    issuer = issuant.get("issuer")
+                    try:
+                        prefix, kind, issue = dat['hid'].split(":", maxsplit=2)
+                    except ValueError as ex:
+                        raise httping.HTTPError(httping.BAD_REQUEST,
+                                                        'Validation Error',
+                                            'Invalid hid format. {}'.format(ex))
+                    if issue.startswith(issuer):
+                        found = True
+                        try:
+                            result = yield from validateIssuerDomainGen(self.store,
+                                                                        adat,
+                                                                        issuant,
+                                                                        timeout=0.5)  # raises  error if fails
+                        except ValidationError as ex:
+                            raise httping.HTTPError(httping.BAD_REQUEST,
+                                                'Validation Error',
+                                                'Error validating issuant. {}'.format(ex))
+
+                        try:  # add entry to hids table to lookup did by hid
+                            dbing.putHid(dat['hid'], did)
+                        except DatabaseError as ex:
+                            raise httping.HTTPError(httping.PRECONDITION_FAILED,
+                                                  'Database Error',
+                                                  '{}'.format(ex.args[0]))
+
+                if not found:
+                    raise httping.HTTPError(httping.FAILED_DEPENDENCY,
+                                                        'Validation Error',
+                                'Aspirant Agent does not control corresponding issuant')
+
+        if ("hid" in cdat and cdat["hid"] and
+                (not "hid" in dat or dat["hid"] != cdat["hid"])):
+            try:  # put empty in old cdat hid entry
+                dbing.putHid(cdat['hid'], "")
+            except DatabaseError as ex:
+                raise httping.HTTPError(httping.PRECONDITION_FAILED,
+                                      'Database Error',
+                                      '{}'.format(ex.args[0]))
+
 
         # write new thing resource to database
         try:
             dbing.putSigned(key=did, ser=ser, sig=sig, clobber=True)
         except dbing.DatabaseError as ex:
-            raise falcon.HTTPError(falcon.HTTP_412,
+            raise httping.HTTPError(httping.PRECONDITION_FAILED,
                                   'Database Error',
                                   '{}'.format(ex.args[0]))
 
 
+        skin._status = httping.CREATED
+        didURI = falcon.uri.encode_value(did)
+        skin._headers["Location"] = "{}/{}".format(THING_BASE_PATH, didURI)
+        # normally picks of content-type from type of request but set anyway to ensure
+        skin._headers["Content-Type"] = "application/json; charset=UTF-8"
 
-        didUri = falcon.uri.encode_value(did)
-        rep.status = falcon.HTTP_201  # post response status with location header
-        rep.location = "{}/{}".format(THING_BASE_PATH, didUri)
-        rep.body = json.dumps(dat, indent=2)
+        body = json.dumps(dat, indent=2).encode()
+        # inside rep.stream generator, body is yielded or returned, not assigned to rep.body
+        return body
+
+
+    def on_post(self, req, rep, did):
+        """
+        Handles POST requests
+
+        Post body is new Thing resource with new signer
+
+        did is thing DID
+        """
+        rep.stream = self.onPostGen(req, rep, did)  # iterate on stream generator
 
 
 class AnonMsgResource:

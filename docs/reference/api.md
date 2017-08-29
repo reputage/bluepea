@@ -1471,7 +1471,7 @@ Signature: signer="EhsfS2_4LSVjDMo_QShvciNr6aYf5ut8NuFkBugxL748vlOs1YF971aPIckmt
 Content-Type: application/json; charset=UTF-8
 Host: localhost:8080
 Connection: close
-User-Agent: Paw/3.1.2 (Macintosh; OS X/10.12.5) GCDHTTPRequest
+User-Agent: Paw/3.1.3 (Macintosh; OS X/10.12.6) GCDHTTPRequest
 Content-Length: 199
 
 {
@@ -1480,7 +1480,6 @@ Content-Length: 199
   "aspirant": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
   "duration": 120.0
 }
-
 ```
 
 ## Response
@@ -1491,14 +1490,14 @@ Location: /thing/did%3Aigo%3A4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM%3D/offe
 Content-Length: 675
 Content-Type: application/json; charset=UTF-8
 Server: Ioflo WSGI Server
-Date: Thu, 27 Jul 2017 01:33:36 GMT
+Date: Tue, 29 Aug 2017 21:59:18 GMT
 
 {
   "uid": "o_00035d2976e6a000_26ace93",
   "thing": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
   "aspirant": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
   "duration": 120.0,
-  "expiration": "2017-07-27T01:35:36.895638+00:00",
+  "expiration": "2017-08-29T22:01:18.303646+00:00",
   "signer": "did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=#0",
   "offerer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#0",
   "offer": "ewogICJ1aWQiOiAib18wMDAzNWQyOTc2ZTZhMDAwXzI2YWNlOTMiLAogICJ0aGluZyI6ICJkaWQ6aWdvOjRKQ004ZEpXd19PNTd2TTRrQXRUdDB5V3FTZ0J1d2lIcFZnZDU1QmlvQ009IiwKICAiYXNwaXJhbnQiOiAiZGlkOmlnbzpRdDI3ZlRoV29OWnNhODhWclRrZXA2SC00SEE4dHI1NHNIT04xdldsNkZFPSIsCiAgImR1cmF0aW9uIjogMTIwLjAKfQ=="
@@ -1525,25 +1524,25 @@ GET /thing/did%3Aigo%3A4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM%3D/offer?uid=
 Content-Type: application/json; charset=utf-8
 Host: localhost:8080
 Connection: close
-User-Agent: Paw/3.1.2 (Macintosh; OS X/10.12.5) GCDHTTPRequest
+User-Agent: Paw/3.1.3 (Macintosh; OS X/10.12.6) GCDHTTPRequest
 ```
 
 #### Response
 
 ```http
 HTTP/1.1 200 OK
-Signature: signer="klcoeC_dztIDcCO2hkptCSGyoRURSI30EqqyQaUOihHGsR9suntOaRqZpbCJi4qRTGdfSEV880DfVo5iq726Bw=="
+Signature: signer="DDvBCSLxGLsMrN-c-3-1LKVoo-D-zES1-6fmMsQkXSd14nNeVgQ1M5TW-ON3gB1kdA1GelBUTZ-7I5m03l1ECw=="
 Content-Type: application/json; charset=UTF-8
 Content-Length: 675
 Server: Ioflo WSGI Server
-Date: Thu, 27 Jul 2017 01:38:14 GMT
+Date: Tue, 29 Aug 2017 22:00:43 GMT
 
 {
   "uid": "o_00035d2976e6a000_26ace93",
   "thing": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
   "aspirant": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
   "duration": 120.0,
-  "expiration": "2017-07-27T01:35:36.895638+00:00",
+  "expiration": "2017-08-29T22:01:18.303646+00:00",
   "signer": "did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=#0",
   "offerer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#0",
   "offer": "ewogICJ1aWQiOiAib18wMDAzNWQyOTc2ZTZhMDAwXzI2YWNlOTMiLAogICJ0aGluZyI6ICJkaWQ6aWdvOjRKQ004ZEpXd19PNTd2TTRrQXRUdDB5V3FTZ0J1d2lIcFZnZDU1QmlvQ009IiwKICAiYXNwaXJhbnQiOiAiZGlkOmlnbzpRdDI3ZlRoV29OWnNhODhWclRrZXA2SC00SEE4dHI1NHNIT04xdldsNkZFPSIsCiAgImR1cmF0aW9uIjogMTIwLjAKfQ=="
@@ -1569,16 +1568,15 @@ Example requests and responses are shown below.
 
 ```http
 POST /thing/did%3Aigo%3A4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM%3D/accept?uid=o_00035d2976e6a000_26ace93 HTTP/1.1
-Signature: signer="RtlBu9sZgqhfc0QbGe7IHqwsHOARrGNjy4BKJG7gNfNP4GfKDQ8FGdjyv-EzN1OIHYlnMBFB2Kf05KZAj-g2Cg=="
+Signature: signer="c04xu10KP_O8gfWoVvHRw8sO7ww9WrQ91BT_HXNGtSEMTf_BsKikxSUyQz0ASxjscEJVvV6E7yaldQ0dECQgAQ=="
 Content-Type: application/json; charset=UTF-8
 Host: localhost:8080
 Connection: close
-User-Agent: Paw/3.1.2 (Macintosh; OS X/10.12.6) GCDHTTPRequest
-Content-Length: 349
+User-Agent: Paw/3.1.3 (Macintosh; OS X/10.12.6) GCDHTTPRequest
+Content-Length: 314
 
 {
   "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
-  "hid": "hid:dns:generic.com#02",
   "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",
   "changed": "2000-01-01T00:00:00+00:00",
   "data": {
@@ -1596,15 +1594,14 @@ Content-Length: 349
 
 ```http
 HTTP/1.1 201 Created
-Location: /thing/did%3Aigo%3A4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM%3D
-Content-Length: 349
 Content-Type: application/json; charset=UTF-8
+Location: /thing/did%3Aigo%3A4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM%3D
 Server: Ioflo WSGI Server
-Date: Thu, 27 Jul 2017 22:16:15 GMT
+Date: Tue, 29 Aug 2017 21:59:25 GMT
+Transfer-Encoding: chunked
 
 {
   "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
-  "hid": "hid:dns:generic.com#02",
   "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",
   "changed": "2000-01-01T00:00:00+00:00",
   "data": {

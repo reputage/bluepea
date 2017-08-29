@@ -735,7 +735,13 @@ def setupTestDbAgentsThings(dbn="core", clobber=False):
     # creates signing/verification key pair
     avk, ask = libnacl.crypto_sign_seed_keypair(seed)
 
-    sig, ser = makeSignedAgentReg(avk, ask, changed=changed)
+    issuant = ODict(kind="dns",
+                    issuer="localhost",
+                    registered=changed,
+                    validationURL="http://localhost:8101/demo/check")
+    issuants = [issuant]  # list of issuants hid name spaces
+
+    sig, ser = makeSignedAgentReg(avk, ask, changed=changed, issuants=issuants)
 
     adat = json.loads(ser, object_pairs_hook=ODict)
     adid = adat['did']
@@ -754,7 +760,7 @@ def setupTestDbAgentsThings(dbn="core", clobber=False):
     issuant = ODict(kind="dns",
                 issuer="localhost",
                 registered=changed,
-                validationURL="https://localhost:8101/demo/check")
+                validationURL="http://localhost:8101/demo/check")
     issuants = [issuant]  # list of issuants hid name spaces
 
     sig, ser = makeSignedAgentReg(ivk, isk, changed=changed, issuants=issuants)
@@ -821,7 +827,7 @@ def setupTestDbAgentsThings(dbn="core", clobber=False):
     issuant = ODict(kind="dns",
                     issuer="localhost",
                     registered=changed,
-                    validationURL="https://localhost:8101/demo/check")
+                    validationURL="http://localhost:8101/demo/check")
     issuants = [issuant]  # list of issuants hid name spaces
 
     sig, ser = makeSignedAgentReg(ivk, isk, changed=changed, issuants=issuants)

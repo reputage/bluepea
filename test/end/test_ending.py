@@ -637,7 +637,6 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
     assert ser == tregistration
     assert verify64u(ssignature, ser, sverkey)
 
-
     cleanupTmpBaseDir(dbEnv.path())
     valet.close()
     patron.close()
@@ -2123,12 +2122,25 @@ def test_post_ThingDidAccept(client):  # client is a fixture in pytest_falcon
     """
     Test POST  to thing/did/accept with parameter offer uid.
     """
+    global store  # use Global store
+
     print("Testing POST /thing/{did}/accept?uid={ouid}")
 
     priming.setupTest()
     dbEnv = dbing.gDbEnv
     keeper = keeping.gKeeper
     kdid = keeper.did
+
+    # create local test server
+    valet = Valet(port=8101,
+                  bufsize=131072,
+                  store=store,
+                  app=exapp,)
+
+    result = valet.open()
+    assert result
+    assert valet.servant.ha == ('0.0.0.0', 8101)
+    assert valet.servant.eha == ('127.0.0.1', 8101)
 
     agents, things = setupTestDbAgentsThings()
     agents['sam'] = (kdid, keeper.verkey, keeper.sigkey)  # sam the server
@@ -2164,13 +2176,15 @@ def test_post_ThingDidAccept(client):  # client is a fixture in pytest_falcon
     signer = "{}#{}".format(aDid, index)  # signer field value key at index
     assert signer == 'did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0'
     tdat['signer'] = signer
+    # change hid field
+    tdat['hid'] = "hid:dns:localhost#03"
 
-    # now sign and post to accept
+
     atser = json.dumps(tdat, indent=2)
     assert atser == (
         '{\n'
         '  "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",\n'
-        '  "hid": "hid:dns:localhost#02",\n'
+        '  "hid": "hid:dns:localhost#03",\n'
         '  "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",\n'
         '  "changed": "2000-01-01T00:00:00+00:00",\n'
         '  "data": {\n'
@@ -2183,23 +2197,48 @@ def test_post_ThingDidAccept(client):  # client is a fixture in pytest_falcon
         '  }\n'
         '}')
 
+    # now sign
     atsig = keyToKey64u(libnacl.crypto_sign(atser.encode("utf-8"), aSk)[:libnacl.crypto_sign_BYTES])
-    assert atsig == "fXYlCCfCwEPuXfphG2eJ1H4PKeskmj-sITuGoNxjbuRs0TG1lT-cGl3j4I9eFdYmzWbLb9kR-EeCDJNqiPv0CQ=="
+    assert atsig == 'm64m1gS1vh3hONpDbbz1MC9Lc412MYtC_H9K-IkMSucTJmqoTAklmg8Q7h3XtAHT-N4RhJmAqsVsjDqPos-zBA=='
 
-    # now accept offer with new thing resource using web service
+    # now post to accept offer with new thing resource using web service
     headers = {"Content-Type": "text/html; charset=utf-8",
                "Signature": 'signer="{}"'.format(atsig)}
     body = atser  # client.post encodes the body
-    tDidUri = falcon.uri.encode_value(tDid)
-    rep = client.post('/thing/{}/accept?uid={}'.format(tDidUri, ouid),
-                      body=body,
-                      headers=headers)
+    # patron url quotes path for us so don't quote before
+    path = "http://{}:{}/thing/{}/accept".format('localhost',
+                                                        valet.servant.eha[1],
+                                                        tDid)
+    qargs = ODict(uid=ouid)
 
-    assert rep.status == falcon.HTTP_201
-    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
-    location = falcon.uri.decode(rep.headers['location'])
+    # instantiate Patron client
+    patron = Patron(bufsize=131072,
+                    store=store,
+                    method = 'POST',
+                    path=path,
+                    headers=headers,
+                    qargs=qargs,
+                    body=body,
+                    reconnectable=True,)
+
+    patron.transmit()
+    timer = timing.StoreTimer(store, duration=1.0)
+    while (patron.requests or patron.connector.txes or not patron.responses or
+           not valet.idle()):
+        valet.serviceAll()
+        time.sleep(0.05)
+        patron.serviceAll()
+        time.sleep(0.05)
+        store.advanceStamp(0.1)
+
+    rep = patron.respond()
+    assert rep
+    assert rep['status'] == 201
+    assert rep['reason'] == 'Created'
+    assert rep['headers']['content-type'] == 'application/json; charset=UTF-8'
+    location = falcon.uri.decode(rep['headers']['location'])
     assert location == "/thing/{}".format(tDid)
-    assert rep.json == tdat
+    assert rep['data'] == tdat
 
     # verify that its in database
     vdat, vser, vsig = dbing.getSigned(tDid)
@@ -2209,18 +2248,33 @@ def test_post_ThingDidAccept(client):  # client is a fixture in pytest_falcon
     assert vsig == atsig
 
     # now get it from web service
-    rep = client.get(rep.headers['location'])
-    assert rep.status == falcon.HTTP_OK
-    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
-    sigs = parseSignatureHeader(rep.headers['signature'])
-    ssig = sigs['signer']  # signature changes everytime because expiration changes
+    headers = odict([('Accept', 'application/json'),
+                    ('Content-Length', 0)])
 
-    assert rep.json == tdat
-    assert rep.body == atser
+    patron.transmit(method='GET', path=location, headers=headers)
+    timer = timing.StoreTimer(store, duration=1.0)
+    while (patron.requests or patron.connector.txes or not patron.responses or
+           not valet.idle()):
+        valet.serviceAll()
+        time.sleep(0.05)
+        patron.serviceAll()
+        time.sleep(0.05)
+        store.advanceStamp(0.1)
 
-    assert verify64u(ssig, rep.body, keyToKey64u(aVk))
+    rep = patron.respond()
+    assert rep
+    assert rep['status'] == 200
+    assert rep['headers']['content-type'] == 'application/json; charset=UTF-8'
+    sigs = parseSignatureHeader(rep['headers']['signature'])
+    assert sigs['signer'] == atsig
+    assert rep['data'] == tdat
+    assert rep['body'].decode() == atser
+
+    assert verify64u(atsig, rep['body'].decode(), keyToKey64u(aVk))
 
     cleanupTmpBaseDir(dbEnv.path())
+    valet.close()
+    patron.close()
     print("Done Test")
 
 
