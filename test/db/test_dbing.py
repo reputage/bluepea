@@ -569,9 +569,9 @@ def test_putGetDeleteAnon():
 def test_expireUid():
     """
     Test
-    putExpireUid(expire, uid, dbn="expire2eid", env=None)
-    getExpireUid(key, dbn='expire2eid', env=None)
-    deleteExpireUid(key, dbn='expire2eid', env=None)
+    putExpireUid(expire, uid, dbn="expire2uid", env=None)
+    getExpireUid(key, dbn='expire2uid', env=None)
+    deleteExpireUid(key, dbn='expire2uid', env=None)
 
     where
         key is timestamp in int microseconds since epoch
@@ -639,7 +639,7 @@ def test_expireUid():
 def test_popExpired():
     """
     Test
-    popExpired(key, dbn='expire2eid', env=None)
+    popExpired(key, dbn='expire2uid', env=None)
 
     where
         key is timestamp in int microseconds since epoch
@@ -722,7 +722,7 @@ def test_popExpired():
 def test_clearStaleAnons():
     """
     Test
-    clearStaleAnonMsgs(key, adbn='anon', edbn='expire2eid', env=None)
+    clearStaleAnonMsgs(key, adbn='anon', edbn='expire2uid', env=None)
 
     where
         key is timestamp in int microseconds since epoch

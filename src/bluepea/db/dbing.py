@@ -85,7 +85,7 @@ def setupDbEnv(baseDirPath=None):
     gDbEnv.open_db(b'hid2did')  # table of dids keyed by hids
     gDbEnv.open_db(b'did2offer', dupsort=True)  # table of offer expirations keyed by offer relative dids
     gDbEnv.open_db(b'anon', dupsort=True)  # anonymous messages
-    gDbEnv.open_db(b'expire2eid', dupsort=True)  # expiration to eid anon
+    gDbEnv.open_db(b'expire2uid', dupsort=True)  # expiration to uid anon
 
     return gDbEnv
 
@@ -430,7 +430,7 @@ def getOfferExpires(did, lastOnly=True, dbn='did2offer', env=None):
 
 def putAnonMsg(key, data, dbn="anon", env=None):
     """
-    Put entry into database  for serialized anon message ser at key eid with duplicates
+    Put entry into database  for serialized anon message ser at key uid with duplicates
 
     Database allows duplicates
 
@@ -553,7 +553,7 @@ def deleteAnonMsgs(key, dbn='anon', env=None):
     return result
 
 
-def putExpireUid(key, uid, dbn="expire2eid", env=None):
+def putExpireUid(key, uid, dbn="expire2uid", env=None):
     """
     Put entry into database table that maps expiration to anon
 
@@ -585,7 +585,7 @@ def putExpireUid(key, uid, dbn="expire2eid", env=None):
             raise DatabaseError("Could not write.")
         return result
 
-def getExpireUid(key, dbn='expire2eid', env=None):
+def getExpireUid(key, dbn='expire2uid', env=None):
     """
     Returns list earliest to latest with uid entries at key expire
     If none exist returns empty list
@@ -614,7 +614,7 @@ def getExpireUid(key, dbn='expire2eid', env=None):
                 entries = [value.decode("utf-8") for value in cursor.iternext_dup()]
     return entries
 
-def deleteExpireUid(key, dbn='expire2eid', env=None):
+def deleteExpireUid(key, dbn='expire2uid', env=None):
     """
     Deletes expire uid entries
 
@@ -637,7 +637,7 @@ def deleteExpireUid(key, dbn='expire2eid', env=None):
         result = txn.delete(keyb)
     return result
 
-def popExpired(key, dbn='expire2eid', env=None):
+def popExpired(key, dbn='expire2uid', env=None):
     """
     Returns list of expired uids and then deletes them for earliest entry
     in database that is less than or equal to key if any
@@ -678,10 +678,10 @@ def popExpired(key, dbn='expire2eid', env=None):
     return entries
 
 
-def clearStaleAnonMsgs(key, adbn='anon', edbn='expire2eid', env=None):
+def clearStaleAnonMsgs(key, adbn='anon', edbn='expire2uid', env=None):
     """
     Clears expired tracks at or earlier to timestamp key
-    and their entries in the anon and expire2eid databases
+    and their entries in the anon and expire2uid databases
 
     Returns True if successfully cleared at least one stale anon
 
