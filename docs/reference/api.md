@@ -1066,7 +1066,7 @@ All the fields in the example above are required except for ```thing```.
 
 The fields descriptions are as follows:
 
-- *uid*  is the unique message id. This must be monotonically increasing for any paring of sender and recipient. A useful ID scheme is the time based universal unique ID provided by the ```ioflo.aid.timing.tuuid()``` function. This uses time to order the UID up to microsecond intervals and then adds a random suffix to provide sub micro-second uniqueness. To generate a TUUID as in the examples use the function as follows:
+- *uid*  is the unique message id. This must be unique for any paring of sender and recipient. A useful ID scheme is the time based universal unique ID provided by the ```ioflo.aid.timing.tuuid()``` function. This uses time to order the UID up to microsecond intervals and then adds a random suffix to provide sub micro-second uniqueness. To generate a TUUID as in the examples use the function as follows:
 
 ```python
 from ioflo.aid.timing import tuuid
@@ -1099,8 +1099,6 @@ muid = tuuid(stamp=dt.timestamp(), prefix="m")
 - *subject* is the subject text of the message.
 
 - *content* is the content text of the message.
-
-For each receipient, The Indigo service will create a dedicated message queue for each sender. 
 
 A successful request results in a response with the associated Agent data resource
 in the JSON body of the response is and a location header
@@ -1163,7 +1161,7 @@ Date: Tue, 18 Jul 2017 19:50:57 GMT
 ## Reading a *Message* from One *Agent* to Another
 
 The Indigo service creates a dedicated message queue for each sender at each recipient.
-The request is made by sending an HTTP Get to ```/agent/{did}/drop?from={did}&uid={muid}``` with the path parameter that is the DID of the recepient of a message. This value needs to be URL encoded. The request also has two query parameters. One with *tag* *from* query parameter whose value is the sender DID. This value needs to be URL encoded. The other with *tag* uid whose value is the unique message ID of the message. Other variants of the request will allow querying the first last or all of the messages from a given sender to a given recepient.
+The request is made by sending an HTTP Get to ```/agent/{did}/drop?from={did}&uid={muid}``` with the path parameter that is the DID of the recepient of a message. This value needs to be URL encoded. The request also has two query parameters. One with *tag* *from* query parameter whose value is the sender DID. This value needs to be URL encoded. The other with *tag* uid whose value is the unique message ID of the message. Other variants of the request will allow querying the first last or all of the messages to a given receipient as well as all messages from a given sender to a given recepient.
 
 A successful request will return status code 200. An unsuccessful request will return an error status code such as 404 Not Found. 
 

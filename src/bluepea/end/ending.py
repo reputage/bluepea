@@ -467,7 +467,7 @@ class AgentDidDropResource:
                                        'Resource Verification Error',
                                     'Error verifying destination resource. {}'.format(ex))
 
-        # Build key for message from (to, from, uid)  (did, sdid, uid)
+        # Build key for message from (to, from, uid)  (did, sdid, muid)
         muid = mdat['uid']
         key = "{}/drop/{}/{}".format(did, sdid, muid)
 
@@ -510,7 +510,7 @@ class AgentDidDropResource:
                                        'Invalid request format. {}'.format(ex))
 
 
-        key = "{}/drop/{}/{}".format(did, sdid, muid)
+        key = "{}/drop/{}/{}".format(did, sdid, muid)  # (to, from, uid)  (did, sdid, muid)
 
         # read from database
         try:
