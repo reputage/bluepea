@@ -706,7 +706,7 @@ def clearStaleAnonMsgs(key, tdbn='anon', edbn='expire2eid', env=None):
     return success
 
 
-def setupTestDbAgentsThings(dbn="core"):
+def setupTestDbAgentsThings(dbn="core", clobber=False):
     """
     Assumes lmdb database environment has been setup already
 
@@ -736,12 +736,12 @@ def setupTestDbAgentsThings(dbn="core"):
     adat = json.loads(ser, object_pairs_hook=ODict)
     adid = adat['did']
 
-    putSigned(key=adid, ser=ser, sig=sig, dbn=dbn, clobber=False)
+    putSigned(key=adid, ser=ser, sig=sig, dbn=dbn, clobber=clobber)
 
     agents['ann'] = (adid, avk, ask)
 
     # make "ivy" the issurer
-    seed = seed = (b"\xb2PK\xad\x9b\x92\xa4\x07\xc6\xfa\x0f\x13\xd7\xe4\x08\xaf\xc7'~\x86"
+    seed = (b"\xb2PK\xad\x9b\x92\xa4\x07\xc6\xfa\x0f\x13\xd7\xe4\x08\xaf\xc7'~\x86"
                    b'\xd2\x92\x93rA|&9\x16Bdi')
 
     # creates signing/verification key pair
@@ -758,7 +758,7 @@ def setupTestDbAgentsThings(dbn="core"):
     idat = json.loads(ser, object_pairs_hook=ODict)
     idid = idat['did']
 
-    putSigned(key=idid, ser=ser, sig=sig, dbn=dbn, clobber=False)
+    putSigned(key=idid, ser=ser, sig=sig, dbn=dbn, clobber=clobber)
 
     agents['ivy'] = (idid, ivk, isk)
 
@@ -785,7 +785,7 @@ def setupTestDbAgentsThings(dbn="core"):
     cdat = json.loads(ser, object_pairs_hook=ODict)
     cdid = cdat['did']
 
-    putSigned(key=cdid, ser=ser, sig=isig, dbn=dbn, clobber=False)
+    putSigned(key=cdid, ser=ser, sig=isig, dbn=dbn, clobber=clobber)
 
     things['cam'] = (cdid, cvk, csk)
 
@@ -802,7 +802,7 @@ def setupTestDbAgentsThings(dbn="core"):
     fdat = json.loads(ser, object_pairs_hook=ODict)
     fdid = fdat['did']
 
-    putSigned(key=fdid, ser=ser, sig=sig, dbn=dbn, clobber=False)
+    putSigned(key=fdid, ser=ser, sig=sig, dbn=dbn, clobber=clobber)
 
     agents['fae'] = (fdid, fvk, fsk)
 
@@ -825,7 +825,7 @@ def setupTestDbAgentsThings(dbn="core"):
     idat = json.loads(ser, object_pairs_hook=ODict)
     idid = idat['did']
 
-    putSigned(key=idid, ser=ser, sig=sig, dbn=dbn, clobber=False)
+    putSigned(key=idid, ser=ser, sig=sig, dbn=dbn, clobber=clobber)
 
     agents['ike'] = (idid, ivk, isk)
 

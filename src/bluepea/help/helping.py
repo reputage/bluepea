@@ -370,6 +370,9 @@ def validateSignedAgentReg(signature, registration, method="igo"):
         if not verify64u(signature, registration, verkey):
             raise ValidationError("Unverifiable signature")  # signature fails
 
+    except ValidationError:
+        raise
+
     except Exception as ex:  # unknown problem
         raise ValidationError("Unexpected error")
 
@@ -521,6 +524,9 @@ def validateSignedThingReg(signature, registration, method="igo"):
         if not verify64u(signature, registration, verkey):
             raise ValidationError("Unverifiable signature")  # signature fails
 
+    except ValidationError:
+        raise
+
     except Exception as ex:  # unknown problem
         raise ValidationError("Unexpected error")
 
@@ -601,6 +607,9 @@ def validateSignedResource(signature, resource, verkey, method="igo"):
 
         if not verify64u(signature, resource, verkey):
             raise ValidationError("Unverifiable signature")  # signature fails
+
+    except ValidationError:
+        raise
 
     except Exception as ex:  # unknown problem
         raise ValidationError("Unexpected error")
@@ -714,6 +723,9 @@ def validateSignedAgentWrite(cdat, csig, sig, ser,  method="igo"):
         if not verify64u(sig, ser, verkey):  # verify with new signer verify key
             raise ValidationError("Unverifiable signature")  # signature fails
 
+    except ValidationError:
+        raise
+
     except Exception as ex:  # unknown problem
         raise ValidationError("Unexpected error")
 
@@ -811,6 +823,9 @@ def validateSignedThingWrite(sdat, cdat, csig, sig, ser,  method="igo"):
         if not verify64u(sig, ser, nverkey):  # verify with new signer verify key
             raise ValidationError("Unverifiable new signature")  # signature fails
 
+    except ValidationError:
+        raise
+
     except Exception as ex:  # unknown problem
         raise ValidationError("Unexpected error")
 
@@ -849,6 +864,9 @@ def validateMessageData(ser):
         except arrow.parser.ParserError as ex:  # invalid datetime format
             raise ValidationError("Invalid date field")
 
+    except ValidationError:
+        raise
+
     except Exception as ex:  # unknown problem
         raise ValidationError("Unexpected error")
 
@@ -882,6 +900,9 @@ def verifySignedMessageWrite(sdat, index, sig, ser):
         # verify request using existing resources signer verify key
         if not verify64u(sig, ser, sverkey):
             raise ValidationError("Unverifiable signature")  # signature fails
+
+    except ValidationError:
+        raise
 
     except Exception as ex:  # unknown problem
         raise ValidationError("Unexpected error")
@@ -967,6 +988,9 @@ def validateSignedOfferData(adat, ser, sig, tdat, method="igo"):
 
         if duration < PROPAGATION_DELAY * 2.0:
             raise ValidationError("Duration too short")
+
+    except ValidationError:
+        raise
 
     except Exception as ex:  # unknown problem
         raise ValidationError("Unexpected error")
@@ -1111,6 +1135,9 @@ def validateSignedThingTransfer(adat, tdid, sig, ser, method="igo"):
         if not verify64u(sig, ser, nverkey):  # verify with new signer verify key
             ValidationError("Unverifiable signature")  # signature fails
 
+    except ValidationError:
+        raise
+
     except Exception as ex:  # unknown problem
         raise ValidationError("Unexpected error")
 
@@ -1178,6 +1205,9 @@ def validateAnon(ser):
             raise ValidationError("Invalid base64 for msg")
 
         dat['msg'] = dat['msg']
+
+    except ValidationError:
+        raise
 
     except Exception as ex:  # unknown problem
         raise ValidationError("Unexpected error")

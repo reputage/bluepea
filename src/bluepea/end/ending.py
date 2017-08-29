@@ -1418,7 +1418,7 @@ class CheckHidResource:
 
         """
         # have to create so test verify HID has keys to respond put in demo db
-        agents, things = dbing.setupTestDbAgentsThings(dbn='demo')
+        agents, things = dbing.setupTestDbAgentsThings(dbn='demo', clobber=True)
 
         qargs = httping.parseQuery(req.query_string)  # avoid double unquote bug in falcon
         did = qargs.get('did')
