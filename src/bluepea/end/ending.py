@@ -376,6 +376,18 @@ class AgentDidDropResource:
     Attributes:
         .store is reference to ioflo data store
 
+    {
+        "uid": "m_00035d2976e6a000_26ace93",
+        "kind": "found",
+        "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",
+        "date": "2000-01-03T00:00:00+00:00",
+        "to": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",
+        "from": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+        "thing": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
+        "subject": "Lose something?",
+        "content": "Look what I found"
+    }
+
     """
     def  __init__(self, store=None, **kwa):
         """
@@ -1238,24 +1250,26 @@ class AnonMsgResource:
     Anonymous Message Resource
     Create and Read anonymous messages
     /anon
-    /anon?eid=abcdef12
+    /anon?uid=abcdef12
 
     Database key is
-    eid
+    uid
 
     {
         create: serverdatetimecreatestamp,
         expire: serverdatetimeexpirestamp
         anon:
         {
-            eid: eid,
-            msg: xoredgatewaylocationstringormsg,
-            dts: gatewaydatetime,
+            uid: uid,
+            content: xoredgatewaylocationstringormsg,
+            date: gatewaydatetime,
         }
     }
 
-    eid is anon ephemeral ID in base64 url safe  up to 16 bytes
-    msg is location string in base 64 url safe up to 144 bytes
+    uid is  message uid string up to 32 bytes
+         if tracker then ephemeral ID in base64 url safe
+    content is message content string up to 256 bytes
+         if tracker then location string in in base64 url safe
     dts is iso8601 datetime stamp
 
     The value of the entry is serialized JSON
@@ -1264,9 +1278,9 @@ class AnonMsgResource:
         expire: 1501818013367861, # expiration in server time microseconds since epoch
         anon:
         {
-            eid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
-            msg: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
-            dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of anon gateway time
+            uid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
+            content: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
+            date: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of anon gateway time
         }
     }
 
@@ -1289,14 +1303,16 @@ class AnonMsgResource:
         Post body is tracking message from Gateway
 
         {
-            eid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
-            msg: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
-            dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of anon gateway time
+            uid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
+            content: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
+            date: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of anon gateway time
         }
 
-        eid is anon ephemeral ID in base64 url safe  up to 16 bytes
-        msg is location string in base 64 url safe up to 144 bytes
-        dts is iso8601 datetime stamp
+        uid is up 32 bytes
+            if anon ephemeral ID in base64 url safe
+        content is message up to 256 bytes
+             if location string in base 64 url safe
+        date is iso8601 datetime
 
         This is augmented with server time stamp and stored in database
         {
@@ -1304,9 +1320,9 @@ class AnonMsgResource:
             expire: 1501818013367861, # expiration in server time microseconds since epoch
             anon:
             {
-                eid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
-                msg: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
-                dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of anon gateway time
+                uid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
+                content: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
+                date: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of anon gateway time
             }
         }
         """
@@ -1325,7 +1341,7 @@ class AnonMsgResource:
                                                'Validation Error',
                             'Error validating the request body. {}'.format(ex))
 
-        eid = dat['eid']
+        uid = dat['uid']
         dt = datetime.datetime.now(tz=datetime.timezone.utc)
         create = int(dt.timestamp() * 1000000)  # timestamp in microseconds since epoch
         expire = create + int(TRACK_EXPIRATION_DELAY * 1000000)
@@ -1334,39 +1350,43 @@ class AnonMsgResource:
         sdat["expire"] = expire
         sdat["anon"] = dat
 
-        # write new anon data resource to database at eid
+        # write new anon data resource to database at uid
         try:
-            dbing.putAnonMsg(key=eid, data=sdat)
+            dbing.putAnonMsg(key=uid, data=sdat)
         except dbing.DatabaseError as ex:
             raise falcon.HTTPError(falcon.HTTP_412,
                                   'Database Error',
                                   '{}'.format(ex.args[0]))
 
 
-        # write new expiration of anon eid to database
+        # write new expiration of anon uid to database
         try:
-            dbing.putExpireEid(key=expire, eid=eid)
+            dbing.putExpireUid(key=expire, uid=uid)
         except dbing.DatabaseError as ex:
             raise falcon.HTTPError(falcon.HTTP_412,
                                   'Database Error',
                                   '{}'.format(ex.args[0]))
 
-        eidUri = falcon.uri.encode_value(eid)
+        eidUri = falcon.uri.encode_value(uid)
         rep.status = falcon.HTTP_201  # post response status with location header
-        rep.location = "{}?eid={}".format(ANON_MSG_BASE_PATH, eidUri)
+        rep.location = "{}?uid={}".format(ANON_MSG_BASE_PATH, eidUri)
         rep.body = json.dumps(sdat, indent=2)
 
     def on_get(self, req, rep):
         """
-        Handles GET request for anon resource
-        and eid in query params
+        Handles GET request for anon resource and uid in query params
         """
-        eid = req.get_param("eid") # returns url-decoded query parameter value
+        uid = req.get_param("uid") # returns url-decoded query parameter value
+
+        if not uid:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                    'Resource Error',
+                                    'Missing or invalid query parameter uid.')
 
         # read all tracks from database
         tracks = []
         try:
-            tracks = dbing.getAnonMsgs(key=eid)
+            tracks = dbing.getAnonMsgs(key=uid)
         except dbing.DatabaseError as ex:
             raise falcon.HTTPError(falcon.HTTP_400,
                             'Resource Error',

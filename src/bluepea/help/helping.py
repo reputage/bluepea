@@ -1151,14 +1151,16 @@ def validateAnon(ser):
 
     ser is json encoded unicode string of gateway anon message
 
-    eid is anon ephemeral ID in base64 url safe  up to 16 bytes
-    msg is location string in base 64 url safe up to 144 bytes
-    dts is iso8601 datetime stamp
+    uid is up 32 bytes
+            if anon ephemeral ID in base64 url safe
+    content is message up to 256 bytes
+         if location string in base 64 url safe
+    date is iso8601 datetime
 
     {
-        eid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
-        msg: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
-        dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of anon gateway time
+        uid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
+        content: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
+        date: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of anon gateway time
     }
 
 
@@ -1176,35 +1178,32 @@ def validateAnon(ser):
         if not isinstance(dat, dict):  # must be dict subclass
             raise ValidationError("JSON not dict")
 
-        requireds = ("eid", "msg", "dts")
+        requireds = ("uid", "content", "date")
         for field in requireds:
             if field not in dat:
                 raise ValidationError("Missing required field '{}'".format(field))
 
-        if len(dat['eid']) > 24:
-            raise ValidationError("EID field too long")
+        if len(dat['uid']) > 32:
+            raise ValidationError("UID field too long")
 
-        try:  # verify base64 formatted
-            eidb = base64.b64decode(dat['eid'].encode(), altchars=b'-_', validate=True)
-        except (binascii.Error, binascii.TypeError, TypeError) as ex:
-            raise ValidationError("Invalid base64 for eid")
+        #try:  # verify base64 formatted
+            #eidb = base64.b64decode(dat['eid'].encode(), altchars=b'-_', validate=True)
+        #except (binascii.Error, binascii.TypeError, TypeError) as ex:
+            #raise ValidationError("Invalid base64 for eid")
 
-        dat['eid'] = dat['eid']
+        if len(dat['content']) > 256:  # no padding 4/3 * 144 = 192
+            raise ValidationError("msg field too long")
 
         try:
-            dt = arrow.get(dat["dts"])
+            dt = arrow.get(dat["date"])
         except arrow.parser.ParserError as ex:  # invalid datetime format
             raise ValidationError("Invalid datetime for dts")
 
-        if len(dat['msg']) > 192:  # no padding 4/3 * 144 = 192
-            raise ValidationError("msg field too long")
 
-        try:  # verify base64 formatted
-            locb = base64.b64decode(dat['msg'].encode(), altchars=b'-_', validate=True)
-        except (binascii.Error, binascii.TypeError, TypeError) as ex:
-            raise ValidationError("Invalid base64 for msg")
-
-        dat['msg'] = dat['msg']
+        #try:  # verify base64 formatted
+            #locb = base64.b64decode(dat['msg'].encode(), altchars=b'-_', validate=True)
+        #except (binascii.Error, binascii.TypeError, TypeError) as ex:
+            #raise ValidationError("Invalid base64 for msg")
 
     except ValidationError:
         raise

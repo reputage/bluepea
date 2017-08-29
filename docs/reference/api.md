@@ -1615,17 +1615,21 @@ Date: Thu, 27 Jul 2017 22:16:15 GMT
 
 ## Anonymous Message Creation
 
-The anonymous messaging service can be used to store location beacon data that is augmented with the gateway location that received the beacon. The service can also to be used to store limited amounts of information as messages where the ID of the poster is ephemeral and therefore highly anonymous. The posted data includes an ephemerial ID (EID). The EID can but up to 16 binary bytes in length. It is provided in Base64 url/file safe encoding. When used for beacon tracking the EID is generated using a shared cryptographic key and is an encrypted version of the date time of when the beacon was sent.  The beacon generates a 16 byte EID. The upper 8 bytes are used as the EID or key to store the track and the lower 8 bytes to XOR with the location in order to encrypt or obscure the location.  With a synchronized clock and a copy of the shared key, a user can estimate the EID at any point in time in the future. The client application can then request track data by EID and if found retreive the location of the gateway as well as a datetime stamp.
+The anonymous messaging service can be used for short messages. Messages are ephemeral in that they are deleted after 24 hours. The service can be used to store limited amounts of information as messages for short periods of time. Each message content may be upto 256 characters. The only ID used is the message UID. Each message UID may be up to 32 characters. Because there is no identification of either the sender or receiver they are effectively anonymous.  
+
+Another application of this service is to store location beacon data that is augmented with the gateway location that received the beacon. 
+The posted data includes a unique message ID (UID). The UID may be up to 32 characters in length. 
+When used for tracking this is also called an ephemerial ID (EID). In the case when the EID is binary it may be up to 16 binary bytes in length but must be converted to Base64 url/file safe encoding for transmission. When used for beacon tracking the EID is generated using a shared cryptographic key and is an encrypted version of the date time of when the beacon was sent.  The beacon generates a 16 byte EID. The upper 8 bytes are used as the EID or key to store the track and the lower 8 bytes to XOR with the location in order to encrypt or obscure the location.  With a synchronized clock and a copy of the shared key, a user can estimate the EID at any point in time in the future. The client application can then request track data by EID and if found retreive the location of the gateway as well as a datetime stamp. Base64 encoding increased the length by 4/3. So an 8 byte binary EID becomes a 12 char base64  string with padding. Likewise for the location. 
 
 
-The request is made by sending an HTTP POST to ```/anon```. The EID in the request body is the base64 url safe encoded version of the EID. Base64 encoding increased the length by 4/3. So an 8 byte binary EID becomes a 12 char base64  string with padding. Likewise for the location. There are three fields in the data: "*eid*", "*msg*", and "*dts*". The *dts* field is the iso8601 datetime stamp of the gateway at the time it received the beacon and assigned the location or message into the *msg* field.
+The request is made by sending an HTTP POST to ```/anon```. There are three fields in the request body data: "*uid*", "*content*", and "*date*". The uid is the unique message id (up to 32 characters). The content field is the message content (up to 256 characters). The *date* field is the iso8601 datetime stamp of the gateway at the time it received the beacon and assigned the location or message into the *content* field.
 An example is shown below:
 
 ```json
 {
-   eid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
-   msg: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
-   dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of anon gateway time
+   uid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
+   content: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
+   date: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of anon gateway time
 }
 ```
 
@@ -1637,9 +1641,9 @@ A successful request results in a response with anonymous message data stored in
     expire: 1501818013367861, # expiration in server time microseconds since epoch
     anon:
     {
-        eid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
-        msg: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
-        dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of anon gateway time
+        uid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
+        content: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
+        date: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of anon gateway time
     }
 }
 ```
@@ -1659,13 +1663,13 @@ POST /anon HTTP/1.1
 Content-Type: application/json; charset=UTF-8
 Host: localhost:8080
 Connection: close
-User-Agent: Paw/3.1.2 (Macintosh; OS X/10.12.6) GCDHTTPRequest
-Content-Length: 90
+User-Agent: Paw/3.1.3 (Macintosh; OS X/10.12.6) GCDHTTPRequest
+Content-Length: 95
 
 {
-  "eid": "AQIDBAoLDA0=",
-  "msg": "EjRWeBI0Vng=",
-  "dts": "2000-01-01T00:30:05+00:00"
+  "uid": "AQIDBAoLDA0=",
+  "content": "EjRWeBI0Vng=",
+  "date": "2000-01-01T00:30:05+00:00"
 }
 ```
 
@@ -1673,31 +1677,33 @@ Content-Length: 90
 
 ```http
 HTTP/1.1 201 Created
-Location: /anon?eid=AQIDBAoLDA0%3D
-Content-Length: 172
+Location: /anon?uid=AQIDBAoLDA0%3D
+Content-Length: 177
 Content-Type: application/json; charset=UTF-8
 Server: Ioflo WSGI Server
-Date: Wed, 09 Aug 2017 19:47:38 GMT
+Date: Tue, 29 Aug 2017 19:03:46 GMT
 
 {
-  "create": 1502308058385577,
-  "expire": 1502308068385577,
+  "create": 1504033426628350,
+  "expire": 1504033436628350,
   "anon": {
-    "eid": "AQIDBAoLDA0=",
-    "msg": "EjRWeBI0Vng=",
-    "dts": "2000-01-01T00:30:05+00:00"
+    "uid": "AQIDBAoLDA0=",
+    "content": "EjRWeBI0Vng=",
+    "date": "2000-01-01T00:30:05+00:00"
   }
 }
 ```
 
 ## Anonymous Message Read
 
-The anonymous messaging service stores messages, or when used for tracking, location beacon data that is augmented with the gateway location that received the beacon. The anonymous message data includes an ephemerial ID (EID). When used for tracking beacons this EID is generated using a shared cryptographic key and is an encrypted version of the date time of when the beacon was sent.  The beacon generates a 16 byte EID. The upper 8 bytes are used as the EID or key to store the track and the lower 8 bytes to XOR with the location in order to encrypt or obscure the location.  With a synchronized clock and a copy of the shared key, a user can estimate the EID at any point in time in the future. The client application can then request track data by EID and if found retreive the location of the gateway as well as a datetime stamp.
+The anonymous messaging service stores messages, or when used for tracking, location beacon data that is augmented with the gateway location that received the beacon. The anonymous message data includes an unique message ID (UID). 
+
+When used for tracking beacons this UID/EID is generated using a shared cryptographic key and is an encrypted version of the date time of when the beacon was sent.  The beacon generates a 16 byte EID. The upper 8 bytes are used as the EID or key to store the track and the lower 8 bytes to XOR with the location in order to encrypt or obscure the location.  With a synchronized clock and a copy of the shared key, a user can estimate the EID at any point in time in the future. The client application can then request track data by EID and if found retreive the location of the gateway as well as a datetime stamp.
 
 
-The read request is made by sending an HTTP GET to ```/anon?eid={eid}```. The EID in the request body is the base64 url safe encoded version of the EID. Base64 encoding increased the length by 4/3. So an 8 byte binary EID becomes a 12 char base64  string with padding. 
+The read request is made by sending an HTTP GET to ```/anon?uid={uid}```. The UID in query argument is the message ID. When used for tracking the UID is  base64 url safe encoded version of the EID. Base64 encoding increased the length by 4/3. So an 8 byte binary EID becomes a 12 char base64  string with padding. 
 
-A successful request results in the response a JSON encoded list with all the message data for a given EID stored in the database. A single EID may have more than one message associated with it. Each item in the response data includes the message data from the request in the *anon* field as well as the datetime (in iso8601 format) on the server when the data was stored in the database in field *create* and the datetime when the data becomes stale and will be deleted from the database in field *expire*. 
+A successful request results in the response a JSON encoded list with all the message data for a given UID stored in the database. A single UID may have more than one message associated with it. Each item in the response data includes the message data from the request in the *anon* field as well as the datetime (in iso8601 format) on the server when the data was stored in the database in field *create* and the datetime when the data becomes stale and will be deleted from the database in field *expire*. 
 
 A successful request will return status code 200
 An unsuccessful request will return an error code.
@@ -1707,11 +1713,11 @@ Example requests and responses are shown below.
 #### Request
 
 ```http
-GET /anon?eid=AQIDBAoLDA0%3D HTTP/1.1
+GET /anon?uid=AQIDBAoLDA0%3D HTTP/1.1
 Content-Type: application/json; charset=UTF-8
 Host: localhost:8080
 Connection: close
-User-Agent: Paw/3.1.2 (Macintosh; OS X/10.12.6) GCDHTTPRequest
+User-Agent: Paw/3.1.3 (Macintosh; OS X/10.12.6) GCDHTTPRequest
 ```
 
 #### Response
@@ -1719,45 +1725,36 @@ User-Agent: Paw/3.1.2 (Macintosh; OS X/10.12.6) GCDHTTPRequest
 ```http
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-Content-Length: 770
+Content-Length: 593
 Server: Ioflo WSGI Server
-Date: Wed, 09 Aug 2017 19:47:46 GMT
+Date: Tue, 29 Aug 2017 19:03:49 GMT
 
 [
   {
-    "create": 1502308056885544,
-    "expire": 1502308066885544,
+    "create": 1504033424899903,
+    "expire": 1504033434899903,
     "anon": {
-      "eid": "AQIDBAoLDA0=",
-      "msg": "EjRWeBI0Vng=",
-      "dts": "2000-01-01T00:30:05+00:00"
+      "uid": "AQIDBAoLDA0=",
+      "content": "EjRWeBI0Vng=",
+      "date": "2000-01-01T00:30:05+00:00"
     }
   },
   {
-    "create": 1502308057570957,
-    "expire": 1502308067570957,
+    "create": 1504033425815548,
+    "expire": 1504033435815548,
     "anon": {
-      "eid": "AQIDBAoLDA0=",
-      "msg": "EjRWeBI0Vng=",
-      "dts": "2000-01-01T00:30:05+00:00"
+      "uid": "AQIDBAoLDA0=",
+      "content": "EjRWeBI0Vng=",
+      "date": "2000-01-01T00:30:05+00:00"
     }
   },
   {
-    "create": 1502308058007878,
-    "expire": 1502308068007878,
+    "create": 1504033426628350,
+    "expire": 1504033436628350,
     "anon": {
-      "eid": "AQIDBAoLDA0=",
-      "msg": "EjRWeBI0Vng=",
-      "dts": "2000-01-01T00:30:05+00:00"
-    }
-  },
-  {
-    "create": 1502308058385577,
-    "expire": 1502308068385577,
-    "anon": {
-      "eid": "AQIDBAoLDA0=",
-      "msg": "EjRWeBI0Vng=",
-      "dts": "2000-01-01T00:30:05+00:00"
+      "uid": "AQIDBAoLDA0=",
+      "content": "EjRWeBI0Vng=",
+      "date": "2000-01-01T00:30:05+00:00"
     }
   }
 ]

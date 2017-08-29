@@ -435,28 +435,31 @@ def putAnonMsg(key, data, dbn="anon", env=None):
     Database allows duplicates
 
     where
-        key is ephemeral ID
+        key is message UID
         data is anon msg data
 
-    The key for the entry is just the eid
-
+    The key for the entry is just the uid
     The value of the entry is serialized JSON
 
-    eid is anon msg ephemeral ID in base64 url safe  up to 16 bytes
-    msg is location string in base 64 url safe up to 144 bytes
-    dts is iso8601 datetime stamp
 
-    The value of the entry is serialized JSON
+    uid is up 32 bytes
+        if anon ephemeral ID in base64 url safe
+    content is message up to 256 bytes
+         if location string in base 64 url safe
+    date is iso8601 datetime
+
+    This is augmented with server time stamp and stored in database
     {
         create: 1501774813367861, # creation in server time microseconds since epoch
         expire: 1501818013367861, # expiration in server time microseconds since epoch
         anon:
         {
-            eid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
-            msg: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
-            dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of anon gateway time
+            uid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
+            content: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
+            date: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of anon gateway time
         }
     }
+
     """
     global gDbEnv
 
@@ -479,29 +482,30 @@ def putAnonMsg(key, data, dbn="anon", env=None):
 
 def getAnonMsgs(key, dbn='anon', env=None):
     """
-    Returns list earliest to latest with anon entries at key eid
+    Returns list earliest to latest with anon entries at key uid
     If none exist returns empty list
 
     Each anon entry is ODict
 
-    eid is anon ephemeral ID in base64 url safe  up to 16 bytes
-    msg is location string in base 64 url safe up to 144 bytes
-    dts is iso8601 datetime stamp
+    uid is up 32 bytes
+        if anon ephemeral ID in base64 url safe
+    content is message up to 256 bytes
+         if location string in base 64 url safe
+    date is iso8601 datetime
 
-    The value of the entry is serialized JSON
+    This is augmented with server time stamp and stored in database
     {
         create: 1501774813367861, # creation in server time microseconds since epoch
         expire: 1501818013367861, # expiration in server time microseconds since epoch
         anon:
         {
-            eid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
-            msg: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
-            dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of anon gateway time
+            uid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
+            content: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
+            date: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of anon gateway time
         }
     }
-
     Parameters:
-        key is anon eid
+        key is anon uid
         dbn is name str of named sub database, Default is 'anon'
         env is main LMDB database environment
             If env is not provided then use global gDbEnv
@@ -515,8 +519,8 @@ def getAnonMsgs(key, dbn='anon', env=None):
         raise DatabaseError("Database environment not set up")
 
     entries = []
-    subDb = gDbEnv.open_db(dbn.encode("utf-8"), dupsort=True)  # open named sub db named dbn within env
-    with gDbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
+    subDb = env.open_db(dbn.encode("utf-8"), dupsort=True)  # open named sub db named dbn within env
+    with env.begin(db=subDb) as txn:  # txn is a Transaction object
         with txn.cursor() as cursor:
             if cursor.set_key(key.encode("utf-8")):
                 entries = [json.loads(value.decode("utf-8"), object_pairs_hook=ODict)
@@ -525,10 +529,10 @@ def getAnonMsgs(key, dbn='anon', env=None):
 
 def deleteAnonMsgs(key, dbn='anon', env=None):
     """
-    Deletes tracks at key eid
+    Deletes messages at key uid
 
     Parameters:
-        key is anon eid
+        key is anon uid
         dbn is name str of named sub database, Default is 'anon'
         env is main LMDB database environment
             If env is not provided then use global gDbEnv
@@ -549,7 +553,7 @@ def deleteAnonMsgs(key, dbn='anon', env=None):
     return result
 
 
-def putExpireEid(key, eid, dbn="expire2eid", env=None):
+def putExpireUid(key, uid, dbn="expire2eid", env=None):
     """
     Put entry into database table that maps expiration to anon
 
@@ -557,10 +561,10 @@ def putExpireEid(key, eid, dbn="expire2eid", env=None):
 
     where
         key is expiration datetime of anon int
-        eid is anon ephemeral ID
+        uid is anon message uid or if tracker ephemeral ID
 
     The key for the entry is just the expiration datetime expire
-    The value is just the eid
+    The value is just the uid
 
     """
     global gDbEnv
@@ -576,17 +580,17 @@ def putExpireEid(key, eid, dbn="expire2eid", env=None):
     subDb = env.open_db(dbn.encode("utf-8"), dupsort=True)
     with env.begin(db=subDb, write=True) as txn:  # txn is a Transaction object
         # if dupsort True means makes duplicates on writes to same key
-        result = txn.put(keyb, eid.encode("utf-8"))  # keys and values are bytes
+        result = txn.put(keyb, uid.encode("utf-8"))  # keys and values are bytes
         if result is None:  # error with put
             raise DatabaseError("Could not write.")
         return result
 
-def getExpireEid(key, dbn='expire2eid', env=None):
+def getExpireUid(key, dbn='expire2eid', env=None):
     """
-    Returns list earliest to latest with eid entries at key expire
+    Returns list earliest to latest with uid entries at key expire
     If none exist returns empty list
 
-    Each entry is eid
+    Each entry is uid
 
     Parameters:
         key is expire int
@@ -610,9 +614,9 @@ def getExpireEid(key, dbn='expire2eid', env=None):
                 entries = [value.decode("utf-8") for value in cursor.iternext_dup()]
     return entries
 
-def deleteExpireEid(key, dbn='expire2eid', env=None):
+def deleteExpireUid(key, dbn='expire2eid', env=None):
     """
-    Deletes expire eid entries
+    Deletes expire uid entries
 
     Parameters:
         key is expire date
@@ -635,7 +639,7 @@ def deleteExpireEid(key, dbn='expire2eid', env=None):
 
 def popExpired(key, dbn='expire2eid', env=None):
     """
-    Returns list of expired eids and then deletes them for earliest entry
+    Returns list of expired uids and then deletes them for earliest entry
     in database that is less than or equal to key if any
     Otherwise returns empty list
 
@@ -674,7 +678,7 @@ def popExpired(key, dbn='expire2eid', env=None):
     return entries
 
 
-def clearStaleAnonMsgs(key, tdbn='anon', edbn='expire2eid', env=None):
+def clearStaleAnonMsgs(key, adbn='anon', edbn='expire2eid', env=None):
     """
     Clears expired tracks at or earlier to timestamp key
     and their entries in the anon and expire2eid databases
@@ -700,7 +704,7 @@ def clearStaleAnonMsgs(key, tdbn='anon', edbn='expire2eid', env=None):
             break
 
         for entry in entries:
-            result = deleteAnonMsgs(key=entry, dbn=tdbn, env=env)
+            result = deleteAnonMsgs(key=entry, dbn=adbn, env=env)
             if result:
                 success = True
     return success

@@ -2224,33 +2224,37 @@ def test_post_ThingDidAccept(client):  # client is a fixture in pytest_falcon
     print("Done Test")
 
 
-def test_post_Track(client):  # client is a fixture in pytest_falcon
+def test_post_Anon(client):  # client is a fixture in pytest_falcon
     """
-    Test POST  to thing/did/accept with parameter offer uid.
+    Test POST  to /anon?uid={}.
+
+    Post body is anon message
 
     {
-        eid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
-        msg: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
-        dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of anon gateway time
+        uid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
+        content: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
+        date: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of anon gateway time
     }
 
-    eid is anon ephemeral ID in base64 url safe  up to 16 bytes
-    msg is location string in base 64 url safe up to 144 bytes
-    dts is iso8601 datetime stamp
+    uid is up 32 bytes
+        if anon ephemeral ID in base64 url safe
+    content is message up to 256 bytes
+         if location string in base 64 url safe
+    date is iso8601 datetime
 
-    The value of the entry is serialized JSON
+    This is augmented with server time stamp and stored in database
     {
         create: 1501774813367861, # creation in server time microseconds since epoch
         expire: 1501818013367861, # expiration in server time microseconds since epoch
         anon:
         {
-            eid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
-            msg: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
-            dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of anon gateway time
+            uid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
+            content: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
+            date: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of anon gateway time
         }
     }
     """
-    print("Testing POST /thing/{did}/accept?uid={ouid}")
+    print("Testing POST ")
 
     priming.setupTest()
     dbEnv = dbing.gDbEnv
@@ -2260,21 +2264,21 @@ def test_post_Track(client):  # client is a fixture in pytest_falcon
 
     # local time
     td = datetime.timedelta(seconds=5)
-    dts = timing.iso8601(dt=dt+td, aware=True)
-    assert dts == '2000-01-01T00:30:05+00:00'
+    date = timing.iso8601(dt=dt+td, aware=True)
+    assert date == '2000-01-01T00:30:05+00:00'
 
-    eid = 'AQIDBAoLDA0='
-    msg = 'EjRWeBI0Vng='
+    uid = 'AQIDBAoLDA0='
+    content = 'EjRWeBI0Vng='
 
     anon = ODict()
-    anon['eid'] = eid
-    anon['msg'] = msg
-    anon['dts'] = dts
+    anon['uid'] = uid
+    anon['content'] = content
+    anon['date'] = date
 
     assert anon == {
-        "eid": "AQIDBAoLDA0=",
-        "msg": "EjRWeBI0Vng=",
-        "dts": "2000-01-01T00:30:05+00:00",
+        "uid": "AQIDBAoLDA0=",
+        "content": "EjRWeBI0Vng=",
+        "date": "2000-01-01T00:30:05+00:00",
     }
 
     tser = json.dumps(anon, indent=2)
@@ -2289,7 +2293,7 @@ def test_post_Track(client):  # client is a fixture in pytest_falcon
     assert rep.status == falcon.HTTP_201
     assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
     location = falcon.uri.decode(rep.headers['location'])
-    assert location == "/anon?eid={}".format(eid)
+    assert location == "/anon?uid={}".format(uid)
     data = rep.json
     assert data['anon'] == anon
 
@@ -2299,12 +2303,12 @@ def test_post_Track(client):  # client is a fixture in pytest_falcon
 
 
     # verify that anon is in database
-    entries = dbing.getAnonMsgs(eid)
+    entries = dbing.getAnonMsgs(uid)
     assert entries[0] == data
 
     #verify expiration in its database
-    entries = dbing.getExpireEid(expire)
-    assert entries[0] == eid
+    entries = dbing.getExpireUid(expire)
+    assert entries[0] == uid
 
     # now get it from web service
     rep = client.get(rep.headers['location'])

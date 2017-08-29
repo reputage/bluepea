@@ -431,7 +431,7 @@ def test_getOfferExpires():
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")
 
-def test_putGetDeleteTrack():
+def test_putGetDeleteAnon():
     """
     Test
     putTrack(key, data, dbn="anon", env=None)
@@ -442,23 +442,25 @@ def test_putGetDeleteTrack():
         key is ephemeral ID 16 byte hex
         data is anon data
 
-    The key for the entry is just the eid
+    The key for the entry is just the uid
 
+    uid is up 32 bytes
+        if anon ephemeral ID in base64 url safe
+    content is message up to 256 bytes
+         if location string in base 64 url safe
+    date is iso8601 datetime
+
+    This is augmented with server time stamp and stored in database
     {
         create: 1501774813367861, # creation in server time microseconds since epoch
         expire: 1501818013367861, # expiration in server time microseconds since epoch
         anon:
         {
-            eid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
-            msg: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
-            dts: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of anon gateway time
+            uid: "AQIDBAoLDA0=",  # base64 url safe of 8 byte eid
+            content: "EjRWeBI0Vng=", # base64 url safe of 8 byte location
+            date: "2000-01-01T00:36:00+00:00", # ISO-8601 creation date of anon gateway time
         }
     }
-
-    eid is anon ephemeral ID in hex lowercase
-    msg is location string in hex lowercase
-    dts is iso8601 datetime stamp
-
     """
     print("Testing put get delete Track in DB Env")
 
@@ -479,21 +481,21 @@ def test_putGetDeleteTrack():
 
     # local time
     td = datetime.timedelta(seconds=5)
-    dts = timing.iso8601(dt=dt+td, aware=True)
-    assert dts == '2000-01-01T00:30:05+00:00'
+    date = timing.iso8601(dt=dt+td, aware=True)
+    assert date == '2000-01-01T00:30:05+00:00'
 
-    eid = "AQIDBAoLDA0="
-    msg = "EjRWeBI0Vng="
+    uid = "AQIDBAoLDA0="
+    content = "EjRWeBI0Vng="
 
     anon = ODict()
-    anon['eid'] = eid
-    anon['msg'] = msg
-    anon['dts'] = dts
+    anon['uid'] = uid
+    anon['content'] = content
+    anon['date'] = date
 
     assert anon == {
-        "eid": "AQIDBAoLDA0=",
-        "msg": "EjRWeBI0Vng=",
-        "dts": "2000-01-01T00:30:05+00:00",
+        "uid": "AQIDBAoLDA0=",
+        "content": "EjRWeBI0Vng=",
+        "date": "2000-01-01T00:30:05+00:00",
     }
 
     data = ODict()
@@ -506,78 +508,78 @@ def test_putGetDeleteTrack():
         "expire": 946686960000000,
         "anon":
         {
-            "eid": "AQIDBAoLDA0=",
-            "msg": "EjRWeBI0Vng=",
-            "dts": "2000-01-01T00:30:05+00:00"
+            "uid": "AQIDBAoLDA0=",
+            "content": "EjRWeBI0Vng=",
+            "date": "2000-01-01T00:30:05+00:00"
         }
     }
 
     # write entry
-    result = dbing.putAnonMsg(key=eid, data=data)
+    result = dbing.putAnonMsg(key=uid, data=data)
     assert result
 
     # read entries
-    entries = dbing.getAnonMsgs(key=eid)
+    entries = dbing.getAnonMsgs(key=uid)
     assert len(entries) == 1
     assert entries[0] == data
 
     anon2 = anon.copy()
-    anon2['msg'] = "ABRWeBI0VAA="
+    anon2['content'] = "ABRWeBI0VAA="
     data2 = ODict()
     data2['create'] = create + 1
     data2['expire'] = expire + 1
     data2['anon'] = anon2
 
-    result = dbing.putAnonMsg(key=eid, data=data2)
+    result = dbing.putAnonMsg(key=uid, data=data2)
     assert result
 
     # read entries
-    entries = dbing.getAnonMsgs(key=eid)
+    entries = dbing.getAnonMsgs(key=uid)
     assert len(entries) == 2
     assert entries[0] == data
     assert entries[1] == data2
 
-    eid2 = "BBIDBAoLCCC="
+    uid2 = "BBIDBAoLCCC="
     anon3 = anon.copy()
-    anon3["eid"] = eid2
+    anon3["uid"] = uid2
     data3 = ODict()
     data2['create'] = create
     data2['expire'] = expire
     data2['anon'] = anon3
 
-    result = dbing.putAnonMsg(key=eid2, data=data3)
+    result = dbing.putAnonMsg(key=uid2, data=data3)
     assert result
 
     # read entries
-    entries = dbing.getAnonMsgs(key=eid2)
+    entries = dbing.getAnonMsgs(key=uid2)
     assert len(entries) == 1
     assert entries[0] == data3
 
-    # remove entries at eid
-    result = dbing.deleteAnonMsgs(key=eid)
+    # remove entries at uid
+    result = dbing.deleteAnonMsgs(key=uid)
     assert result
     # read deleted entries
-    entries = dbing.getAnonMsgs(key=eid)
+    entries = dbing.getAnonMsgs(key=uid)
     assert not entries
 
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")
 
 
-def test_expireEid():
+def test_expireUid():
     """
     Test
-    putExpireEid(expire, eid, dbn="expire2eid", env=None)
-    getExpireEid(key, dbn='expire2eid', env=None)
-    deleteExpireEid(key, dbn='expire2eid', env=None)
+    putExpireUid(expire, uid, dbn="expire2eid", env=None)
+    getExpireUid(key, dbn='expire2eid', env=None)
+    deleteExpireUid(key, dbn='expire2eid', env=None)
 
     where
         key is timestamp in int microseconds since epoch
-        data is track eid
+        data is anon uid
 
 
     """
-    print("Testing put get delete expire Eid in DB Env")
+    print("Testing put get delete expire UID in DB Env")
 
     dbEnv = dbing.setupTestDbEnv()
 
@@ -589,45 +591,45 @@ def test_expireEid():
     expire1 = expire + int(360 * 1000000)
     assert expire1 == 946859760000000
 
-    eid = "00000000000="
-    eid1 = "11111111111="
-    eid2 = "22222222222="
+    uid = "00000000000="
+    uid1 = "11111111111="
+    uid2 = "22222222222="
 
     # write entry
-    result = dbing.putExpireEid(key=expire, eid=eid)
+    result = dbing.putExpireUid(key=expire, uid=uid)
     assert result
 
     # read entries
-    entries = dbing.getExpireEid(key=expire)
+    entries = dbing.getExpireUid(key=expire)
     assert len(entries) == 1
-    assert entries[0] == eid
+    assert entries[0] == uid
 
-    result = dbing.putExpireEid(key=expire, eid=eid1)
+    result = dbing.putExpireUid(key=expire, uid=uid1)
     assert result
 
-    result = dbing.putExpireEid(key=expire, eid=eid2)
+    result = dbing.putExpireUid(key=expire, uid=uid2)
     assert result
 
     # read entries
-    entries = dbing.getExpireEid(key=expire)
+    entries = dbing.getExpireUid(key=expire)
     assert len(entries) == 3
-    assert entries[0] == eid
-    assert entries[1] == eid1
-    assert entries[2] == eid2
+    assert entries[0] == uid
+    assert entries[1] == uid1
+    assert entries[2] == uid2
 
     # write entry
-    result = dbing.putExpireEid(key=expire1, eid=eid)
+    result = dbing.putExpireUid(key=expire1, uid=uid)
     assert result
 
-    entries = dbing.getExpireEid(key=expire1)
+    entries = dbing.getExpireUid(key=expire1)
     assert len(entries) == 1
-    assert entries[0] == eid
+    assert entries[0] == uid
 
     # remove entries at expire
-    result = dbing.deleteExpireEid(key=expire)
+    result = dbing.deleteExpireUid(key=expire)
     assert result
     # read deleted entries
-    entries = dbing.getExpireEid(key=expire)
+    entries = dbing.getExpireUid(key=expire)
     assert not entries
 
     cleanupTmpBaseDir(dbEnv.path())
@@ -643,7 +645,7 @@ def test_popExpired():
         key is timestamp in int microseconds since epoch
 
     """
-    print("Testing put get delete expire Eid in DB Env")
+    print("Testing put get delete expire UID in DB Env")
 
     dbEnv = dbing.setupTestDbEnv()
 
@@ -654,79 +656,79 @@ def test_popExpired():
     expire1 = expire0 + int(360 * 1000000)
     assert expire1 == 946859760000000
 
-    eid0 = "00000000000="
-    eid1 = "11111111111="
-    eid2 = "22222222222="
-    eid3 = "33333333333="
-    eid4 = "44444444444="
-    eid5 = "55555555555="
+    uid0 = "00000000000="
+    uid1 = "11111111111="
+    uid2 = "22222222222="
+    uid3 = "33333333333="
+    uid4 = "44444444444="
+    uid5 = "55555555555="
 
     # write entries at expire
-    result = dbing.putExpireEid(key=expire0, eid=eid0)
+    result = dbing.putExpireUid(key=expire0, uid=uid0)
     assert result
-    result = dbing.putExpireEid(key=expire0, eid=eid1)
+    result = dbing.putExpireUid(key=expire0, uid=uid1)
     assert result
-    result = dbing.putExpireEid(key=expire0, eid=eid2)
+    result = dbing.putExpireUid(key=expire0, uid=uid2)
     assert result
 
     # read entries
-    entries = dbing.getExpireEid(key=expire0)
+    entries = dbing.getExpireUid(key=expire0)
     assert len(entries) == 3
-    assert entries[0] == eid0
-    assert entries[1] == eid1
-    assert entries[2] == eid2
+    assert entries[0] == uid0
+    assert entries[1] == uid1
+    assert entries[2] == uid2
 
 
     # write entries
-    result = dbing.putExpireEid(key=expire1, eid=eid3)
+    result = dbing.putExpireUid(key=expire1, uid=uid3)
     assert result
-    result = dbing.putExpireEid(key=expire1, eid=eid4)
+    result = dbing.putExpireUid(key=expire1, uid=uid4)
     assert result
-    result = dbing.putExpireEid(key=expire1, eid=eid5)
+    result = dbing.putExpireUid(key=expire1, uid=uid5)
     assert result
 
-    entries = dbing.getExpireEid(key=expire1)
+    entries = dbing.getExpireUid(key=expire1)
     assert len(entries) == 3
-    assert entries[0] == eid3
-    assert entries[1] == eid4
-    assert entries[2] == eid5
+    assert entries[0] == uid3
+    assert entries[1] == uid4
+    assert entries[2] == uid5
 
     # gets the earliest at expire0 before expire1
     entries = dbing.popExpired(key=expire1)
     assert len(entries) == 3
-    assert entries[0] == eid0
-    assert entries[1] == eid1
-    assert entries[2] == eid2
+    assert entries[0] == uid0
+    assert entries[1] == uid1
+    assert entries[2] == uid2
 
     # attempt to read deleted entries at expire0
-    entries = dbing.getExpireEid(key=expire0)
+    entries = dbing.getExpireUid(key=expire0)
     assert not entries
 
     # gets the later at expire1 since expire0 has been deleted
     entries = dbing.popExpired(key=expire1)
     assert len(entries) == 3
-    assert entries[0] == eid3
-    assert entries[1] == eid4
-    assert entries[2] == eid5
+    assert entries[0] == uid3
+    assert entries[1] == uid4
+    assert entries[2] == uid5
 
     # attempt to read deleted entries at expire1
-    entries = dbing.getExpireEid(key=expire1)
+    entries = dbing.getExpireUid(key=expire1)
     assert not entries
 
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")
 
 
-def test_clearStaleTracks():
+def test_clearStaleAnons():
     """
     Test
-    clearStaleTracks(key, tdbn='anon', edbn='expire2eid', env=None)
+    clearStaleAnonMsgs(key, adbn='anon', edbn='expire2eid', env=None)
 
     where
         key is timestamp in int microseconds since epoch
 
     """
-    print("Testing put get delete expire Eid in DB Env")
+    print("Testing Clear Stale Anon Msg in DB Env")
 
     dbEnv = dbing.setupTestDbEnv()
 
@@ -734,9 +736,9 @@ def test_clearStaleTracks():
 
     # local time
     td = datetime.timedelta(seconds=5)
-    dts = timing.iso8601(dt=dt+td, aware=True)
-    assert dts == '2000-01-03T00:30:05+00:00'
-    msg = "12341234123="
+    date = timing.iso8601(dt=dt+td, aware=True)
+    assert date == '2000-01-03T00:30:05+00:00'
+    content = "12341234123="
 
     create0 = int(dt.timestamp() * 1000000)
     expire0 = create0 + int(360 * 1000000)
@@ -744,12 +746,12 @@ def test_clearStaleTracks():
     create1 = create0 + int(10 * 1000000)
     expire1 = create1 + int(360 * 1000000)
 
-    eids0 = ["00000000000=", "10000000000=", "20000000000="]
-    for eid in eids0:
+    uids0 = ["00000000000=", "10000000000=", "20000000000="]
+    for uid in uids0:
         anon = ODict()
-        anon['eid'] = eid
-        anon['msg'] = msg
-        anon['dts'] = dts
+        anon['uid'] = uid
+        anon['content'] = content
+        anon['date'] = date
 
         data = ODict()
         data['create'] = create0
@@ -757,26 +759,26 @@ def test_clearStaleTracks():
         data['track'] = anon
 
         # write entry
-        result = dbing.putAnonMsg(key=eid, data=data)
+        result = dbing.putAnonMsg(key=uid, data=data)
         assert result
-        result = dbing.putExpireEid(key=expire0, eid=eid)
+        result = dbing.putExpireUid(key=expire0, uid=uid)
         assert result
 
     # read entries
-    for eid in eids0:
-        entries = dbing.getAnonMsgs(key=eid)
+    for uid in uids0:
+        entries = dbing.getAnonMsgs(key=uid)
         assert entries
 
-    entries = dbing.getExpireEid(key=expire0)
+    entries = dbing.getExpireUid(key=expire0)
     assert len(entries) == 3
 
 
-    eids1 = ["30000000000=", "40000000000=", "50000000000="]
-    for eid in eids1:
+    uids1 = ["30000000000=", "40000000000=", "50000000000="]
+    for uid in uids1:
         anon = ODict()
-        anon['eid'] = eid
-        anon['msg'] = msg
-        anon['dts'] = dts
+        anon['uid'] = uid
+        anon['content'] = content
+        anon['date'] = date
 
         data = ODict()
         data['create'] = create1
@@ -784,17 +786,17 @@ def test_clearStaleTracks():
         data['anon'] = anon
 
         # write entry
-        result = dbing.putAnonMsg(key=eid, data=data)
+        result = dbing.putAnonMsg(key=uid, data=data)
         assert result
-        result = dbing.putExpireEid(key=expire1, eid=eid)
+        result = dbing.putExpireUid(key=expire1, uid=uid)
         assert result
 
     # read entries
-    for eid in eids1:
-        entries = dbing.getAnonMsgs(key=eid)
+    for uid in uids1:
+        entries = dbing.getAnonMsgs(key=uid)
         assert entries
 
-    entries = dbing.getExpireEid(key=expire0)
+    entries = dbing.getExpireUid(key=expire0)
     assert len(entries) == 3
 
     expire = expire0 - 1  # none expired
@@ -806,14 +808,14 @@ def test_clearStaleTracks():
     assert result
 
     # verify databases are empty
-    eids = eids0 + eids1
-    for eid in eids:
-        entries = dbing.getAnonMsgs(key=eid)
+    uids = uids0 + uids1
+    for uid in uids:
+        entries = dbing.getAnonMsgs(key=uid)
         assert not entries
 
     expires = [expire0, expire1]
     for expire in expires:
-        entries = dbing.getExpireEid(key=expire)
+        entries = dbing.getExpireUid(key=expire)
         assert not entries
 
     cleanupTmpBaseDir(dbEnv.path())
