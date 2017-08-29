@@ -158,6 +158,30 @@ def putHid(hid, did, dbn="hid2did", env=None):
         result = txn.put(hid.encode("utf-8"), did.encode("utf-8"))  # keys and values are bytes
     return result
 
+def getHid(key, dbn="hid2did", env=None):
+    """
+    Get entry in HID to DID table
+
+    Parameters:
+        key is HID
+
+    """
+    global gDbEnv
+
+    if env is None:
+        env = gDbEnv
+
+    if env is None:
+        raise DatabaseError("Database environment not set up")
+
+    # open named sub db named dbn within env
+    subDb = gDbEnv.open_db(dbn.encode("utf-8"))
+    with env.begin(db=subDb) as txn:  # txn is a Transaction object
+        tdidb = txn.get(key.encode())  # keys are bytes
+        if tdidb is None:  # does not exist
+            raise DatabaseError("Resource not found.")
+    return tdidb.decode()
+
 def getSelfSigned(did, dbn='core', env=None):
     """
     Returns tuple of (dat, ser, sig) corresponding to self-signed data resource
@@ -579,8 +603,8 @@ def getExpireEid(key, dbn='expire2eid', env=None):
     entries = []
     keyb = key.to_bytes(8, "big")
     # open named sub db named dbn within env
-    subDb = gDbEnv.open_db(dbn.encode("utf-8"), dupsort=True)
-    with gDbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
+    subDb = env.open_db(dbn.encode("utf-8"), dupsort=True)
+    with env.begin(db=subDb) as txn:  # txn is a Transaction object
         with txn.cursor() as cursor:
             if cursor.set_key(keyb):
                 entries = [value.decode("utf-8") for value in cursor.iternext_dup()]
@@ -604,8 +628,8 @@ def deleteExpireEid(key, dbn='expire2eid', env=None):
 
     keyb = key.to_bytes(8, "big")
     # open named sub db named dbn within env
-    subDb = gDbEnv.open_db(dbn.encode("utf-8"), dupsort=True)
-    with gDbEnv.begin(db=subDb, write=True) as txn:  # txn is a Transaction object
+    subDb = env.open_db(dbn.encode("utf-8"), dupsort=True)
+    with env.begin(db=subDb, write=True) as txn:  # txn is a Transaction object
         result = txn.delete(keyb)
     return result
 
@@ -633,8 +657,8 @@ def popExpired(key, dbn='expire2eid', env=None):
     expire = key
     keyb = key.to_bytes(8, "big")
     # open named sub db named dbn within env
-    subDb = gDbEnv.open_db(dbn.encode("utf-8"), dupsort=True)
-    with gDbEnv.begin(db=subDb, write=True) as txn:  # txn is a Transaction object
+    subDb = env.open_db(dbn.encode("utf-8"), dupsort=True)
+    with env.begin(db=subDb, write=True) as txn:  # txn is a Transaction object
         with txn.cursor() as cursor:
             if cursor.first():
                 curb = cursor.key()

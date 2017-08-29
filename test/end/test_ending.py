@@ -7,6 +7,7 @@ import binascii
 import base64
 import datetime
 import time
+import copy
 
 from collections import OrderedDict as ODict
 try:
@@ -605,11 +606,8 @@ def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falc
     assert verify64u(signature=tsig, message=tser, verkey=sverkey)
 
     # verify hid table entry
-    dbHid2Did = dbEnv.open_db(b'hid2did')  # open named sub db named 'hid2did' within env
-    with dbEnv.begin(db=dbHid2Did) as txn:  # txn is a Transaction object
-        tdidb = txn.get(treg['hid'].encode("utf-8"))  # keys are bytes
-
-    assert tdidb.decode("utf-8") == tdid
+    htdid = dbing.getHid(treg['hid'])
+    assert htdid == tdid
 
     print("Testing GET /thing?did=....")
 
@@ -1434,12 +1432,19 @@ def test_put_ThingDid(client):  # client is a fixture in pytest_falcon
     assert vser == tser
     assert vsig == ssig
 
-    # now change signer field and changed field
+    # put entry in hid table
+    dbing.putHid(tdat['hid'], tdid)
+
+    htdid = dbing.getHid(tdat['hid'])
+    assert htdid == tdid
+
+    # now change signer field, hid field, and changed field
+    odat = copy.copy(tdat)  # make copy before change
     index = 1
     signer = "{}#{}".format(adid, index)  # signer field value key at index
     assert signer == 'did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#1'
     tdat['signer'] = signer
-
+    tdat["hid"] = "hid:dns:localhost#03"
     dt = datetime.datetime(2000, 1, 2, tzinfo=datetime.timezone.utc)
     stamp = timing.iso8601(dt, aware=True)
     tdat['changed'] = stamp
@@ -1450,8 +1455,8 @@ def test_put_ThingDid(client):  # client is a fixture in pytest_falcon
     ntsig = keyToKey64u(libnacl.crypto_sign(ntser.encode("utf-8"), nsk)[:libnacl.crypto_sign_BYTES])
     ctsig = keyToKey64u(libnacl.crypto_sign(ntser.encode("utf-8"), ssk)[:libnacl.crypto_sign_BYTES])
 
-    assert ntsig == '4IMop_e8vDbsot2kqJaZin8_xPsayWKbpsXL2qJZc3NrB6254UNi9x5VRwk-OgYn0zQPvKwtTE8GjtYZAHaKAQ=='
-    assert ctsig == 'fuSvUsNtFDzaYm5bX65SAgrZpNKEek2EJFqf-j-_QRWNXhSWpTFGIeg4AHOVaD7MHuIj6QsnjPg-jyBDiUAmCw=='
+    assert ntsig == 'rsUNXdD5-gIgfTPkJNsXtF2ZEMJpUFOKn2EVsSlKWtG7EfyzdqM4iHYQw5pviPGd7EPqBKvafGDvmuHBNI0wBg=='
+    assert ctsig == 'CEbDp3n-ZKMIQZr9f4O2fjHqnXTkwPDd87Mgx7Cphql1m54_YqmGEvKZC9tVw3nWjNq3LTTwwH6OFDL25be7CQ=='
 
     # now overwrite with new one using web service
     headers = {"Content-Type": "text/html; charset=utf-8",
@@ -1492,7 +1497,7 @@ def test_put_ThingDid(client):  # client is a fixture in pytest_falcon
     assert ser == (
         '{\n'
         '  "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",\n'
-        '  "hid": "hid:dns:localhost#02",\n'
+        '  "hid": "hid:dns:localhost#03",\n'
         '  "signer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#1",\n'
         '  "changed": "2000-01-02T00:00:00+00:00",\n'
         '  "data": {\n'
@@ -1513,6 +1518,13 @@ def test_put_ThingDid(client):  # client is a fixture in pytest_falcon
     assert vdat == tdat
     assert vser == ntser
     assert vsig == ntsig
+
+    # verify hid table changes
+    htdid = dbing.getHid(tdat['hid'])
+    assert htdid == tdid
+
+    otdid = dbing.getHid(odat['hid'])
+    assert otdid == ""
 
     # now get it from web service
     headers = odict([('Accept', 'application/json'),
@@ -1541,7 +1553,7 @@ def test_put_ThingDid(client):  # client is a fixture in pytest_falcon
     assert ser == (
         '{\n'
         '  "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",\n'
-        '  "hid": "hid:dns:localhost#02",\n'
+        '  "hid": "hid:dns:localhost#03",\n'
         '  "signer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#1",\n'
         '  "changed": "2000-01-02T00:00:00+00:00",\n'
         '  "data": {\n'

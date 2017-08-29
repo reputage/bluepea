@@ -163,12 +163,16 @@ class AgentResource:
         did = dat['did']  # unicode version
 
         if "issuants" in dat:  # validate hid control here
-            try:
-                result = yield from validateIssuerDomainGen(self.store, dat, timeout=0.5)  # raises  error if fails
-            except ValidationError as ex:
-                raise httping.HTTPError(httping.BAD_REQUEST,
-                                    'Validation Error',
-                                    'Error validating issuant. {}'.format(ex))
+            for issuant in dat["issuants"]:
+                try:
+                    result = yield from validateIssuerDomainGen(self.store,
+                                                                dat,
+                                                                issuant,
+                                                                timeout=0.5)  # raises  error if fails
+                except ValidationError as ex:
+                    raise httping.HTTPError(httping.BAD_REQUEST,
+                                        'Validation Error',
+                                        'Error validating issuant. {}'.format(ex))
 
         # no error so save to database
         try:
@@ -298,12 +302,16 @@ class AgentDidResource:
                             'Error validating the request body. {}'.format(ex))
 
         if "issuants" in dat:  # validate hid control here
-            try:
-                result = yield from validateIssuerDomainGen(self.store, dat, timeout=0.5)  # raises  error if fails
-            except ValidationError as ex:
-                raise httping.HTTPError(httping.BAD_REQUEST,
-                                    'Validation Error',
-                                    'Error validating issuant. {}'.format(ex))
+            for issuant in dat["issuants"]:
+                try:
+                    result = yield from validateIssuerDomainGen(self.store,
+                                                                dat,
+                                                                issuant,
+                                                                timeout=0.5)  # raises  error if fails
+                except ValidationError as ex:
+                    raise httping.HTTPError(httping.BAD_REQUEST,
+                                        'Validation Error',
+                                        'Error validating issuant. {}'.format(ex))
 
         # save to database
         try:
@@ -541,8 +549,7 @@ class ThingResource:
         skin._headers = lodict()  # used to update headers in iterator if not empty
         yield b''  # ensure its a generator
 
-        signature = req.get_header("Signature")
-        sigs = parseSignatureHeader(signature)
+        sigs = parseSignatureHeader(req.get_header("Signature"))
 
         dsig = sigs.get('did')  # str not bytes thing's did signature
         if not dsig:
@@ -557,17 +564,17 @@ class ThingResource:
                                            'Invalid or missing Signature header.')
 
         try:
-            regb = req.stream.read()  # bytes
+            serb = req.stream.read()  # bytes
         except Exception:
             raise httping.HTTPError(httping.BAD_REQUEST,
                                        'Read Error',
                                        'Could not read the request body.')
 
-        registration = regb.decode("utf-8")
+        ser = serb.decode("utf-8")
 
         # validate thing resource and verify did signature
         try:
-            result = validateSignedThingReg(dsig, registration)
+            dat = validateSignedThingReg(dsig, ser)
         except ValidationError as ex:
             raise httping.HTTPError(httping.BAD_REQUEST,
                                            'Validation Error',
@@ -575,7 +582,7 @@ class ThingResource:
 
         # verify signer signature by looking up signer data resource in database
         try:
-            sdid, index = result["signer"].rsplit("#", maxsplit=1)
+            sdid, index = dat["signer"].rsplit("#", maxsplit=1)
             index = int(index)  # get index and sdid from signer field
         except (AttributeError, ValueError) as ex:
                 raise httping.HTTPError(httping.BAD_REQUEST,
@@ -598,33 +605,56 @@ class ThingResource:
                                            'Data Resource Error',
                                            'Missing signing key')
         try:
-            validateSignedResource(tsig, registration, tkey)
+            validateSignedResource(tsig, ser, tkey)
         except ValidationError as ex:
             raise httping.HTTPError(httping.BAD_REQUEST,
                                    'Validation Error',
                         'Could not validate the request body. {}'.format(ex))
 
-        if "hid" in result and result["hid"]:  # non-empty hid
-            # validate hid control here
-            pass
+        tdid = dat['did']  # unicode version
 
-        tdid = result['did']  # unicode version
+        if "hid" in dat and dat["hid"]:  # non-empty hid
+            # validate hid control here
+            found = False
+            for issuant in sdat.get("issuants", []):
+                issuer = issuant.get("issuer")
+                try:
+                    prefix, kind, issue = dat['hid'].split(":", maxsplit=2)
+                except ValueError as ex:
+                    raise httping.HTTPError(httping.BAD_REQUEST,
+                                                    'Validation Error',
+                                        'Invalid hid format. {}'.format(ex))
+                if issue.startswith(issuer):
+                    found = True
+                    try:
+                        result = yield from validateIssuerDomainGen(self.store,
+                                                                    sdat,
+                                                                    issuant,
+                                                                    timeout=0.5)  # raises  error if fails
+                    except ValidationError as ex:
+                        raise httping.HTTPError(httping.BAD_REQUEST,
+                                            'Validation Error',
+                                            'Error validating issuant. {}'.format(ex))
+
+                    try:  # add entry to hids table to lookup did by hid
+                        dbing.putHid(dat['hid'], tdid)
+                    except DatabaseError as ex:
+                        raise httping.HTTPError(httping.PRECONDITION_FAILED,
+                                              'Database Error',
+                                              '{}'.format(ex.args[0]))
+
+            if not found:
+                raise httping.HTTPError(httping.FAILED_DEPENDENCY,
+                                                    'Validation Error',
+                            'Controlling Agent does not corresponding issuant')
 
         # save to database core
         try:
-            dbing.putSigned(key=tdid, ser=registration, sig=tsig, clobber=False)
+            dbing.putSigned(key=tdid, ser=ser, sig=tsig, clobber=False)
         except dbing.DatabaseError as ex:
             raise httping.HTTPError(httping.PRECONDITION_FAILED,
                                   'Database Error',
                                   '{}'.format(ex.args[0]))
-
-        if result['hid']:  # add entry to hids table to lookup did by hid
-            try:
-                dbing.putHid(result['hid'], tdid)
-            except DatabaseError as ex:
-                raise httping.HTTPError(httping.PRECONDITION_FAILED,
-                                      'Database Error',
-                                      '{}'.format(ex.args[0]))
 
         skin._status = httping.CREATED
         didURI = falcon.uri.encode_value(tdid)
@@ -632,7 +662,7 @@ class ThingResource:
         # normally picks of content-type from type of request but set anyway to ensure
         skin._headers["Content-Type"] = "application/json; charset=UTF-8"
 
-        body = json.dumps(result, indent=2).encode()
+        body = json.dumps(dat, indent=2).encode()
         # inside rep.stream generator, body is yielded or returned, not assigned to rep.body
         return body
 
@@ -770,11 +800,51 @@ class ThingDidResource:
                                                    'Error validating the request body. {}'.format(ex))
 
         if "hid" in dat:  # new or changed hid
-            if (dat["hid"] and not "hid" in cdat) or dat["hid"] != cdat["hid"]:
-                pass  # validate hid namespace here
+            if ((dat["hid"] and not "hid" in cdat) or
+                    (dat["hid"] and dat["hid"] != cdat["hid"])):
+                # validate hid control here
+                found = False
+                for issuant in sdat.get("issuants", []):
+                    issuer = issuant.get("issuer")
+                    try:
+                        prefix, kind, issue = dat['hid'].split(":", maxsplit=2)
+                    except ValueError as ex:
+                        raise httping.HTTPError(httping.BAD_REQUEST,
+                                                        'Validation Error',
+                                            'Invalid hid format. {}'.format(ex))
+                    if issue.startswith(issuer):
+                        found = True
+                        try:
+                            result = yield from validateIssuerDomainGen(self.store,
+                                                                        sdat,
+                                                                        issuant,
+                                                                        timeout=0.5)  # raises  error if fails
+                        except ValidationError as ex:
+                            raise httping.HTTPError(httping.BAD_REQUEST,
+                                                'Validation Error',
+                                                'Error validating issuant. {}'.format(ex))
 
-        # save to database
-        try:
+                        try:  # add entry to hids table to lookup did by hid
+                            dbing.putHid(dat['hid'], did)
+                        except DatabaseError as ex:
+                            raise httping.HTTPError(httping.PRECONDITION_FAILED,
+                                                  'Database Error',
+                                                  '{}'.format(ex.args[0]))
+
+                if not found:
+                    raise httping.HTTPError(httping.FAILED_DEPENDENCY,
+                                                        'Validation Error',
+                                'Controlling Agent does not corresponding issuant')
+        if ("hid" in cdat and cdat["hid"] and
+                (not "hid" in dat or dat["hid"] != cdat["hid"])):
+            try:  # put empty in old cdat hid entry
+                dbing.putHid(cdat['hid'], "")
+            except DatabaseError as ex:
+                raise httping.HTTPError(httping.PRECONDITION_FAILED,
+                                      'Database Error',
+                                      '{}'.format(ex.args[0]))
+
+        try:  # save to database
             dbing.putSigned(key=did, ser=ser, sig=sig, clobber=True)
         except dbing.DatabaseError as ex:
             raise falcon.HTTPError(falcon.HTTP_412,
