@@ -5,6 +5,7 @@ Helping Module
 """
 from __future__ import generator_stop
 
+import sys
 import os
 import stat
 import shutil
@@ -15,6 +16,11 @@ import base64
 import tempfile
 import datetime
 import binascii
+if sys.version > '3':
+    from urllib.parse import urlsplit, quote, quote_plus, unquote, unquote_plus
+else:
+    from urlparse import urlsplit
+    from urllib import quote, quote_plus, unquote, unquote_plus
 
 try:
     import simplejson as json
@@ -1297,12 +1303,16 @@ def validateIssuerDomainGen(store, idat, issuant, timeout=0.5):
     if issuant['kind'] != 'dns':  # only support dns for now
         raise ValidationError('Invalid issuant kind for issuer {}'.format(issuer))
 
+    # validate that issuer belongs to validationURL
+    vurl = issuant["validationURL"]
+    splits = urlsplit(vurl)  # (scheme, netloc, path, host, query, fragment, hostname, port)
+    if not splits.netloc.startswith(issuer):
+        raise ValidationError('Issuer not part of validationURL')
+
     dt = datetime.datetime.now(tz=datetime.timezone.utc)
     date = timing.iso8601(dt, aware=True)
     check = "{}|{}|{}".format(did, issuer, date)
-
     qargs = ODict(did=did, check=check)
-    vurl = issuant["validationURL"]
     rep = yield from backendRequest(method='GET',
                                     path=vurl,
                                     qargs=qargs,
