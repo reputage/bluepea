@@ -2387,7 +2387,7 @@ def test_get_CheckHid(client):  # client is a fixture in pytest_falcon
         check: did|issuer|date
     }
     """
-    print("Testing GET /thing/{did}/offer?uid=")
+    print("Testing GET /demo/check?did={}&check={}")
 
     priming.setupTest()
     dbEnv = dbing.gDbEnv

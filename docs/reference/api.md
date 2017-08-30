@@ -276,7 +276,7 @@ An unsuccessful request will return status code 400.
 
 Example requests and responses are shown below.
 
-## Request
+#### Request
 
 ```http
 POST /agent HTTP/1.1
@@ -300,7 +300,7 @@ Content-Length: 291
 }
 ```
 
-## Response
+#### Response
 
 ```http
 HTTP/1.1 201 Created
@@ -352,7 +352,7 @@ If successful the response includes a custom "Signature" header whose *signer* f
 
 Example requests and responses are shown below.
 
-## Request
+#### Request
 
 ```http
 GET /agent?did=did%3Aigo%3AQt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE%3D HTTP/1.1
@@ -362,7 +362,7 @@ Connection: close
 User-Agent: Paw/3.1.1 (Macintosh; OS X/10.12.5) GCDHTTPRequest
 ```
 
-## Response
+#### Response
 
 ```http
 HTTP/1.1 200 OK
@@ -404,9 +404,77 @@ When the Agent Registration creation request includes an *issuants* field for re
 
 *Issuer* *Agents* control *Things* and may issue  a unique human friendly identifier (HID) for the *Things* they control out of the Issuant HID name spaces they also control. Currently each HID is unique to the associated DID for the *Thing*. 
 
-Example requests and responses are shown below. The examples use a demo version of the HID validation service that is running on localhost.
+The format for an associated hid is as follows:
 
-## Request
+```
+hid:{kind}:{issuer}#{index}
+```
+
+* the *kind* element indicates what type of Issuant name space. Currently only *dns* is suppported. This is the value of the *kind* field in the associated *issuant* in the *issuants* field of the issuing *Agent*'s  resource.
+
+* the *issuer* element is the value of the *issuer* field in the associated *issuant* in the *issuants* field of the issuing *Agent*'s  resource.
+
+* the *index* element is unique to a given *issuer* value.
+
+An example hid given the issuant above is as follows:
+
+```
+"hid:dns:generic.com#02
+```
+
+Each issuing *Agent* must provide a service at the *validationURL* indicated for each *issuant*. The service must respond to HTTP GET requests on that URL. The GET request will have two query parameters, *did* and *check*. The value of the *did* query parameter is the DID of the issuing *Agent*. The value of the *check* query parameter is a string that serves as a challenge that the service must sign with a signing key of the issuing Agent. The response includes the signature of the *check* value in the *Signature* header of the response. The body of the response is a serialized JSON object with two fields, namely, *signer* and *check*. The value of the *signer* field is the indexed key of the issuing *Agent* used to create the *check* signature. The value of the *check* field is just a copy of the *check* query string from the request.
+
+The format of the check string is as follows:
+
+```
+{did}|{issuer}|{date}
+```
+
+* the did element is the DID of the issuing Agent.
+
+* the issuer element is the value of the associated issuer field from the issuant
+
+* the date element is an ISO-8601 encoded datetime when the challenge was created.
+
+An example check value is shown below. This value must be URL encoded when included as a query string argument.
+
+```
+did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=|generic.com|2000-01-01T00:00:00+00:00
+```
+
+Example check request and response are shown below:
+
+#### Request
+
+```http
+GET /demo/check?check=did%3Aigo%3A3syVH2woCpOvPF0SD9Z0bu_OxNe2ZgxKjTQ961LlMnA%3D%7Clocalhost%7C2000-01-03T00%3A00%3A00%2B00%3A00&did=did%3Aigo%3A3syVH2woCpOvPF0SD9Z0bu_OxNe2ZgxKjTQ961LlMnA%3D HTTP/1.1
+Content-Type: application/json; charset=utf-8
+Host: localhost:8080
+Connection: close
+User-Agent: Paw/3.1.3 (Macintosh; OS X/10.12.6) GCDHTTPRequest
+```
+
+#### Response
+
+```http
+HTTP/1.1 200 OK
+Signature: signer="efIU4jplMtZzjgaWc85gLjJpmmay6QoFvApMuinHn67UkQZ2it17ZPebYFvmCEKcd0weWQONaTO-ajwQxJe2DA=="
+Content-Type: application/json; charset=UTF-8
+Content-Length: 175
+Server: Ioflo WSGI Server
+Date: Wed, 30 Aug 2017 18:01:42 GMT
+
+{
+  "signer": "did:igo:3syVH2woCpOvPF0SD9Z0bu_OxNe2ZgxKjTQ961LlMnA=#0",
+  "check": "did:igo:3syVH2woCpOvPF0SD9Z0bu_OxNe2ZgxKjTQ961LlMnA=|localhost|2000-01-03T00:00:00+00:00"
+}
+```
+
+
+
+Example requests and responses for creating an issuing *Agent* are shown below. The examples use a demo version of the HID validation service that is running on localhost.
+
+#### Request
 
 ```http
 POST /agent HTTP/1.1
@@ -438,7 +506,7 @@ Content-Length: 481
 }
 ```
 
-## Response
+#### Response
 
 ```http
 HTTP/1.1 201 Created
@@ -752,7 +820,36 @@ In order to create an *Thing* Registration request the client application needs 
 
 Each *Thing* has a unique DID. The Server will also verify that the client application holds the associated private key used to create the Thing's DID. To create a DID the client application will first need to create an EdDSA signing keypair.
 
-Each *Thing* may also have a unique human friendly identifier (HID). Currently each HID is unique to its associated DID. *Issuer* *Agents* control an HID name space called and *Issuant* from which the HIDs are generated.
+Each *Thing* may also have a unique human friendly identifier (HID). Currently each HID is unique to its associated DID. *Issuer* *Agents* control an HID name space called and *Issuant* from which the HIDs are generated. 
+Suppose an issuing Agent might has the following issuant in its resource.
+
+```json
+{
+    "kind": "dns",
+    "issuer": "generic.com",
+    "registered": "2000-01-01T00:00:00+00:00",
+    "validationURL": "https://generic.com/indigo"
+  }
+```
+
+The format for an associated hid is as follows:
+
+```
+hid:{kind}:{issuer}#{index}
+```
+
+* the *kind* element indicates what type of Issuant name space. Currently only *dns* is suppported. This is the value of the *kind* field in the associated *issuant* in the *issuants* field of the issuing *Agent*'s  resource.
+
+* the *issuer* element is the value of the *issuer* field in the associated *issuant* in the *issuants* field of the issuing *Agent*'s  resource.
+
+* the *index* element is unique to a given *issuer* value.
+
+An example hid given the issuant above is as follows:
+
+```
+"hid:dns:generic.com#02
+```
+
 
 To produce a unique EdDSA signing keypair using the libsodium library.
 

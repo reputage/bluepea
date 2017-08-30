@@ -1524,11 +1524,8 @@ class CheckHidResource:
         # have to create so test verify HID has keys to respond put in demo db
         agents, things = dbing.setupTestDbAgentsThings(dbn='demo', clobber=True)
 
-        qargs = httping.parseQuery(req.query_string)  # avoid double unquote bug in falcon
-        did = qargs.get('did')
-        check = qargs.get('check')
-        #did = req.get_param("did")  # already has url-decoded query parameter value
-        #check = req.get_param("check")  # already has url-decoded query parameter value
+        did = req.get_param("did")  # already has url-decoded query parameter value
+        check = req.get_param("check")  # already has url-decoded query parameter value
         if not did or not check:
             raise falcon.HTTPError(falcon.HTTP_400,
                                            "Query Parameter Error",
@@ -1560,14 +1557,6 @@ class CheckHidResource:
             raise falcon.HTTPError(falcon.HTTP_400,
                                     'Resource Verification Error',
                                     'DID not match. {}'.format(ex))
-
-        #seed = libnacl.randombytes(libnacl.crypto_sign_SEEDBYTES)
-        # ike's seed
-        #seed = (b'!\x85\xaa\x8bq\xc3\xf8n\x93]\x8c\xb18w\xb9\xd8\xd7\xc3\xcf\x8a\x1dP\xa9m'
-                #b'\x89\xb6h\xfe\x10\x80\xa6S')
-
-        ## creates signing/verification key pair
-        #vk, sk = libnacl.crypto_sign_seed_keypair(seed)
 
         verkey = keyToKey64u(vk)
         if verkey != key:
