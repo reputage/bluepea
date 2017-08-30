@@ -1298,60 +1298,67 @@ def validateIssuerDomainGen(store, idat, issuant, timeout=0.5):
     """
     Validate issuer HID namespace for web (DNS) domain
     """
-    did = idat["did"]
-    issuer = issuant['issuer']
-    if issuant['kind'] != 'dns':  # only support dns for now
-        raise ValidationError('Invalid issuant kind for issuer {}'.format(issuer))
+    try:
+        did = idat["did"]
+        issuer = issuant['issuer']
+        if issuant['kind'] != 'dns':  # only support dns for now
+            raise ValidationError('Invalid issuant kind for issuer {}'.format(issuer))
 
-    # validate that issuer belongs to validationURL
-    vurl = issuant["validationURL"]
-    splits = urlsplit(vurl)  # (scheme, netloc, path, host, query, fragment, hostname, port)
-    if not splits.netloc.startswith(issuer):
-        raise ValidationError('Issuer not part of validationURL')
+        # validate that issuer belongs to validationURL
+        vurl = issuant["validationURL"]
+        splits = urlsplit(vurl)  # (scheme, netloc, path, host, query, fragment, hostname, port)
+        if not splits.netloc.startswith(issuer):
+            raise ValidationError('Issuer not part of validationURL')
 
-    dt = datetime.datetime.now(tz=datetime.timezone.utc)
-    date = timing.iso8601(dt, aware=True)
-    check = "{}|{}|{}".format(did, issuer, date)
-    qargs = ODict(did=did, check=check)
-    rep = yield from backendRequest(method='GET',
-                                    path=vurl,
-                                    qargs=qargs,
-                                    store=store,
-                                    timeout=timeout)
+        dt = datetime.datetime.now(tz=datetime.timezone.utc)
+        date = timing.iso8601(dt, aware=True)
+        check = "{}|{}|{}".format(did, issuer, date)
+        qargs = ODict(did=did, check=check)
+        rep = yield from backendRequest(method='GET',
+                                        path=vurl,
+                                        qargs=qargs,
+                                        store=store,
+                                        timeout=timeout)
 
-    if rep is None:  # timed out waiting for authorization server
-        raise ValidationError('Timeout backend validation request for issuer {}'.format(issuer))
+        if rep is None:  # timed out waiting for authorization server
+            raise ValidationError('Timeout backend validation request for issuer {}'.format(issuer))
 
-    if rep['status'] != 200:
-        if rep['errored']:
-            emsg = rep['error']
-        else:
-            emsg = "unknown"
-        raise ValidationError('Error backend validation for issuer {} error {}'.format(issuer, emsg))
+        if rep['status'] != 200:
+            if rep['errored']:
+                emsg = rep['error']
+            else:
+                emsg = "unknown"
+            raise ValidationError('Error backend validation for issuer {} error {}'.format(issuer, emsg))
 
-    rdata = rep['data']
-    rcheck = rdata['check']
-    rsigner = rdata['signer']
+        rdata = rep['data']
+        rcheck = rdata['check']
+        rsigner = rdata['signer']
 
-    if rcheck != check:
-        raise ValidationError('Validation check response bad for issuer {}'.format(issuer))
+        if rcheck != check:
+            raise ValidationError('Validation check response bad for issuer {}'.format(issuer))
 
-    sigs = parseSignatureHeader(rep['headers'].get("Signature", ""))
-    sig = sigs.get('signer')  # str not bytes
-    if not sig:
-        raise ValidationError('Invalid or missing Signature header for issuer {}'.format(issuer))
+        sigs = parseSignatureHeader(rep['headers'].get("Signature", ""))
+        sig = sigs.get('signer')  # str not bytes
+        if not sig:
+            raise ValidationError('Invalid or missing Signature header for issuer {}'.format(issuer))
 
-    sdid, sindex, keystr = extractDidSignerParts(rsigner)
-    if sdid != did:
-        raise ValidationError('Bad validation signer for issuer {}'.format(issuer))
+        sdid, sindex, keystr = extractDidSignerParts(rsigner)
+        if sdid != did:
+            raise ValidationError('Bad validation signer for issuer {}'.format(issuer))
 
-    if len(idat['keys']) < sindex:
-        raise ValidationError('Bad validation signer key for issuer {}'.format(issuer))
+        if len(idat['keys']) < sindex:
+            raise ValidationError('Bad validation signer key for issuer {}'.format(issuer))
 
-    key = idat['keys'][sindex]["key"]
+        key = idat['keys'][sindex]["key"]
 
-    if not verify64u(sig, rcheck, key):
-        raise ValidationError('Unverifiable signature for issuer {}'.format(issuer))
+        if not verify64u(sig, rcheck, key):
+            raise ValidationError('Unverifiable signature for issuer {}'.format(issuer))
+
+    except ValidationError:
+        raise
+
+    except Exception as ex:
+        raise  ValidationError("Unexpected error {}".format(ex))
 
     # validated if no errors raised
 
