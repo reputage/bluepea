@@ -2233,12 +2233,12 @@ def test_post_ThingDidAccept(client):  # client is a fixture in pytest_falcon
 
     rep = patron.respond()
     assert rep
-    assert rep['status'] == 201
-    assert rep['reason'] == 'Created'
-    assert rep['headers']['content-type'] == 'application/json; charset=UTF-8'
-    location = falcon.uri.decode(rep['headers']['location'])
+    assert rep.status == 201
+    assert rep.reason == 'Created'
+    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
+    location = falcon.uri.decode(rep.headers['location'])
     assert location == "/thing/{}".format(tDid)
-    assert rep['data'] == tdat
+    assert rep.data == tdat
 
     # verify that its in database
     vdat, vser, vsig = dbing.getSigned(tDid)
@@ -2263,14 +2263,14 @@ def test_post_ThingDidAccept(client):  # client is a fixture in pytest_falcon
 
     rep = patron.respond()
     assert rep
-    assert rep['status'] == 200
-    assert rep['headers']['content-type'] == 'application/json; charset=UTF-8'
-    sigs = parseSignatureHeader(rep['headers']['signature'])
+    assert rep.status == 200
+    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
+    sigs = parseSignatureHeader(rep.headers['signature'])
     assert sigs['signer'] == atsig
-    assert rep['data'] == tdat
-    assert rep['body'].decode() == atser
+    assert rep.data == tdat
+    assert rep.body.decode() == atser
 
-    assert verify64u(atsig, rep['body'].decode(), keyToKey64u(aVk))
+    assert verify64u(atsig, rep.body.decode(), keyToKey64u(aVk))
 
     cleanupTmpBaseDir(dbEnv.path())
     valet.close()
