@@ -60,6 +60,149 @@ ending.loadEnds(exapp, store=store)
 def app():
     return exapp
 
+def test_get_StaticSink(client):  # client is a fixture in pytest_falcon
+    """
+    Test GET to static files
+    """
+    print("Testing GET /static")
+
+    # get default /static
+    rep = client.get('/static')
+    assert rep.status == falcon.HTTP_OK
+    assert rep.headers['content-type'] == 'text/html; charset=UTF-8'
+    assert rep.body == (
+        '<!DOCTYPE html>\n'
+        '<html>\n'
+        '    <head>\n'
+        '        <title>Indigo Application</title>\n'
+        '\n'
+        '        <meta charset="utf-8">\n'
+        '        <meta name="description" content="Main app entry point">\n'
+        '        <meta name="viewport" content="width=device-width, '
+        'initial-scale=1.0">\n'
+        '        <base href="/">\n'
+        '    </head>\n'
+        '    <body>\n'
+        '        Hello World\n'
+        '    </body>\n'
+        '</html>\n')
+
+    # get default /
+    rep = client.get('/')
+    assert rep.status == falcon.HTTP_OK
+    assert rep.headers['content-type'] == 'text/html; charset=UTF-8'
+    assert rep.body == (
+        '<!DOCTYPE html>\n'
+        '<html>\n'
+        '    <head>\n'
+        '        <title>Indigo Application</title>\n'
+        '\n'
+        '        <meta charset="utf-8">\n'
+        '        <meta name="description" content="Main app entry point">\n'
+        '        <meta name="viewport" content="width=device-width, '
+        'initial-scale=1.0">\n'
+        '        <base href="/">\n'
+        '    </head>\n'
+        '    <body>\n'
+        '        Hello World\n'
+        '    </body>\n'
+        '</html>\n')
+
+    # get default trailing /
+    rep = client.get('/static/')
+    assert rep.status == falcon.HTTP_OK
+    assert rep.headers['content-type'] == 'text/html; charset=UTF-8'
+    assert rep.body == (
+        '<!DOCTYPE html>\n'
+        '<html>\n'
+        '    <head>\n'
+        '        <title>Indigo Application</title>\n'
+        '\n'
+        '        <meta charset="utf-8">\n'
+        '        <meta name="description" content="Main app entry point">\n'
+        '        <meta name="viewport" content="width=device-width, '
+        'initial-scale=1.0">\n'
+        '        <base href="/">\n'
+        '    </head>\n'
+        '    <body>\n'
+        '        Hello World\n'
+        '    </body>\n'
+        '</html>\n')
+
+    # get main.html
+    rep = client.get('/static/main.html')
+    assert rep.status == falcon.HTTP_OK
+    assert rep.headers['content-type'] == 'text/html; charset=UTF-8'
+    assert rep.body == (
+        '<!DOCTYPE html>\n'
+        '<html>\n'
+        '    <head>\n'
+        '        <title>Indigo Application</title>\n'
+        '\n'
+        '        <meta charset="utf-8">\n'
+        '        <meta name="description" content="Main app entry point">\n'
+        '        <meta name="viewport" content="width=device-width, '
+        'initial-scale=1.0">\n'
+        '        <base href="/">\n'
+        '    </head>\n'
+        '    <body>\n'
+        '        Hello World\n'
+        '    </body>\n'
+        '</html>\n')
+
+    # get main.html
+    rep = client.get('/main.html')
+    assert rep.status == falcon.HTTP_OK
+    assert rep.headers['content-type'] == 'text/html; charset=UTF-8'
+    assert rep.body == (
+        '<!DOCTYPE html>\n'
+        '<html>\n'
+        '    <head>\n'
+        '        <title>Indigo Application</title>\n'
+        '\n'
+        '        <meta charset="utf-8">\n'
+        '        <meta name="description" content="Main app entry point">\n'
+        '        <meta name="viewport" content="width=device-width, '
+        'initial-scale=1.0">\n'
+        '        <base href="/">\n'
+        '    </head>\n'
+        '    <body>\n'
+        '        Hello World\n'
+        '    </body>\n'
+        '</html>\n')
+
+    # attempt missing file
+    rep = client.get('/static/missing.txt')
+    assert rep.status == falcon.HTTP_NOT_FOUND
+    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
+    assert rep.json == {
+        'description': 'File '
+        '"/Data/Code/private/indigo/bluepea/src/bluepea/static/missing.txt" '
+        'not found or forbidden',
+        'title': 'Missing Resource'}
+
+    # get robots.txt
+    rep = client.get('/static/robots.txt')
+    assert rep.status == falcon.HTTP_OK
+    assert rep.headers['content-type'] == 'text/plain; charset=UTF-8'
+    assert rep.body == '# robotstxt.org\n\nUser-agent: *\n'
+
+    # get main.js
+    rep = client.get('/static/main.js')
+    assert rep.status == falcon.HTTP_OK
+    assert rep.headers['content-type'] == 'application/javascript; charset=UTF-8'
+    assert rep.body == (
+        'var Hello =\n'
+        '{\n'
+        '    view: function()\n'
+        '    {\n'
+        '        return "Hello"\n'
+        '    }\n'
+        '}\n'
+        '\n')
+
+    print("Done Test")
+
 def test_post_AgentRegisterSigned():
     """
     Use libnacl and Base64 to generate compliant signed Agent Registration
@@ -412,7 +555,7 @@ def test_post_IssuerRegisterSigned():
 
 
 
-def test_post_ThingRegisterSigned(client):  # client is a fixture in pytest_falcon
+def test_post_ThingRegisterSigned():  # client is a fixture in pytest_falcon
     """
     Use libnacl and Base64 to generate compliant signed Thing Registration
     Test both POST to create resource and subsequent GET to retrieve it.
