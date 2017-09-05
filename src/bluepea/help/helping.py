@@ -1275,6 +1275,7 @@ def backendRequest(method=u'GET',
     console.concise("Making Backend Request {0} {1} ...\n".format(method, path))
 
     client.transmit()
+    # assumes store clock is advanced elsewhere
     timer = timing.StoreTimer(store=store, duration=timeout)
     while ((client.requests or client.connector.txes or not client.responses)
            and not timer.expired):
