@@ -1,16 +1,12 @@
------------------------
-BluePea Install MacOs
-------------------------
-
+# BluePea Install MacOs
 
 MacOs 10.12.x Sierra
-
 
 --------------------------------
 Install MacOs Command Line Tools
 --------------------------------
 
-Either install Xcode or just the command line tools.
+Either install Xcode using the app store application or just install the command line tools using terminal.
 
 Using terminal
 
@@ -26,11 +22,9 @@ Install Homebrew
 $ ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
 ```
 
-Now you can run homebrew using the "brew" command from terminal
-Homebrew puts everything in /usr/local so it does clobber Apple installed libraries and binaries.
+Now you can run homebrew using the "brew" command from terminal. Homebrew puts everything in /usr/local so it does not clobber Apple installed libraries and binaries.
 
-You may have to to add /usr/local/bin to your bash shell path. 
-You can do this by adding the following to your .bashrc file
+You may have to to add /usr/local/bin to your bash shell path. You can do this by adding the following to your .bashrc file
 
 ```bash
 #Add paths for non-interactive non-login shells such as ssh remote command
@@ -58,18 +52,16 @@ fi
 
 # If not running interactively, don't do anymore just return so sftp works:
 [ -z "$PS1" ] && return
-
-
 ```
 
 
-Check homebrew installation
+Check homebrew installation.
 
 ```bash
 $ brew doctor
 ```
 
-Upgrade homebrew
+Upgrade homebrew.
 
 ```bash
 $ brew update
@@ -81,15 +73,14 @@ $ brew doctor
 Install Python3.6
 -----------------
 
-This puts Python3.6 in /usr/local so it does not clobber the system installed python.
-However one may want to use a python virtual environment instead.
+This puts Python3.6 in /usr/local so it does not clobber the system installed python. However one may want to use a python virtual environment instead. (There are lots of good references on the web for installing into a python virtual environment)
 
 ```bash
 $ brew install python3
 $ brew linkapps python3
 ```
 
-Now python3 is installed and can be run from the command line in terminal
+Now python3 is installed and can be run from the command line in terminal.
 
 ```bash
 $ $ which python3
@@ -100,12 +91,12 @@ Python 3.6.2 (default, Jul 17 2017, 16:44:45)
 [GCC 4.2.1 Compatible Apple LLVM 8.1.0 (clang-802.0.42)] on darwin
 Type "help", "copyright", "credits" or "license" for more information.
 >>> 
-
 ```
 
 pip3 is also installed and will install packages to the newly installed Python3 in /usr/local/bin
 
 Update pip and install tools
+
 ```bash
 $ pip3 install --upgrade pip setuptools wheel
 ```
@@ -148,9 +139,12 @@ $ pip3 install lmdb
 Install ioflo
 ----------
 
-Two choices. 
+Two choices:
+
 The first is just to install the latest ioflo version as a package.
+
 The second is to clone the git repo so you can get the latest changes.
+
 If you are doing development install the second one.
 
 1) Package install
@@ -172,7 +166,7 @@ $ cd ioflo
 $ git pull
 ```
 
--------
+------------
 Install BluePea source
 ------------
 
@@ -183,7 +177,7 @@ $ git clone git clone https://github.com/indigo-d/bluepea.git
 $ pip3 install -e bluepea
 ```
 
-Once installed pull to get the latest from github
+Once installed pull to get the latest from github.
 
 ```bash
 $ cd ioflo
