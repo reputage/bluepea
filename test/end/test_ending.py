@@ -339,7 +339,7 @@ def test_post_AgentRegisterSigned():
     headers = odict([('Accept', 'application/json'),
                     ('Content-Length', 0)])
 
-    patron.transmit(method='GET', path=location, headers=headers)
+    patron.request(method='GET', path=location, headers=headers)
     timer = timing.StoreTimer(store, duration=1.0)
     while (patron.requests or patron.connector.txes or not patron.responses or
            not valet.idle()):
@@ -525,7 +525,7 @@ def test_post_IssuerRegisterSigned():
                      #('headers', headers) ])
     #patron.requests.append(request)
 
-    patron.transmit(method='GET', path=location, headers=headers)
+    patron.request(method='GET', path=location, headers=headers)
     timer = timing.StoreTimer(store, duration=1.0)
     while (patron.requests or patron.connector.txes or not patron.responses or
            not valet.idle()):
@@ -757,7 +757,7 @@ def test_post_ThingRegisterSigned():  # client is a fixture in pytest_falcon
     headers = odict([('Accept', 'application/json'),
                      ('Content-Length', 0)])
 
-    patron.transmit(method='GET', path=location, headers=headers)
+    patron.request(method='GET', path=location, headers=headers)
     timer = timing.StoreTimer(store, duration=1.0)
     while (patron.requests or patron.connector.txes or not patron.responses or
            not valet.idle()):
@@ -1077,7 +1077,7 @@ def test_put_AgentDid():
 
     # now get it
     # patron url encodes path for us
-    patron.transmit(path='/agent/{}'.format(did), method='GET' )
+    patron.request(path='/agent/{}'.format(did), method='GET' )
     timer = timing.StoreTimer(store, duration=1.0)
     while (patron.requests or patron.connector.txes or not patron.responses or
            not valet.idle()):
@@ -1293,7 +1293,7 @@ def test_put_IssuerDid(client):  # client is a fixture in pytest_falcon
     assert vsig == nsig
 
     # now get it from web service
-    patron.transmit(path='/agent/{}'.format(did), method='GET' )
+    patron.request(path='/agent/{}'.format(did), method='GET' )
     timer = timing.StoreTimer(store, duration=1.0)
     while (patron.requests or patron.connector.txes or not patron.responses or
            not valet.idle()):
@@ -1672,7 +1672,7 @@ def test_put_ThingDid(client):  # client is a fixture in pytest_falcon
     headers = odict([('Accept', 'application/json'),
                      ('Content-Length', 0)])
     path = "http://{}:{}/thing/{}".format('localhost', valet.servant.eha[1], tdid)
-    patron.transmit(method='GET', path=path, headers=headers)
+    patron.request(method='GET', path=path, headers=headers)
     timer = timing.StoreTimer(store, duration=1.0)
     while (patron.requests or patron.connector.txes or not patron.responses or
            not valet.idle()):
@@ -2394,7 +2394,7 @@ def test_post_ThingDidAccept(client):  # client is a fixture in pytest_falcon
     headers = odict([('Accept', 'application/json'),
                     ('Content-Length', 0)])
 
-    patron.transmit(method='GET', path=location, headers=headers)
+    patron.request(method='GET', path=location, headers=headers)
     timer = timing.StoreTimer(store, duration=1.0)
     while (patron.requests or patron.connector.txes or not patron.responses or
            not valet.idle()):

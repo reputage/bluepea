@@ -166,7 +166,7 @@ def test_get_backend():
 
     headers = odict([('Accept', 'application/json'),
                     ('Content-Length', 0)])
-    patron.transmit(method='GET',
+    patron.request(method='GET',
                     path='/example/backend',
                     qargs=odict(path='/unknown'),
                     headers=headers)
