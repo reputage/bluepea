@@ -1160,22 +1160,47 @@ class ThingDidOfferResource:
         Handles GET request for Thing offer resource with did
         and uid in query params
         """
+        all_ = req.get_param("all") # returns url-decoded query parameter value
+        if all_ and all_.lower() == "true":
+            all_ = True
+        else:
+            all_ = False
+        latest = req.get_param("latest") # returns url-decoded query parameter value
+        if latest and latest.lower() == "true":
+            latest = True
+        else:
+            latest = False
         ouid = req.get_param("uid") # returns url-decoded query parameter value
 
-        key = "{}/offer/{}".format(did, ouid)
+        if all_ or latest:
+            lastOnly = False if all_ else True
+            try:  # read from database
+                offers = dbing.getOfferExpires(did, lastOnly=lastOnly)
+            except dbing.DatabaseError as ex:
+                raise falcon.HTTPError(falcon.HTTP_400,
+                                'Resource Lookup Error',
+                                'Error retrieving resource. {}'.format(ex))
+            ser = json.dumps(offers, indent=2)
 
-        # read from database
-        try:
-            dat, ser, sig = dbing.getSigned(key)
-        except dbing.DatabaseError as ex:
+        elif ouid:
+            key = "{}/offer/{}".format(did, ouid)
+            try:  # read from database
+                dat, ser, sig = dbing.getSigned(key)
+            except dbing.DatabaseError as ex:
+                raise falcon.HTTPError(falcon.HTTP_400,
+                                'Resource Verification Error',
+                                'Error verifying resource. {}'.format(ex))
+            rep.set_header("Signature", 'signer="{}"'.format(sig))
+
+        else:
             raise falcon.HTTPError(falcon.HTTP_400,
-                            'Resource Verification Error',
-                            'Error verifying resource. {}'.format(ex))
+                                               'Query Parameter Error',
+                                               'Missing query parameters.')
 
-        rep.set_header("Signature", 'signer="{}"'.format(sig))
         rep.set_header("Content-Type", "application/json; charset=UTF-8")
         rep.status = falcon.HTTP_200  # This is the default status
         rep.body = ser
+
 
 class ThingDidAcceptResource:
     """

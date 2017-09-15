@@ -386,7 +386,7 @@ def putDidOfferExpire(did, ouid, expire, dbn="did2offer", env=None):
 
 def getOfferExpires(did, lastOnly=True, dbn='did2offer', env=None):
     """
-    Returns list earliest to latest with offer data entriesfor given did If any
+    Returns list earliest to latest with offer data entries for given did If any
     If none exist returns empty list
     If lastOnly is True (default) then list contains only the last offer
 

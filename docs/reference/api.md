@@ -1711,7 +1711,7 @@ An unsuccessful request will return status code 400.
 
 Example requests and responses are shown below.
 
-## Request
+#### Request
 
 ```http
 POST /thing/did%3Aigo%3A4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM%3D/accept?uid=o_00035d2976e6a000_26ace93 HTTP/1.1
@@ -1737,7 +1737,7 @@ Content-Length: 314
 }
 ```
 
-## Response
+#### Response
 
 ```http
 HTTP/1.1 201 Created
@@ -1760,6 +1760,89 @@ Transfer-Encoding: chunked
     "message": "If found please return."
   }
 }
+```
+
+### *Offer* Read List Query
+
+The *Offer*  read request (GET) retrieves an offer for a given *Thing* DID with a given *Offer* UID by the *uid* query parameter in the request. In order to retrieve an *Offer* data resource the client application needs the DID for the corresponding Thing as well as the UID for the specific *Offer*. 
+
+The offer uid can be obtained by either querying for a list of all offers for a given Thing DID or a list of just the latest offer for a Thing DID. The list contains json objects (dicts) one for each offer. Each object has two fields, *offer* with a string that includes {did}/offer/{ouid} and *expire* with the expiration date of the offer. The offer uid is the last section of the offer field value. If there are no offers then the list is empty. Using the returned offer uid another request can be made using an *Offer* Read Request (see above).
+
+An example is shown below:
+
+```json
+[
+  {
+     "offer": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=/offer/o_00035d2976e6a000_26ace93",
+    "expire": "2017-09-15T21:02:41.686546+00:00"
+  }
+]
+
+```
+
+To request all offers use the query parameter *all* with value *true*, such as *all=true*.
+The list is sorted with the latest offer last in the list. To request just the latest offer use the query parameter *latest* with the value *true*, such as, *latest=true*.
+
+The request for *all* is made by sending an HTTP Get to ```/thing/{did}/offer?all=true``` where the did path parameter is the DID of the thing. This did needs to be URL encoded.
+
+The request for *latest* is made by sending an HTTP Get to ```/thing/{did}/offer?latest=true``` where the did path parameter is the DID of the thing. This did needs to be URL encoded.
+
+A successful request will return status code 200. An unsuccessful request will return an error status code such as 404 Not Found. 
+
+Example requests and responses are shown below.
+
+#### Request
+
+```http
+GET /thing/did%3Aigo%3A4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM%3D/offer?all=true HTTP/1.1
+Content-Type: application/json; charset=utf-8
+Host: localhost:8080
+Connection: close
+User-Agent: Paw/3.1.3 (Macintosh; OS X/10.12.6) GCDHTTPRequest
+```
+
+#### Response
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=UTF-8
+Content-Length: 162
+Server: Ioflo WSGI Server
+Date: Fri, 15 Sep 2017 21:00:49 GMT
+
+[
+  {
+    "offer": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=/offer/o_00035d2976e6a000_26ace93",
+    "expire": "2017-09-15T21:02:41.686546+00:00"
+  }
+]
+```
+
+#### Request
+
+```http
+GET /thing/did%3Aigo%3A4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM%3D/offer?latest=true HTTP/1.1
+Content-Type: application/json; charset=utf-8
+Host: localhost:8080
+Connection: close
+User-Agent: Paw/3.1.3 (Macintosh; OS X/10.12.6) GCDHTTPRequest
+```
+
+#### Response
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=UTF-8
+Content-Length: 162
+Server: Ioflo WSGI Server
+Date: Fri, 15 Sep 2017 21:00:54 GMT
+
+[
+  {
+    "offer": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=/offer/o_00035d2976e6a000_26ace93",
+    "expire": "2017-09-15T21:02:41.686546+00:00"
+  }
+]
 ```
 
 ## Anonymous Message Creation

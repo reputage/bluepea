@@ -2104,7 +2104,7 @@ def test_get_ThingDidOffer(client):  # client is a fixture in pytest_falcon
     result = dbing.putDidOfferExpire(did=tDid,
                                          ouid=ouid,
                                          expire=expiration)
-    # now get it from web service
+    # now get it from web service by uid
     tDidUri = falcon.uri.encode_value(tDid)
     location = "/thing/{}/offer?uid={}".format(tDidUri, ouid)
     rep = client.get(location)
@@ -2119,6 +2119,32 @@ def test_get_ThingDidOffer(client):  # client is a fixture in pytest_falcon
     assert rep.body == oser
 
     assert verify64u(ssig, rep.body, keyToKey64u(sVk))
+
+    # now get list of all offers from web service
+    tDidUri = falcon.uri.encode_value(tDid)
+    location = "/thing/{}/offer?all=true".format(tDidUri)
+    rep = client.get(location)
+
+    assert rep.status == falcon.HTTP_OK
+    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
+
+    assert len(rep.json) == 1
+    offering = rep.json[-1]
+    assert  offering['offer'] == key
+    assert  offering['offer'] == 'did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=/offer/o_00035d2976e6a000_26ace93'
+
+    # now get list of lastest offer from web service
+    tDidUri = falcon.uri.encode_value(tDid)
+    location = "/thing/{}/offer?latest=true".format(tDidUri)
+    rep = client.get(location)
+
+    assert rep.status == falcon.HTTP_OK
+    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
+
+    assert len(rep.json) == 1
+    offering = rep.json[0]
+    assert  offering['offer'] == key
+    assert  offering['offer'] == 'did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=/offer/o_00035d2976e6a000_26ace93'
 
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")
