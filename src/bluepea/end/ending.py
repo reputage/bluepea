@@ -276,7 +276,7 @@ class AgentResource:
         if not did:
             raise falcon.HTTPError(falcon.HTTP_400,
                                            'Query Parameter Error',
-                                    'Missing query did. {}')
+                                    'Missing query did.')
 
         # read from database
         try:
@@ -758,11 +758,29 @@ class ThingResource:
         with did
 
         """
+        hid = req.get_param("hid")  # already has url-decoded query parameter value
         did = req.get_param("did")  # already has url-decoded query parameter value
-        #didb = did.encode("utf-8")  # bytes version
 
-        # read from database
-        try:
+
+        if hid:
+            try:  # read from database
+                did = dbing.getHid(hid)
+            except dbing.DatabaseError as ex:
+                raise falcon.HTTPError(falcon.HTTP_400,
+                                'Resource Verification Error',
+                                'Error verifying resource. {}'.format(ex))
+
+            if not did:  # empy entry
+                raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
+                                                   'Not Found Error',
+                                                   'DID for HID no longer exists.')
+
+        if not did:
+            raise falcon.HTTPError(falcon.HTTP_400,
+                                               'Query Parameter Error',
+                                               'Missing query parameters.')
+
+        try:  # read from database
             dat, ser, sig = dbing.getSigned(did)
         except dbing.DatabaseError as ex:
             raise falcon.HTTPError(falcon.HTTP_400,
@@ -772,12 +790,13 @@ class ThingResource:
         if dat is None:
             raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
                                                'Not Found Error',
-                                               'DID resource does not exist')
+                            'DID "{}" resource does not exist'.format(did))
 
         rep.set_header("Signature", 'signer="{}"'.format(sig))
         rep.set_header("Content-Type", "application/json; charset=UTF-8")
         rep.status = falcon.HTTP_200  # This is the default status
         rep.body = ser
+
 
 class ThingDidResource:
     """
@@ -1161,7 +1180,7 @@ class ThingDidOfferResource:
 class ThingDidAcceptResource:
     """
     Thing Did Accept Resource
-    Accept roffer to transfer title to Thing at DID message
+    Accept offer to transfer title to Thing at DID message
 
     /thing/{did}/accept?uid=ouid
 

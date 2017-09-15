@@ -128,8 +128,9 @@ The API consists of several ReST endpoints grouped according to the type of data
 /agent/{did}  PUT
 
 
-/thing  POST  
-/thing?did={did} GET  
+/thing  POST  [api](#thing-creation)  
+/thing?did={did} GET  [api](#thing-read-query)  
+/thing?hid={hid} GET  [api](#thing-read-query)  
 
 /thing/{did}  GET  
 /thing/{did}  PUT  
@@ -593,7 +594,7 @@ If successful the response includes a custom "Signature" header whose *signer* f
 
 Example requests and responses are shown below.
 
-## Request
+#### Request
 
 ```http
 GET /agent/did%3Aigo%3AQt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE%3D HTTP/1.1
@@ -603,7 +604,7 @@ Connection: close
 User-Agent: Paw/3.1.1 (Macintosh; OS X/10.12.5) GCDHTTPRequest
 ```
 
-## Response
+#### Response
 
 ```http
 HTTP/1.1 200 OK
@@ -683,7 +684,7 @@ A successful request will return status code 200. An unsuccessful request will r
 
 Example request and response are shown below for adding another key and changing the signer field to reference the new key.
 
-## Request
+#### Request
 
 ```http
 PUT /agent/did%3Aigo%3AQt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE%3D HTTP/1.1
@@ -711,7 +712,7 @@ Content-Length: 387
 }
 ```
 
-## Response
+#### Response
 
 ```http
 HTTP/1.1 200 OK
@@ -740,7 +741,7 @@ Date: Wed, 12 Jul 2017 00:47:00 GMT
 
 Below is an example for an *Issuer* *Agent*
 
-## Request
+#### Request
 
 ```http
 PUT /agent/did%3Aigo%3AdZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY%3D HTTP/1.1
@@ -776,7 +777,7 @@ Content-Length: 577
 }
 ```
 
-## Response
+#### Response
 
 ```http
 HTTP/1.1 200 OK
@@ -964,9 +965,15 @@ Transfer-Encoding: chunked
 }
 ```
 
-## *Thing* Registration Read 
+## *Thing* Read Query
 
-The *Thing* Registration read request (GET) retrieves a data resource corresponding to a given *Thing* as indicated by the *did* query parameter in the request. A Thing resource is controlled or owned by an Agent data resource. Consequently the signer field references the controlling Agent's data resource. In other words a Thing data resourse is not self-signing. In order to retrieve a Thing registration data resource the client application needs the DID for that resource. This is supplied in the *Location* header of the response to a successful Thing Registration creation request. The signature of the data resource is supplied in the Signature header of the response. The client application can verify that the data resource has not been tampered with by verifing the signature against the response body which contains the data resource which is a JSON serialization of the registration data.
+The *Thing* Registration read request (GET) retrieves a data resource corresponding to a given *Thing* as indicated by provided the value of URL query parameters in the request URL. The two query parameters supported are *did* and *hid*. 
+
+In order to retrieve a *Thing* registration data resource the client application needs the DID for that thing resource. The DID is a field in the orginal resource created for the *Thing*. The DID is also supplied in the *Location* header of the response to a successful *Thing* creation request. The Location header value is just a URL that includes the *did* as a query parameter.
+
+For *Things* that have an HID the system creates an index table entry that allows lookup of the associated Thing's DID by its HID. The query is just a GET request with a query parameter *hid* whose value is the Thing's HID.
+
+It is important to remember that a Thing resource is controlled or owned by an Agent data resource. Consequently the *Thing's* *signer* field references the controlling Agent's data resource. In other words a Thing data resourse is not self-signing. The signature of the data resource is supplied in the Signature header of the response. The client application can verify that the data resource has not been tampered with by verifing the signature against the response body which contains the data resource which is a JSON serialization of the thing resource data. 
 
 The bluepea python library has a helper function,
 
@@ -983,7 +990,8 @@ bluepea.help.helping
 module that shows how to verify a signature.
 
 
-The request is made by sending an HTTP Get to ```/thing``` with a *did* query parameter whose value is the desired DID. This value needs to be URL encoded.
+The request for a Thing by querying the DID is made by sending an HTTP Get to ```/thing``` with a *did* query parameter whose value is the associated DID. This value needs to be URL encoded.
+
 A successful request will return status code 200. An unsuccessful request will return an error status code such as 404 Not Found. 
 If successful the response includes a custom "Signature" header whose *signer* field value is the signature.
 
@@ -1009,6 +1017,50 @@ Content-Type: application/json; charset=UTF-8
 Content-Length: 347
 Server: Ioflo WSGI Server
 Date: Tue, 29 Aug 2017 17:25:37 GMT
+
+{
+  "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
+  "hid": "hid:dns:localhost#02",
+  "signer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#0",
+  "changed": "2000-01-01T00:00:00+00:00",
+  "data": {
+    "keywords": [
+      "Canon",
+      "EOS Rebel T6",
+      "251440"
+    ],
+    "message": "If found please return."
+  }
+}
+```
+
+The request for a Thing by querying the HID is made by sending an HTTP Get to ```/thing``` with an *hid* query parameter whose value is the associated HID. This value needs to be URL encoded.
+
+A successful request will return status code 200. An unsuccessful request will return an error status code such as 404 Not Found. 
+If successful the response includes a custom "Signature" header whose *signer* field value is the signature.
+
+
+Example requests and responses are shown below.
+
+## Request
+
+```http
+GET /thing?hid=hid%3Adns%3Alocalhost%2302 HTTP/1.1
+Content-Type: application/json; charset=utf-8
+Host: localhost:8080
+Connection: close
+User-Agent: Paw/3.1.3 (Macintosh; OS X/10.12.6) GCDHTTPRequest
+```
+
+## Response
+
+```http
+HTTP/1.1 200 OK
+Signature: signer="FGRHzSNS70LIjwcSTAxHx5RahDwAet090fYSnsReMco_WvpTVpvfEygWDXslCBh0TqBoEOMLQ78-kN8fj6NFAg=="
+Content-Type: application/json; charset=UTF-8
+Content-Length: 347
+Server: Ioflo WSGI Server
+Date: Fri, 15 Sep 2017 19:51:54 GMT
 
 {
   "did": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",

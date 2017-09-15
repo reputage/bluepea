@@ -666,15 +666,48 @@ def test_post_ThingRegisterSigned():  # client is a fixture in pytest_falcon
     assert verify64u(signature=tsig, message=tser, verkey=sverkey)
 
     # verify hid table entry
+    assert hid == treg['hid']
     htdid = dbing.getHid(treg['hid'])
     assert htdid == tdid
 
+    # get thing by did
     print("Testing GET /thing?did=....")
 
     headers = odict([('Accept', 'application/json'),
                      ('Content-Length', 0)])
 
     patron.request(method='GET', path=location, headers=headers)
+    timer = timing.StoreTimer(store, duration=1.0)
+    while (patron.requests or patron.connector.txes or not patron.responses or
+           not valet.idle()):
+        valet.serviceAll()
+        time.sleep(0.05)
+        patron.serviceAll()
+        time.sleep(0.05)
+        store.advanceStamp(0.1)
+
+    assert len(patron.responses) == 1
+    rep = patron.responses.popleft()
+
+    assert rep['status'] == 200
+    assert rep['headers']['content-type'] == 'application/json; charset=UTF-8'
+    sigs = parseSignatureHeader(rep['headers']['signature'])
+    assert sigs['signer'] == ssignature
+
+    assert rep['data'] == treg
+    ser = rep['body'].decode()
+    assert ser == tregistration
+    assert verify64u(ssignature, ser, sverkey)
+
+    # get thing by hid
+    print("Testing GET /thing?hid=....")
+
+    headers = odict([('Accept', 'application/json'),
+                     ('Content-Length', 0)])
+
+    qargs = odict(hid=hid)
+    path = '/thing'
+    patron.request(method='GET', path=path, qargs=qargs, headers=headers)
     timer = timing.StoreTimer(store, duration=1.0)
     while (patron.requests or patron.connector.txes or not patron.responses or
            not valet.idle()):
