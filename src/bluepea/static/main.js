@@ -1,8 +1,3 @@
-var Hello =
-{
-    view: function()
-    {
-        return "Hello"
-    }
-}
+// vanilla index.js
 
+m.render(document.body, "Hello world")
