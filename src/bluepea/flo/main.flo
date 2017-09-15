@@ -6,7 +6,7 @@ house main
     frame startup
       print Starting Server
       bid start server
-      print Starting Tracker
+      print Starting Anoner
       bid start anoner
 
   init main.server.test to True

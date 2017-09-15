@@ -112,8 +112,9 @@ class StaticSink(object):
         filetype = mimetypes.guess_type(filepath, strict=True)[0]  # get first guess
         rep.set_header("Content-Type", "{}; charset=UTF-8".format(filetype))
         rep.status = falcon.HTTP_200  # This is the default status
-        rep.stream = open(filepath, 'rb')
-        #rep.body = json.dumps(ODict(path=path), indent=2)
+        # rep.stream = open(filepath, 'rb')  # bug connection never closes
+        with open(filepath, 'rb') as f:
+            rep.body = f.read()
 
 class ServerResource:
     """

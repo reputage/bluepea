@@ -96,6 +96,7 @@ def bluepeaServerOpen(self, buffer=False, **kwa):
                              wlog=wlog,
                              store=self.store,
                              app=app,
+                             timeout=0.5,
                              )
 
     result = self.valet.value.servant.reopen()
