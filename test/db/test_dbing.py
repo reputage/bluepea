@@ -22,10 +22,13 @@ import pytest
 from pytest import approx
 
 from bluepea.bluepeaing import SEPARATOR
-from bluepea.help.helping import (setupTmpBaseDir, cleanupTmpBaseDir,
+from bluepea.help.helping import (keyToKey64u,
+                                  setupTmpBaseDir, cleanupTmpBaseDir,
                                   makeSignedAgentReg, makeSignedThingReg)
 
 from bluepea.db import dbing
+from bluepea.prime import priming
+from bluepea.keep import keeping
 
 
 def test_setupDbEnv():
@@ -295,6 +298,194 @@ def test_exists():
 
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")
+
+def test_getDrops():
+    """
+    Test get essage drop entries in core database for a given did
+
+    getDrops(did, dbn='core', env=None)
+    """
+    print("Testing getDrops in DB Env")
+
+    priming.setupTest()
+    dbEnv = dbing.gDbEnv
+    keeper = keeping.gKeeper
+    kdid = keeper.did
+
+    agents, things = dbing.setupTestDbAgentsThings()
+    agents['sam'] = (kdid, keeper.verkey, keeper.sigkey)  # sam the server
+
+    for did, vk, sk in agents.values():
+        dat, ser, sig = dbing.getSelfSigned(did)
+        assert dat is not None
+        assert dat['did'] == did
+
+    for did, vk, sk in things.values():
+        dat, ser, sig = dbing.getSigned(did)
+        assert dat is not None
+        assert dat['did'] == did
+
+    annDid, annVk, annSk = agents['ann']
+    ivyDid, ivyVk, ivySk = agents['ivy']
+    thingDid, thingVk, thingSk = things['cam']
+
+    assert annDid == "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE="
+    assert ivyDid == "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY="
+
+    # test empty inbox for ivy
+    messages = dbing.getDrops(ivyDid)
+    assert not messages
+
+    # test empty inbox for ann
+    messages = dbing.getDrops(annDid)
+    assert not messages
+
+    # create message from Ann to Ivy
+    dt = datetime.datetime(2000, 1, 3, tzinfo=datetime.timezone.utc)
+    changed = timing.iso8601(dt, aware=True)
+    assert changed == "2000-01-03T00:00:00+00:00"
+
+    stamp = dt.timestamp()  # make time.time value
+    #muid = timing.tuuid(stamp=stamp, prefix="m")
+    muid = "m_00035d2976e6a000_26ace93"
+    assert muid == "m_00035d2976e6a000_26ace93"
+
+    signer = "{}#0".format(annDid)
+    assert signer == "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0"
+
+    msg = ODict()
+    msg['uid'] = muid
+    msg['kind'] = "found"
+    msg['signer'] = signer
+    msg['date'] = changed
+    msg['to'] = ivyDid
+    msg['from'] = annDid
+    msg['thing'] = thingDid
+    msg['subject'] = "Lose something?"
+    msg['content'] = "Look what I found"
+
+    mser = json.dumps(msg, indent=2)
+    msig = keyToKey64u(libnacl.crypto_sign(mser.encode("utf-8"), annSk)[:libnacl.crypto_sign_BYTES])
+    assert msig == "07u1OcQI8FUeWPqeiga3A9k4MPJGSFmC4vShiJNpv2Rke9ssnW7aLx857HC5ZaJ973WSKkLAwPzkl399d01HBA=="
+
+    # Build key for message from (to, from, uid)  (did, sdid, muid)
+    key = "{}/drop/{}/{}".format(ivyDid, annDid, muid)
+    assert key == ('did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY='
+                   '/drop'
+                   '/did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE='
+                   '/m_00035d2976e6a000_26ace93')
+
+    # save message to database error if duplicate
+    dbing.putSigned(key=key, ser=mser, sig=msig, clobber=False)  # no clobber so error
+
+    #test get inbox for Ivy
+    messages = dbing.getDrops(ivyDid)
+    assert messages
+    assert len(messages) == 1
+    assert messages[0]['uid'] == muid
+    assert messages[0]['from'] == annDid
+
+    # create another message from Ann to Ivy
+    dt = datetime.datetime(2000, 1, 4, tzinfo=datetime.timezone.utc)
+    changed = timing.iso8601(dt, aware=True)
+    assert changed == "2000-01-04T00:00:00+00:00"
+
+    stamp = dt.timestamp()  # make time.time value
+    #muid = timing.tuuid(stamp=stamp, prefix="m")
+    muid = "m_00035d3d94be0000_15aabb5"
+    assert muid == "m_00035d3d94be0000_15aabb5"
+
+    signer = "{}#0".format(annDid)
+    assert signer == "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0"
+
+    msg = ODict()
+    msg['uid'] = muid
+    msg['kind'] = "found"
+    msg['signer'] = signer
+    msg['date'] = changed
+    msg['to'] = ivyDid
+    msg['from'] = annDid
+    msg['thing'] = thingDid
+    msg['subject'] = "Lose something?"
+    msg['content'] = "Look what I found again"
+
+    mser = json.dumps(msg, indent=2)
+    msig = keyToKey64u(libnacl.crypto_sign(mser.encode("utf-8"), annSk)[:libnacl.crypto_sign_BYTES])
+    assert msig == "HgFcqSGI20okVh3K611XvEAsHHiV9yXDnFvd0djlZyA52K09E4BZbCnJ2Ejd8yFfRFc1GcTblbUYpDVwpumgCQ=="
+
+    # Build key for message from (to, from, uid)  (did, sdid, muid)
+    key = "{}/drop/{}/{}".format(ivyDid, annDid, muid)
+    assert key == ('did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY='
+                   '/drop'
+                   '/did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE='
+                   '/m_00035d3d94be0000_15aabb5')
+
+    # save message to database error if duplicate
+    dbing.putSigned(key=key, ser=mser, sig=msig, clobber=False)  # no clobber so error
+
+    #test get inbox for Ivy
+    messages = dbing.getDrops(ivyDid)
+    assert messages
+    assert len(messages) == 2
+    assert messages[1]['uid'] == muid
+    assert messages[1]['from'] == annDid
+
+    # create message from Ivy to Ann
+    dt = datetime.datetime(2000, 1, 4, tzinfo=datetime.timezone.utc)
+    changed = timing.iso8601(dt, aware=True)
+    assert changed == "2000-01-04T00:00:00+00:00"
+
+    stamp = dt.timestamp()  # make time.time value
+    #muid = timing.tuuid(stamp=stamp, prefix="m")
+    muid = "m_00035d3d94be0000_15aabb5"  # use duplicate muid to test no collision
+    assert muid == "m_00035d3d94be0000_15aabb5"
+
+    signer = "{}#0".format(ivyDid)
+    assert signer == "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#0"
+
+    msg = ODict()
+    msg['uid'] = muid
+    msg['kind'] = "found"
+    msg['signer'] = signer
+    msg['date'] = changed
+    msg['to'] = annDid
+    msg['from'] = ivyDid
+    msg['thing'] = thingDid
+    msg['subject'] = "Lose something?"
+    msg['content'] = "I am so happy your found it."
+
+    mser = json.dumps(msg, indent=2)
+    msig = keyToKey64u(libnacl.crypto_sign(mser.encode("utf-8"), annSk)[:libnacl.crypto_sign_BYTES])
+    assert msig == "62ThJr_GUImtTa54RVhbo1bs5X4DCxjmecHONniQp0Os95Pb8bLrzBgCYr3YOhSB8wMPHYL7L6pm5qQjVPYzAA=="
+
+    # Build key for message from (to, from, uid)  (did, sdid, muid)
+    key = "{}/drop/{}/{}".format(annDid, ivyDid, muid)
+    assert key == ('did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE='
+                   '/drop'
+                   '/did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY='
+                   '/m_00035d3d94be0000_15aabb5')
+
+    # save message to database error if duplicate
+    dbing.putSigned(key=key, ser=mser, sig=msig, clobber=False)  # no clobber so error
+
+    #test get inbox for Ann
+    messages = dbing.getDrops(annDid)
+    assert messages
+    assert len(messages) == 1
+    assert messages[0]['uid'] == muid
+    assert messages[0]['from'] == ivyDid
+
+    #test get inbox for Ivy to make sure still works
+    messages = dbing.getDrops(ivyDid)
+    assert messages
+    assert len(messages) == 2
+    for message in messages:
+        assert message['from'] == annDid
+
+
+    cleanupTmpBaseDir(dbEnv.path())
+    print("Done Test")
+
 
 def test_putOfferExpire():
     """

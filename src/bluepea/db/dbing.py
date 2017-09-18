@@ -345,6 +345,77 @@ def exists(key, dbn='core', env=None, dup=False):
             return False
     return True
 
+def getDrops(did, dbn='core', env=None):
+    """
+    Returns list earliest to latest of drop messages entries If any
+    from inbox of given did
+    If none exist returns empty list
+
+    Each entry in list is dict of form:
+    {
+       "from": {source did},
+       "uid":  {message uid}
+    }
+
+    Each key in database is of form:
+    "{dest did}/drop/{source did}/{message uid}".format(did, sdid, muid)
+    ('did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY='
+    '/drop'
+    '/did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE='
+    '/m_00035d2976e6a000_26ace93')
+
+
+    Each value in database is message data ODict of form:
+    {
+        "uid": "m_00035d2976e6a000_26ace93",
+        "kind": "found",
+        "signer": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=#0",
+        "date": "2000-01-03T00:00:00+00:00",
+        "to": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",
+        "from": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+        "thing": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
+        "subject": "Lose something?",
+        "content": "Look what I found"
+    }
+
+
+    Parameters:
+        did is agent did whose inbox is being retrieved
+        dbn is name str of named sub database, Default is 'did2offer'
+        env is main LMDB database environment
+            If env is not provided then use global gDbEnv
+    """
+    global gDbEnv
+
+    if env is None:
+        env = gDbEnv
+
+    if env is None:
+        raise DatabaseError("Database environment not set up")
+
+    drip = "{}/drop/".format(did)
+    dripb = drip.encode()
+    entries = []
+    subDb = gDbEnv.open_db(dbn.encode("utf-8"), dupsort=True)  # open named sub db named dbn within env
+    with gDbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
+        with txn.cursor() as cursor:
+            if cursor.set_range(dripb):  # first key >= dripb
+                while cursor.key().startswith(dripb):  # something left in inbox
+                    try:
+                        ddid, drop, sdid, muid = cursor.key().decode().split("/")
+                    except ValueError as ex:  # skip entry
+                        pass
+                    else:
+                        entry = ODict()
+                        entry['from'] = sdid
+                        entry['uid'] = muid
+                        entries.append(entry)
+
+                    if not cursor.next():  # next key in database if any
+                        break
+
+    return entries
+
 def putDidOfferExpire(did, ouid, expire, dbn="did2offer", env=None):
     """
     Put entry into database table that maps offers to expiring offers expirations
@@ -426,7 +497,6 @@ def getOfferExpires(did, lastOnly=True, dbn='did2offer', env=None):
                                for value in cursor.iternext_dup()]
 
     return entries
-
 
 def putAnonMsg(key, data, dbn="anon", env=None):
     """

@@ -1215,7 +1215,9 @@ All the fields in the example above are required except for ```thing```.
 
 The fields descriptions are as follows:
 
-- *uid*  is the unique message id. This must be unique for any paring of sender and recipient. A useful ID scheme is the time based universal unique ID provided by the ```ioflo.aid.timing.tuuid()``` function. This uses time to order the UID up to microsecond intervals and then adds a random suffix to provide sub micro-second uniqueness. To generate a TUUID as in the examples use the function as follows:
+- *uid*  is the unique message id. This must be unique for any paring of sender and recipient to insure that there are no collisions between messages stored in the database. A useful ID scheme is the time based universal unique ID provided by the ```ioflo.aid.timing.tuuid()``` function. This uses time to order the UID up to microsecond intervals and then adds a random suffix to provide sub micro-second uniqueness. A sender can then ensure that it does not generate duplicate message ids. Each destinatation Agent has a single incoming message queue (dropbox or inbox). The messages are keyed by a combination of the source Agent DID and the message UID. Thus even if two senders happen to use the same message uid there will not be a collision and each sender's message will be stored in a different location.
+
+To generate a TUUID as in the examples use the function as follows:
 
 ```python
 from ioflo.aid.timing import tuuid
@@ -1309,7 +1311,8 @@ Date: Tue, 18 Jul 2017 19:50:57 GMT
 
 ## Reading a *Message* from One *Agent* to Another
 
-The Indigo service creates a dedicated message queue for each sender at each recipient.
+The Indigo service creates a dedicated message queue (dropbox or inbox) for each recipient Agent DID. In order to prevent collisions due to different senders using the same message uid, the full database key includes the sender's DID in addition to the message UID.
+
 The request is made by sending an HTTP Get to ```/agent/{did}/drop?from={did}&uid={muid}``` with the path parameter that is the DID of the recepient of a message. This value needs to be URL encoded. The request also has two query parameters. One with *tag* *from* query parameter whose value is the sender DID. This value needs to be URL encoded. The other with *tag* uid whose value is the unique message ID of the message. Other variants of the request will allow querying the first last or all of the messages to a given receipient as well as all messages from a given sender to a given recepient.
 
 A successful request will return status code 200. An unsuccessful request will return an error status code such as 404 Not Found. 
@@ -1318,7 +1321,7 @@ If successful the response includes a custom "Signature" header whose *signer* f
 
 Example requests and responses are shown below.
 
-## Request
+#### Request
 
 ```http
 GET /agent/did%3Aigo%3AdZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY%3D/drop?from=did%3Aigo%3AQt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE%3D&uid=m_00035d2976e6a000_26ace93 HTTP/1.1
@@ -1329,7 +1332,7 @@ Connection: close
 User-Agent: Paw/3.1.2 (Macintosh; OS X/10.12.5) GCDHTTPRequest
 ```
 
-## Response
+#### Response
 
 ```http
 HTTP/1.1 200 OK
@@ -1352,7 +1355,57 @@ Date: Tue, 18 Jul 2017 19:53:16 GMT
 }
 ```
 
-## Including Encrypted Data in a *Message*
+### *Drop* Read List Query
+
+The *Drop*  read list request (GET) query retrieves a list of the messages in the message queue (inbox, dropbox) for a given *Agent* DID. Each entry in the list includes the sending *Agent's* DID as the value of the *from* field and the message UID as the value of the *uid* field. An example message list is shown below:
+
+```json
+[
+  {
+    "from": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+    "uid": "m_00035d2976e6a000_26ace93"
+  },
+  {
+    "from": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+    "uid": "m_00035d3d94be0000_15aabb5"
+  }
+]
+```
+
+In order to retrieve a list of all the messages in an Agent's message queue use the query parameter *all* with value *true*, that is, *all=true*. Example request and response is shown below:
+
+#### Request
+
+```http
+GET /agent/did%3Aigo%3AdZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY%3D/drop?all=true HTTP/1.1
+Signature: signer="07u1OcQI8FUeWPqeiga3A9k4MPJGSFmC4vShiJNpv2Rke9ssnW7aLx857HC5ZaJ973WSKkLAwPzkl399d01HBA=="
+Content-Type: application/json; charset=UTF-8
+Host: localhost:8080
+Connection: close
+User-Agent: Paw/3.1.4 (Macintosh; OS X/10.12.6) GCDHTTPRequest
+```
+
+#### Response
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=UTF-8
+Content-Length: 119
+Server: Ioflo WSGI Server
+Date: Mon, 18 Sep 2017 19:11:47 GMT
+
+[
+  {
+    "from": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+    "uid": "m_00035d2976e6a000_26ace93"
+  }
+]
+```
+
+With the information from an entry in the message list, a client can then request a specific message using the message query with query parameters *from* and *uid* as shown in the previous section. 
+
+
+### Including Encrypted Data in a *Message*
 
 Encrypted data requires an encryption/decryption key pair. Best practices for secure encryption/decryption exchange between two parties is to use asymmetric keys that are exchanged using a Diffie-Hellman key exchange that adds a type of authentication to the encryption/decryption. This provides additional security against exploits. The NaCL (libsodium) library provides support for such ECC based Diffie-Hellman authenticated encryption (ECDH) with its crypto box function. As mentioned previously NaCL keys use the Curve25519 standard. These are different from Ed25519 (EdDSA) signing keys. Consequently a separate key identifier for encrypted data is required. Curve25519 public keys are 32 binary bytes long or 64 Hex encoded characters or 44 Base64 encoded characters (with padding).
 
@@ -1610,7 +1663,7 @@ An unsuccessful request will return status code 400.
 
 Example requests and responses are shown below.
 
-## Request
+#### Request
 
 ```http
 POST /thing/did%3Aigo%3A4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM%3D/offer HTTP/1.1
@@ -1629,7 +1682,7 @@ Content-Length: 199
 }
 ```
 
-## Response
+#### Response
 
 ```http
 HTTP/1.1 201 Created

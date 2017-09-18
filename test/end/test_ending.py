@@ -1779,6 +1779,16 @@ def test_post_AgentDidDrop(client):  # client is a fixture in pytest_falcon
 
     assert verify64u(msig, rep.body, keyToKey64u(srcVk))
 
+    # get message list
+    path = "/agent/{}/drop?all=true".format(dstDidUri)
+    assert path == "/agent/did%3Aigo%3AdZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY%3D/drop?all=true"
+    rep = client.get(path)
+
+    assert rep.status == falcon.HTTP_OK
+    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
+    assert rep.json == [{'from': 'did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=',
+                         'uid': 'm_00035d2976e6a000_26ace93'}]
+
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")
 

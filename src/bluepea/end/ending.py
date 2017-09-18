@@ -563,30 +563,43 @@ class AgentDidDropResource:
 
 
         """
+        all_ = req.get_param("all") # returns url-decoded query parameter value
+        if all_ and all_.lower() == "true":
+            all_ = True
+        else:
+            all_ = False
         muid = req.get_param("uid") # returns url-decoded query parameter value
         sdid = req.get_param("from")  # returns url-decoded query parameter value
-        index = req.get_param("index")  # returns url-decoded query parameter value
 
-        if index is not None:
-            try:
-                index = int(index)
-            except (ValueError, TypeError) as  ex:
+
+        if all_:
+            try:  # read from database
+                entries = dbing.getDrops(did)
+            except dbing.DatabaseError as ex:
                 raise falcon.HTTPError(falcon.HTTP_400,
-                                       'Request Error',
-                                       'Invalid request format. {}'.format(ex))
+                                'Resource Lookup Error',
+                                'Error retrieving resource. {}'.format(ex))
+            ser = json.dumps(entries, indent=2)
 
 
-        key = "{}/drop/{}/{}".format(did, sdid, muid)  # (to, from, uid)  (did, sdid, muid)
+        else:
+            if not  muid or not sdid:
+                raise falcon.HTTPError(falcon.HTTP_400,
+                                        'Query Parameter Error',
+                                            'Missing query parameters uid and from.')
 
-        # read from database
-        try:
-            dat, ser, sig = dbing.getSigned(key)
-        except dbing.DatabaseError as ex:
-            raise falcon.HTTPError(falcon.HTTP_400,
-                            'Resource Verification Error',
-                            'Error verifying resource. {}'.format(ex))
+            key = "{}/drop/{}/{}".format(did, sdid, muid)  # (to, from, uid)  (did, sdid, muid)
 
-        rep.set_header("Signature", 'signer="{}"'.format(sig))
+            # read from database
+            try:
+                dat, ser, sig = dbing.getSigned(key)
+            except dbing.DatabaseError as ex:
+                raise falcon.HTTPError(falcon.HTTP_400,
+                                'Resource Verification Error',
+                                'Error verifying resource. {}'.format(ex))
+
+            rep.set_header("Signature", 'signer="{}"'.format(sig))
+
         rep.set_header("Content-Type", "application/json; charset=UTF-8")
         rep.status = falcon.HTTP_200  # This is the default status
         rep.body = ser
