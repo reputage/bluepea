@@ -2130,8 +2130,8 @@ def test_get_ThingDidOffer(client):  # client is a fixture in pytest_falcon
 
     assert len(rep.json) == 1
     offering = rep.json[-1]
-    assert  offering['offer'] == key
-    assert  offering['offer'] == 'did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=/offer/o_00035d2976e6a000_26ace93'
+    assert  offering['uid'] == ouid
+    assert  offering['uid'] == 'o_00035d2976e6a000_26ace93'
 
     # now get list of lastest offer from web service
     tDidUri = falcon.uri.encode_value(tDid)
@@ -2143,8 +2143,8 @@ def test_get_ThingDidOffer(client):  # client is a fixture in pytest_falcon
 
     assert len(rep.json) == 1
     offering = rep.json[0]
-    assert  offering['offer'] == key
-    assert  offering['offer'] == 'did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=/offer/o_00035d2976e6a000_26ace93'
+    assert  offering['uid'] == ouid
+    assert  offering['uid'] == 'o_00035d2976e6a000_26ace93'
 
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")

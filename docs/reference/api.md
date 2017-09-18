@@ -1766,14 +1766,14 @@ Transfer-Encoding: chunked
 
 The *Offer*  read request (GET) retrieves an offer for a given *Thing* DID with a given *Offer* UID by the *uid* query parameter in the request. In order to retrieve an *Offer* data resource the client application needs the DID for the corresponding Thing as well as the UID for the specific *Offer*. 
 
-The offer uid can be obtained by either querying for a list of all offers for a given Thing DID or a list of just the latest offer for a Thing DID. The list contains json objects (dicts) one for each offer. Each object has two fields, *offer* with a string that includes {did}/offer/{ouid} and *expire* with the expiration date of the offer. The offer uid is the last section of the offer field value. If there are no offers then the list is empty. Using the returned offer uid another request can be made using an *Offer* Read Request (see above).
+The offer uid can be obtained by either querying for a list of all offers for a given Thing DID or a list of just the latest offer for a Thing DID. The list contains json objects (dicts) one for each offer. Each object has two fields, *uid* whose value is the offer uid and *expire* whose value is the expiration date of the offer. If there are no offers then the list is empty. Using the returned offer uid another request can be made using an *Offer* Read Request (see above).
 
 An example is shown below:
 
 ```json
 [
   {
-     "offer": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=/offer/o_00035d2976e6a000_26ace93",
+     "offer": "o_00035d2976e6a000_26ace93",
     "expire": "2017-09-15T21:02:41.686546+00:00"
   }
 ]
@@ -1798,7 +1798,7 @@ GET /thing/did%3Aigo%3A4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM%3D/offer?all=
 Content-Type: application/json; charset=utf-8
 Host: localhost:8080
 Connection: close
-User-Agent: Paw/3.1.3 (Macintosh; OS X/10.12.6) GCDHTTPRequest
+User-Agent: Paw/3.1.4 (Macintosh; OS X/10.12.6) GCDHTTPRequest
 ```
 
 #### Response
@@ -1806,14 +1806,14 @@ User-Agent: Paw/3.1.3 (Macintosh; OS X/10.12.6) GCDHTTPRequest
 ```http
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-Content-Length: 162
+Content-Length: 101
 Server: Ioflo WSGI Server
-Date: Fri, 15 Sep 2017 21:00:49 GMT
+Date: Mon, 18 Sep 2017 14:00:40 GMT
 
 [
   {
-    "offer": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=/offer/o_00035d2976e6a000_26ace93",
-    "expire": "2017-09-15T21:02:41.686546+00:00"
+    "expire": "2017-09-18T14:02:33.998738+00:00",
+    "uid": "o_00035d2976e6a000_26ace93"
   }
 ]
 ```
@@ -1825,7 +1825,7 @@ GET /thing/did%3Aigo%3A4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM%3D/offer?late
 Content-Type: application/json; charset=utf-8
 Host: localhost:8080
 Connection: close
-User-Agent: Paw/3.1.3 (Macintosh; OS X/10.12.6) GCDHTTPRequest
+User-Agent: Paw/3.1.4 (Macintosh; OS X/10.12.6) GCDHTTPRequest
 ```
 
 #### Response
@@ -1833,14 +1833,14 @@ User-Agent: Paw/3.1.3 (Macintosh; OS X/10.12.6) GCDHTTPRequest
 ```http
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
-Content-Length: 162
+Content-Length: 101
 Server: Ioflo WSGI Server
-Date: Fri, 15 Sep 2017 21:00:54 GMT
+Date: Mon, 18 Sep 2017 14:00:43 GMT
 
 [
   {
-    "offer": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=/offer/o_00035d2976e6a000_26ace93",
-    "expire": "2017-09-15T21:02:41.686546+00:00"
+    "expire": "2017-09-18T14:02:33.998738+00:00",
+    "uid": "o_00035d2976e6a000_26ace93"
   }
 ]
 ```

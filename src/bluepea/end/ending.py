@@ -1175,12 +1175,16 @@ class ThingDidOfferResource:
         if all_ or latest:
             lastOnly = False if all_ else True
             try:  # read from database
-                offers = dbing.getOfferExpires(did, lastOnly=lastOnly)
+                offerings = dbing.getOfferExpires(did, lastOnly=lastOnly)
             except dbing.DatabaseError as ex:
                 raise falcon.HTTPError(falcon.HTTP_400,
                                 'Resource Lookup Error',
                                 'Error retrieving resource. {}'.format(ex))
-            ser = json.dumps(offers, indent=2)
+            for offering in offerings:
+                tdid, offer, ouid = offering['offer'].split("/")
+                offering['uid'] = ouid
+                del offering['offer']
+            ser = json.dumps(offerings, indent=2)
 
         elif ouid:
             key = "{}/offer/{}".format(did, ouid)
