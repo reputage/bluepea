@@ -1,0 +1,11 @@
+{
+	"version": 3,
+	"file": "/Data/Code/private/indigo/bluepea/src/bluepea/static/transcrypt/__javascript__/hello.mod.js",
+	"sources": [
+		"/Data/Code/private/indigo/bluepea/src/bluepea/static/transcrypt/hello.py"
+	],
+	"sourcesContent": [
+		"m = require(\"mithril\")\n\nm.render(document.body, \"Hello python\")\n"
+	],
+	"mappings": "AAAA;AAAA;AAEA;AAAA;AAAA;AAAA;AAAA;AAAA"
+}
