@@ -1,7 +1,7 @@
 "use strict";
-// Transcrypt'ed from Python, 2017-09-18 16:32:39
-function hello () {
-   var __symbols__ = ['__py3.6__', '__esv5__'];
+// Transcrypt'ed from Python, 2017-09-19 10:27:00
+function main () {
+   var __symbols__ = ['__py3.6__', '__esv6__'];
     var __all__ = {};
     var __world__ = __all__;
     
@@ -47,6 +47,8 @@ function hello () {
     __all__.__init__ = __init__;
     
     
+    // Proxy switch, controlled by __pragma__ ('proxy') and __pragma ('noproxy')
+    var __proxy__ = false;  // No use assigning it to __all__, only its transient state is important
     
     
     // Since we want to assign functions, a = b.f should make b.f produce a bound function
@@ -105,6 +107,12 @@ function hello () {
                     var descrip = Object.getOwnPropertyDescriptor (base, attrib);
                     Object.defineProperty (cls, attrib, descrip);
                 }           
+
+                for (var symbol of Object.getOwnPropertySymbols (base)) {
+                    var descrip = Object.getOwnPropertyDescriptor (base, symbol);
+                    Object.defineProperty (cls, symbol, descrip);
+                }
+                
             }
             
             // Add class specific attributes to the created cls object
@@ -117,6 +125,12 @@ function hello () {
                 var descrip = Object.getOwnPropertyDescriptor (attribs, attrib);
                 Object.defineProperty (cls, attrib, descrip);
             }
+
+            for (var symbol of Object.getOwnPropertySymbols (attribs)) {
+                var descrip = Object.getOwnPropertyDescriptor (attribs, symbol);
+                Object.defineProperty (cls, symbol, descrip);
+            }
+            
             // Return created cls object
             return cls;
         }
@@ -139,6 +153,28 @@ function hello () {
             // The descriptor produced by __get__ will return the right method flavor
             var instance = Object.create (this, {__class__: {value: this, enumerable: true}});
             
+            if ('__getattr__' in this || '__setattr__' in this) {
+                instance = new Proxy (instance, {
+                    get: function (target, name) {
+                        var result = target [name];
+                        if (result == undefined) {  // Target doesn't have attribute named name
+                            return target.__getattr__ (name);
+                        }
+                        else {
+                            return result;
+                        }
+                    },
+                    set: function (target, name, value) {
+                        try {
+                            target.__setattr__ (name, value);
+                        }
+                        catch (exception) {         // Target doesn't have a __setattr__ method
+                            target [name] = value;
+                        }
+                        return true;
+                    }
+                })
+            }
 
             // Call constructor
             this.__init__.apply (null, [instance] .concat (args));
@@ -375,9 +411,7 @@ function hello () {
 					var map = function (func, iterable) {
 						return function () {
 							var __accu0__ = [];
-							var __iterable0__ = iterable;
-							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
-								var item = __iterable0__ [__index0__];
+							for (var item of iterable) {
 								__accu0__.append (func (item));
 							}
 							return __accu0__;
@@ -389,9 +423,7 @@ function hello () {
 						}
 						return function () {
 							var __accu0__ = [];
-							var __iterable0__ = iterable;
-							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
-								var item = __iterable0__ [__index0__];
+							for (var item of iterable) {
 								if (func (item)) {
 									__accu0__.append (item);
 								}
@@ -437,9 +469,7 @@ function hello () {
 							}
 							self.buffer = '{}{}{}'.format (self.buffer, sep.join (function () {
 								var __accu0__ = [];
-								var __iterable0__ = args;
-								for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
-									var arg = __iterable0__ [__index0__];
+								for (var arg of args) {
 									__accu0__.append (str (arg));
 								}
 								return __accu0__;
@@ -451,9 +481,7 @@ function hello () {
 							else {
 								console.log (sep.join (function () {
 									var __accu0__ = [];
-									var __iterable0__ = args;
-									for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
-										var arg = __iterable0__ [__index0__];
+									for (var arg of args) {
 										__accu0__.append (str (arg));
 									}
 									return __accu0__;
@@ -596,8 +624,7 @@ function hello () {
         // Lean and fast, no C3 linearization, only call first implementation encountered
         // Will allow __super__ ('<methodName>') (self, <params>) rather than only <className>.<methodName> (self, <params>)
         
-        for (var index = 0; index < aClass.__bases__.length; index++) {
-            var base = aClass.__bases__ [index];
+        for (let base of aClass.__bases__) {
             if (methodName in base) {
                return base [methodName];
             }
@@ -831,8 +858,7 @@ function hello () {
         }
 
         if (classinfo instanceof Array) {   // Assume in most cases it isn't, then making it recursive rather than two functions saves a call
-            for (var index = 0; index < classinfo.length; index++) {
-                var aClass = classinfo [index];
+            for (let aClass of classinfo) {
                 if (isinstance (anObject, aClass)) {
                     return true;
                 }
@@ -1113,25 +1139,25 @@ function hello () {
     // Any, all and sum
 
     function any (iterable) {
-        for (var index = 0; index < iterable.length; index++) {
-            if (bool (iterable [index])) {
+        for (let item of iterable) {
+            if (bool (item)) {
                 return true;
             }
         }
         return false;
     }
     function all (iterable) {
-        for (var index = 0; index < iterable.length; index++) {
-            if (! bool (iterable [index])) {
+        for (let item of iterable) {
+            if (! bool (item)) {
                 return false;
             }
         }
         return true;
     }
     function sum (iterable) {
-        var result = 0;
-        for (var index = 0; index < iterable.length; index++) {
-            result += iterable [index];
+        let result = 0;
+        for (let item of iterable) {
+            result += item;
         }
         return result;
     }
@@ -1183,7 +1209,7 @@ function hello () {
     // List extensions to Array
 
     function list (iterable) {                                      // All such creators should be callable without new
-        var instance = iterable ? [] .slice.apply (iterable) : [];  // Spread iterable, n.b. array.slice (), so array before dot
+        var instance = iterable ? Array.from (iterable) : [];
         // Sort is the normal JavaScript sort, Python sort is a non-member function
         return instance;
     }
@@ -1636,6 +1662,7 @@ function hello () {
     };
 
     String.prototype.join = function (strings) {
+        strings = Array.from (strings); // Much faster than iterating through strings char by char
         return strings.join (this);
     };
 
@@ -2412,15 +2439,38 @@ function hello () {
         }
     };
     __all__.__setslice__ = __setslice__;
+	__nest__ (
+		__all__,
+		'pylib.hello', {
+			__all__: {
+				__inited__: false,
+				__init__: function (__all__) {
+					var root = document.body;
+					var test = function () {
+						m.render (root, list ([m ('h2', dict ({'class': 'title'}), 'Hello Python Module World'), m ('button', dict ({'class': 'ui button'}), 'Go Python Module')]));
+					};
+					__pragma__ ('<all>')
+						__all__.root = root;
+						__all__.test = test;
+					__pragma__ ('</all>')
+				}
+			}
+		}
+	);
 	(function () {
-		var m = require ('mithril');
-		m.render (document.body, 'Hello python');
+		var pylib = {};
+		__nest__ (pylib, 'hello', __init__ (__world__.pylib.hello));
+		var root = document.body;
+		m.render (root, list ([m ('h1', dict ({'class': 'title'}), 'Hello Python World'), m ('button', dict ({'class': 'ui button'}), 'Go Python')]));
+		__pragma__ ('<use>' +
+			'pylib.hello' +
+		'</use>')
 		__pragma__ ('<all>')
-			__all__.m = m;
+			__all__.root = root;
 		__pragma__ ('</all>')
 	}) ();
    return __all__;
 }
-window ['hello'] = hello ();
+window ['main'] = main ();
 
-//# sourceMappingURL=extra/sourcemap/hello.js.map
+//# sourceMappingURL=extra/sourcemap/main.js.map

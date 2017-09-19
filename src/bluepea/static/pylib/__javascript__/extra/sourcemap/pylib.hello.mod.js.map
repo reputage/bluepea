@@ -1,0 +1,11 @@
+{
+	"version": 3,
+	"file": "/Data/Code/private/indigo/bluepea/src/bluepea/static/pylib/__javascript__/pylib.hello.mod.js",
+	"sources": [
+		"/Data/Code/private/indigo/bluepea/src/bluepea/static/pylib/hello.py"
+	],
+	"sourcesContent": [
+		"root = document.body\n\ndef test():\n    \"\"\"\n    \"\"\"\n    m.render(root, [m(\"h2\", {\"class\": \"title\"}, \"Hello Python Module World\"),\n                 m(\"button\", {\"class\": \"ui button\"}, \"Go Python Module\"),\n               ])\n"
+	],
+	"mappings": "AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAEA;AAIA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA"
+}
