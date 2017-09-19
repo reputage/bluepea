@@ -25,6 +25,7 @@ from ioflo.aid import getConsole
 
 import falcon
 
+from .. import bluepeaing
 from ..end import ending, exampling
 from ..db import dbing
 from ..keep import keeping
@@ -45,18 +46,23 @@ frame server
 """
 
 @doify('BluepeaServerOpen', ioinits=odict(valet="",
-                                          port=odict(inode="", ival=8080),
+                                          port=odict(ival=8080),
                                           dbDirPath="",
                                           keepDirPath="",
-                                          test="",))
+                                          test="",
+                                          fakeHidKind=odict(ival=False),
+                                          ))
 def bluepeaServerOpen(self, buffer=False, **kwa):
     """
     Setup and open a rest server
 
     Ioinit attributes
         valet is Valet instance (wsgi server)
-        mock is Flag if True load mock service endpoints
+        port is server port
+        dbDirPath is directory path for database
+        keepDirPath is directory path for private key files
         test is Flag if True load test endpoints and test database
+        fakeHidKind is Flag IF True then enable "fake" HID kind that does not require validation
 
     Parameters:
         buffer is boolean If True then create wire log buffer for Valet
@@ -72,9 +78,10 @@ def bluepeaServerOpen(self, buffer=False, **kwa):
     else:
         wlog = None
 
+    bluepeaing.fakeHidKind = self.fakeHidKind.value   # set global flag
+
     port = int(self.port.value)
     test = True if self.test.value else False  # use to load test environment
-
 
     if test:
         priming.setupTest()

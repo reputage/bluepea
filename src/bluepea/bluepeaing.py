@@ -14,6 +14,8 @@ PROPAGATION_DELAY = 60.0  # network propagation time for consensus
 #TRACK_EXPIRATION_DELAY = 60 * 60 * 24  # 24 hours in units of seconds
 TRACK_EXPIRATION_DELAY =  10
 
+fakeHidKind = False  # module global flag, If True enable fake hid kind that does not require validation
+
 class BluepeaError(Exception):
     """
     Base Class for bluepea exceptions

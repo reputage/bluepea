@@ -47,6 +47,7 @@ from ioflo.aid import getConsole
 
 import libnacl
 
+from .. import bluepeaing
 from ..bluepeaing import SEPARATOR, PROPAGATION_DELAY, ValidationError
 
 console = getConsole()
@@ -1302,6 +1303,10 @@ def validateIssuerDomainGen(store, idat, issuant, timeout=0.5):
     try:
         did = idat["did"]
         issuer = issuant['issuer']
+
+        if bluepeaing.fakeHidKind and issuant['kind'] == 'fake':
+            return  # fake kind always validates when enabled by fakeHidKind flag
+
         if issuant['kind'] != 'dns':  # only support dns for now
             raise ValidationError('Invalid issuant kind for issuer {}'.format(issuer))
 

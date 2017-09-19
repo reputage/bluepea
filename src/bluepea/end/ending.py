@@ -31,6 +31,7 @@ from ioflo.aio.http import httping
 
 from ioflo.aid import getConsole
 
+from .. import bluepeaing
 from ..bluepeaing import SEPARATOR, TRACK_EXPIRATION_DELAY, ValidationError
 
 from ..help.helping import (parseSignatureHeader, verify64u, extractDidParts,
