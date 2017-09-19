@@ -1378,7 +1378,6 @@ In order to retrieve a list of all the messages in an Agent's message queue use 
 
 ```http
 GET /agent/did%3Aigo%3AdZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY%3D/drop?all=true HTTP/1.1
-Signature: signer="07u1OcQI8FUeWPqeiga3A9k4MPJGSFmC4vShiJNpv2Rke9ssnW7aLx857HC5ZaJ973WSKkLAwPzkl399d01HBA=="
 Content-Type: application/json; charset=UTF-8
 Host: localhost:8080
 Connection: close
@@ -1392,7 +1391,7 @@ HTTP/1.1 200 OK
 Content-Type: application/json; charset=UTF-8
 Content-Length: 119
 Server: Ioflo WSGI Server
-Date: Mon, 18 Sep 2017 19:11:47 GMT
+Date: Tue, 19 Sep 2017 21:07:09 GMT
 
 [
   {
