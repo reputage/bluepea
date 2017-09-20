@@ -794,6 +794,37 @@ def deleteAnonMsgs(key, dbn='anon', env=None):
             raise DatabaseError("Could not delete.")
     return result
 
+def getAllAnonUids(dbn='anon', env=None):
+    """
+    Returns list of all anon message uids without duplicates
+    If none exist returns empty list
+
+    Each entry is str anon uid
+
+    uid is up 32 bytes
+        if anon ephemeral ID in base64 url safe
+
+    Parameters:
+        dbn is name str of named sub database, Default is 'anon'
+        env is main LMDB database environment
+            If env is not provided then use global gDbEnv
+    """
+    global gDbEnv
+
+    if env is None:
+        env = gDbEnv
+
+    if env is None:
+        raise DatabaseError("Database environment not set up")
+
+    entries = []
+    subDb = env.open_db(dbn.encode("utf-8"), dupsort=True)  # open named sub db named dbn within env
+    with env.begin(db=subDb) as txn:  # txn is a Transaction object
+        with txn.cursor() as cursor:
+            if cursor.first():
+                entries = [key.decode() for key in cursor.iternext_nodup()]
+    return entries
+
 
 def putExpireUid(key, uid, dbn="expire2uid", env=None):
     """

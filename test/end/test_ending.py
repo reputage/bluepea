@@ -2733,6 +2733,12 @@ def test_post_Anon(client):  # client is a fixture in pytest_falcon
 
     assert rep.json[0] == data
 
+    # now uid list all from web service
+    rep = client.get("/anon?all=true")
+    assert rep.status == falcon.HTTP_OK
+    assert rep.headers['content-type'] == 'application/json; charset=UTF-8'
+    assert rep.json[0] == uid
+
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")
 

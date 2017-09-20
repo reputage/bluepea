@@ -2154,3 +2154,46 @@ Date: Tue, 29 Aug 2017 19:03:49 GMT
   }
 ]
 ```
+
+### *Anonymous Message UID* Read Query All
+
+To get a list of the UIDs of all the anonymous messages in the database, send a GET request with query parameter *all* with value *true*, that is, *all=true*.
+
+This returns a list of the UIDs of all the messages in the following form:
+
+```json
+[
+  "AQIDBAoLDA0="
+]
+```
+
+Each UID only appears once in the list even though there may be multiple messages with the same UID in the database.
+
+A UID from the list can then be used to generate a GET request to the endpoint described aboave to get all the associated messages that have that UID.
+
+Example request and response for all UIDs are shown below:
+
+#### Request
+
+```http
+GET /anon?all=true HTTP/1.1
+Content-Type: application/json; charset=UTF-8
+Host: localhost:8080
+Connection: close
+User-Agent: Paw/3.1.4 (Macintosh; OS X/10.12.6) GCDHTTPRequest
+```
+
+#### Response
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=UTF-8
+Content-Length: 20
+Server: Ioflo WSGI Server
+Date: Wed, 20 Sep 2017 20:00:04 GMT
+
+[
+  "AQIDBAoLDA0="
+]
+```
+

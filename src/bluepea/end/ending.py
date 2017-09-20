@@ -1627,30 +1627,47 @@ class AnonMsgResource:
         """
         Handles GET request for anon resource and uid in query params
         """
+        all_ = req.get_param("all") # returns url-decoded query parameter value
+        if all_ and all_.lower() == "true":
+            all_ = True
+        else:
+            all_ = False
+
         uid = req.get_param("uid") # returns url-decoded query parameter value
 
-        if not uid:
-            raise falcon.HTTPError(falcon.HTTP_400,
-                                    'Resource Error',
-                                    'Missing or invalid query parameter uid.')
+        if all_:
+            try:  # read from database
+                entries = dbing.getAllAnonUids()
+            except dbing.DatabaseError as ex:
+                raise falcon.HTTPError(falcon.HTTP_400,
+                                'Resource Lookup Error',
+                                'Error retrieving resource. {}'.format(ex))
+            ser = json.dumps(entries, indent=2)
 
-        # read all tracks from database
-        tracks = []
-        try:
-            tracks = dbing.getAnonMsgs(key=uid)
-        except dbing.DatabaseError as ex:
-            raise falcon.HTTPError(falcon.HTTP_400,
-                            'Resource Error',
-                            'Resource malformed. {}'.format(ex))
+        else:
+            if not uid:
+                raise falcon.HTTPError(falcon.HTTP_400,
+                                        'Resource Error',
+                                        'Missing or invalid query parameter uid.')
 
-        if not tracks:
-            raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
-                                               'Not Found Error',
-                                               'Track does not exist')
+            # read all anon msgs from database for given uid
+            anons = []
+            try:
+                anons = dbing.getAnonMsgs(key=uid)
+            except dbing.DatabaseError as ex:
+                raise falcon.HTTPError(falcon.HTTP_400,
+                                'Resource Error',
+                                'Resource malformed. {}'.format(ex))
+
+            if not anons:
+                raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
+                                                   'Not Found Error',
+                                                   'Anon uid does not exist')
+            ser = json.dumps(anons, indent=2)
 
         rep.set_header("Content-Type", "application/json; charset=UTF-8")
         rep.status = falcon.HTTP_200  # This is the default status
-        rep.body = json.dumps(tracks, indent=2)
+        rep.body = ser
 
 class CheckHidResource:
     """

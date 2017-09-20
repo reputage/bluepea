@@ -718,9 +718,9 @@ def test_getOfferExpires():
 def test_putGetDeleteAnon():
     """
     Test
-    putTrack(key, data, dbn="anon", env=None)
-    getTracks(key, dbn='anon', env=None)
-    deleteTracks(key, dbn='anon', env=None)
+    putAnonMsg(key, data, dbn="anon", env=None)
+    getAnonMsgs(key, dbn='anon', env=None)
+    deleteAnonMsgs(key, dbn='anon', env=None)
 
     where
         key is ephemeral ID 16 byte hex
@@ -827,9 +827,9 @@ def test_putGetDeleteAnon():
     anon3 = anon.copy()
     anon3["uid"] = uid2
     data3 = ODict()
-    data2['create'] = create
-    data2['expire'] = expire
-    data2['anon'] = anon3
+    data3['create'] = create
+    data3['expire'] = expire
+    data3['anon'] = anon3
 
     result = dbing.putAnonMsg(key=uid2, data=data3)
     assert result
@@ -848,6 +848,114 @@ def test_putGetDeleteAnon():
 
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")
+
+def test_getAllAnonUids():
+    """
+    Test
+    getAllAnonUids(dbn="anon", env=None)
+
+    Gets list of Anon Uids no dups
+
+    The key for the entry is just the uid
+
+    uid is up 32 bytes
+        if anon ephemeral ID in base64 url safe
+
+    """
+    print("Testing put get delete Track in DB Env")
+
+    dbEnv = dbing.setupTestDbEnv()
+
+    dt = datetime.datetime(2000, 1, 1, minute=30, tzinfo=datetime.timezone.utc)
+    #stamp = dt.timestamp()  # make time.time value
+    #create = timing.iso8601(dt=dt, aware=True)
+    #assert create == '2000-01-01T00:30:00+00:00'
+    create = int(dt.timestamp() * 1000000)
+    assert create == 946686600000000
+
+    #td = datetime.timedelta(seconds=360)
+    #expire = timing.iso8601(dt=dt+td, aware=True)
+    #assert expire == '2000-01-01T00:36:00+00:00'
+    expire = create + (360 * 1000000)
+    assert expire == 946686960000000
+
+    # local time
+    td = datetime.timedelta(seconds=5)
+    date = timing.iso8601(dt=dt+td, aware=True)
+    assert date == '2000-01-01T00:30:05+00:00'
+
+    uid1 = "AQIDBAoLDA0="
+    content = "EjRWeBI0Vng="
+
+    anon1 = ODict()
+    anon1['uid'] = uid1
+    anon1['content'] = content
+    anon1['date'] = date
+
+    assert anon1 == {
+        "uid": "AQIDBAoLDA0=",
+        "content": "EjRWeBI0Vng=",
+        "date": "2000-01-01T00:30:05+00:00",
+    }
+
+    data1 = ODict()
+    data1['create'] = create
+    data1['expire'] = expire
+    data1['anon'] = anon1
+
+    assert data1 == {
+        "create": 946686600000000,
+        "expire": 946686960000000,
+        "anon":
+        {
+            "uid": "AQIDBAoLDA0=",
+            "content": "EjRWeBI0Vng=",
+            "date": "2000-01-01T00:30:05+00:00"
+        }
+    }
+
+    # write entry
+    result = dbing.putAnonMsg(key=uid1, data=data1)
+    assert result
+    anon2 = anon1.copy()
+    anon2['content'] = "ABRWeBI0VAA="
+    data2 = ODict()
+    data2['create'] = create + 1
+    data2['expire'] = expire + 1
+    data2['anon'] = anon2
+
+    result = dbing.putAnonMsg(key=uid1, data=data2)
+    assert result
+
+    uid2 = "BBIDBAoLCCC="
+    anon3 = anon1.copy()
+    anon3["uid"] = uid2
+    data3 = ODict()
+    data3['create'] = create
+    data3['expire'] = expire
+    data3['anon'] = anon3
+
+    result = dbing.putAnonMsg(key=uid2, data=data3)
+    assert result
+
+    anon4 = anon1.copy()
+    anon4["uid"] = uid2
+    data4 = ODict()
+    data4['create'] = create
+    data4['expire'] = expire
+    data4['anon'] = anon4
+
+    result = dbing.putAnonMsg(key=uid2, data=data4)
+    assert result
+
+    entries = dbing.getAllAnonUids()
+    assert len(entries) == 2
+    assert uid1 in entries
+    assert uid2 in entries
+
+    cleanupTmpBaseDir(dbEnv.path())
+    print("Done Test")
+
 
 
 def test_expireUid():
