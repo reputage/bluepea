@@ -299,6 +299,93 @@ def test_exists():
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")
 
+def test_getEntities():
+    """
+    Test get all entities Agents and Things in db
+
+    getEntities(dbn='core', env=None)
+    """
+    print("Testing getEntities in DB Env")
+
+    priming.setupTest()
+    dbEnv = dbing.gDbEnv
+    keeper = keeping.gKeeper
+    kdid = keeper.did
+
+    agents, things = dbing.setupTestDbAgentsThings()
+    agents['sam'] = (kdid, keeper.verkey, keeper.sigkey)  # sam the server
+
+    entities = dbing.getEntities()
+    assert len(entities) == 6
+    assert entities == [ODict([('did', 'did:igo:3syVH2woCpOvPF0SD9Z0bu_OxNe2ZgxKjTQ961LlMnA='),
+                                     ('kind', 'agent')]),
+                        ODict([('did', 'did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM='),
+                                     ('kind', 'thing')]),
+                        ODict([('did', 'did:igo:QBRKvLW1CnVDIgznfet3rpad-wZBL4qGASVpGRsE2uU='),
+                                     ('kind', 'agent')]),
+                        ODict([('did', 'did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE='),
+                                     ('kind', 'agent')]),
+                        ODict([('did', 'did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148='),
+                                     ('kind', 'agent')]),
+                        ODict([('did', 'did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY='),
+                                     ('kind', 'agent')])]
+
+
+    cleanupTmpBaseDir(dbEnv.path())
+    print("Done Test")
+
+def test_getAgents():
+    """
+    Test get all Agents in db
+
+    getEntities(dbn='core', env=None)
+    """
+    print("Testing getAgents in DB Env")
+
+    priming.setupTest()
+    dbEnv = dbing.gDbEnv
+    keeper = keeping.gKeeper
+    kdid = keeper.did
+
+    agents, things = dbing.setupTestDbAgentsThings()
+    agents['sam'] = (kdid, keeper.verkey, keeper.sigkey)  # sam the server
+
+    entries = dbing.getAgents()
+    assert len(entries) == 5
+    assert entries == ['did:igo:3syVH2woCpOvPF0SD9Z0bu_OxNe2ZgxKjTQ961LlMnA=',
+                    'did:igo:QBRKvLW1CnVDIgznfet3rpad-wZBL4qGASVpGRsE2uU=',
+                    'did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=',
+                    'did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=',
+                    'did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=']
+
+
+    cleanupTmpBaseDir(dbEnv.path())
+    print("Done Test")
+
+def test_getThings():
+    """
+    Test get all Things in db
+
+    getEntities(dbn='core', env=None)
+    """
+    print("Testing getThings in DB Env")
+
+    priming.setupTest()
+    dbEnv = dbing.gDbEnv
+    keeper = keeping.gKeeper
+    kdid = keeper.did
+
+    agents, things = dbing.setupTestDbAgentsThings()
+    agents['sam'] = (kdid, keeper.verkey, keeper.sigkey)  # sam the server
+
+    entries = dbing.getThings()
+    assert len(entries) == 1
+    assert entries == ['did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=']
+
+    cleanupTmpBaseDir(dbEnv.path())
+    print("Done Test")
+
+
 def test_getDrops():
     """
     Test get essage drop entries in core database for a given did

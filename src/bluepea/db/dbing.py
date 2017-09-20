@@ -24,7 +24,7 @@ from ioflo.aid.sixing import *
 from ioflo.aid import timing
 from ioflo.aid import getConsole
 
-from ..bluepeaing import SEPARATOR, BluepeaError
+from ..bluepeaing import SEPARATOR, BluepeaError, DID_LENGTH
 
 from ..help.helping import (setupTmpBaseDir, verify64u,
                             makeSignedAgentReg, makeSignedThingReg)
@@ -134,53 +134,6 @@ def putSigned(key, ser, sig,  dbn="core", env=None, clobber=True):
         if not result:
             raise DatabaseError("Preexisting entry at key {}".format(key))
     return True
-
-def putHid(hid, did, dbn="hid2did", env=None):
-    """
-    Put entry in HID to DID table
-    assumes the each HID is unique so just overwrites
-    key is hid  value is did
-
-    Could make this better by using db .replace and checking that previous value
-    is the same
-    """
-    global gDbEnv
-
-    if env is None:
-        env = gDbEnv
-
-    if env is None:
-        raise DatabaseError("Database environment not set up")
-
-    subDb = env.open_db(dbn.encode("utf-8"))  # open named sub dbn within env
-    with env.begin(db=subDb, write=True) as txn:  # txn is a Transaction object
-        # will overwrite by default
-        result = txn.put(hid.encode("utf-8"), did.encode("utf-8"))  # keys and values are bytes
-    return result
-
-def getHid(key, dbn="hid2did", env=None):
-    """
-    Get entry in HID to DID table
-
-    Parameters:
-        key is HID
-
-    """
-    global gDbEnv
-
-    if env is None:
-        env = gDbEnv
-
-    if env is None:
-        raise DatabaseError("Database environment not set up")
-
-    # open named sub db named dbn within env
-    subDb = gDbEnv.open_db(dbn.encode("utf-8"))
-    with env.begin(db=subDb) as txn:  # txn is a Transaction object
-        tdidb = txn.get(key.encode())  # keys are bytes
-        if tdidb is None:  # does not exist
-            raise DatabaseError("Resource not found.")
-    return tdidb.decode()
 
 def getSelfSigned(did, dbn='core', env=None):
     """
@@ -345,6 +298,219 @@ def exists(key, dbn='core', env=None, dup=False):
             return False
     return True
 
+def getEntities(dbn='core', env=None):
+    """
+    Returns a list of dicts with the DID and kind  of all the entities
+    both agents and things in the db
+    If none exist returns empty list
+
+    Each entry in list is dict of form:
+    {
+        "did": {didstring},
+        "kind": "agent" or "thing",
+    }
+
+
+    Parameters:
+        dbn is name str of named sub database, Default is 'did2offer'
+        env is main LMDB database environment
+            If env is not provided then use global gDbEnv
+    """
+    global gDbEnv
+
+    if env is None:
+        env = gDbEnv
+
+    if env is None:
+        raise DatabaseError("Database environment not set up")
+
+    entries = []
+    subDb = gDbEnv.open_db(dbn.encode("utf-8"), dupsort=True)  # open named sub db named dbn within env
+    with gDbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
+        with txn.cursor() as cursor:
+            if cursor.first():  # first key in database
+                while True:
+                    key = cursor.key().decode()
+                    if len(key) == DID_LENGTH and "/" not in key:
+                        value = cursor.value().decode()
+                        ser, sep, sig = value.partition(SEPARATOR)
+                        try:
+                            dat = json.loads(ser, object_pairs_hook=ODict)
+                        except ValueError as ex:
+                            if cursor.next():
+                                continue
+                            else:
+                                break
+
+                        try:
+                            did, index = dat["signer"].rsplit("#", maxsplit=1)
+                        except (AttributeError, ValueError) as ex:
+                            if cursor.next():
+                                continue
+                            else:
+                                break
+
+                        entry = ODict(did=key)
+                        if did == key:  # self signed so agent
+                            entry["kind"] = "agent"
+                        else:  # not self signed so thing
+                            entry["kind"] = "thing"
+                        entries.append(entry)
+
+                    if not cursor.next():  # next key in database if any
+                        break
+    return entries
+
+def getAgents(dbn='core', env=None):
+    """
+    Returns a list of the DIDs of all the agents in the db
+    If none exist returns empty list
+
+    Each entry in list is str of did :
+
+    Parameters:
+        dbn is name str of named sub database, Default is 'did2offer'
+        env is main LMDB database environment
+            If env is not provided then use global gDbEnv
+    """
+    global gDbEnv
+
+    if env is None:
+        env = gDbEnv
+
+    if env is None:
+        raise DatabaseError("Database environment not set up")
+
+    entries = []
+    subDb = gDbEnv.open_db(dbn.encode("utf-8"), dupsort=True)  # open named sub db named dbn within env
+    with gDbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
+        with txn.cursor() as cursor:
+            if cursor.first():  # first key in database
+                while True:
+                    key = cursor.key().decode()
+                    if len(key) == DID_LENGTH and "/" not in key:
+                        value = cursor.value().decode()
+                        ser, sep, sig = value.partition(SEPARATOR)
+                        try:
+                            dat = json.loads(ser, object_pairs_hook=ODict)
+                        except ValueError as ex:
+                            if cursor.next():
+                                continue
+                            else:
+                                break
+                        try:
+                            did, index = dat["signer"].rsplit("#", maxsplit=1)
+                        except (AttributeError, ValueError) as ex:
+                            if cursor.next():
+                                continue
+                            else:
+                                break
+
+                        if did == key:  # self signed so agent
+                            entries.append(key)
+                    if not cursor.next():  # next key in database if any
+                        break
+    return entries
+
+def getThings(dbn='core', env=None):
+    """
+    Returns a list of the DIDs of all the things in the db
+    If none exist returns empty list
+
+    Each entry in list is str of did :
+
+    Parameters:
+        dbn is name str of named sub database, Default is 'did2offer'
+        env is main LMDB database environment
+            If env is not provided then use global gDbEnv
+    """
+    global gDbEnv
+
+    if env is None:
+        env = gDbEnv
+
+    if env is None:
+        raise DatabaseError("Database environment not set up")
+
+    entries = []
+    subDb = gDbEnv.open_db(dbn.encode("utf-8"), dupsort=True)  # open named sub db named dbn within env
+    with gDbEnv.begin(db=subDb) as txn:  # txn is a Transaction object
+        with txn.cursor() as cursor:
+            if cursor.first():  # first key in database
+                while True:
+                    key = cursor.key().decode()
+                    if len(key) == DID_LENGTH and "/" not in key:
+                        value = cursor.value().decode()
+                        ser, sep, sig = value.partition(SEPARATOR)
+                        try:
+                            dat = json.loads(ser, object_pairs_hook=ODict)
+                        except ValueError as ex:
+                            if cursor.next():
+                                continue
+                            else:
+                                break
+                        try:
+                            did, index = dat["signer"].rsplit("#", maxsplit=1)
+                        except (AttributeError, ValueError) as ex:
+                            if cursor.next():
+                                continue
+                            else:
+                                break
+
+                        if did != key:  # not self signed so thing
+                            entries.append(key)
+                    if not cursor.next():  # next key in database if any
+                        break
+    return entries
+
+def putHid(hid, did, dbn="hid2did", env=None):
+    """
+    Put entry in HID to DID table
+    assumes the each HID is unique so just overwrites
+    key is hid  value is did
+
+    Could make this better by using db .replace and checking that previous value
+    is the same
+    """
+    global gDbEnv
+
+    if env is None:
+        env = gDbEnv
+
+    if env is None:
+        raise DatabaseError("Database environment not set up")
+
+    subDb = env.open_db(dbn.encode("utf-8"))  # open named sub dbn within env
+    with env.begin(db=subDb, write=True) as txn:  # txn is a Transaction object
+        # will overwrite by default
+        result = txn.put(hid.encode("utf-8"), did.encode("utf-8"))  # keys and values are bytes
+    return result
+
+def getHid(key, dbn="hid2did", env=None):
+    """
+    Get entry in HID to DID table
+
+    Parameters:
+        key is HID
+
+    """
+    global gDbEnv
+
+    if env is None:
+        env = gDbEnv
+
+    if env is None:
+        raise DatabaseError("Database environment not set up")
+
+    # open named sub db named dbn within env
+    subDb = gDbEnv.open_db(dbn.encode("utf-8"))
+    with env.begin(db=subDb) as txn:  # txn is a Transaction object
+        tdidb = txn.get(key.encode())  # keys are bytes
+        if tdidb is None:  # does not exist
+            raise DatabaseError("Resource not found.")
+    return tdidb.decode()
+
+
 def getDrops(did, dbn='core', env=None):
     """
     Returns list earliest to latest of drop messages entries If any
@@ -406,10 +572,11 @@ def getDrops(did, dbn='core', env=None):
                     except ValueError as ex:  # skip entry
                         pass
                     else:
-                        entry = ODict()
-                        entry['from'] = sdid
-                        entry['uid'] = muid
-                        entries.append(entry)
+                        if drop == "drop":
+                            entry = ODict()
+                            entry['from'] = sdid
+                            entry['uid'] = muid
+                            entries.append(entry)
 
                     if not cursor.next():  # next key in database if any
                         break

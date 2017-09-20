@@ -273,21 +273,37 @@ class AgentResource:
 
 
         """
+        all_ = req.get_param("all") # returns url-decoded query parameter value
+        if all_ and all_.lower() == "true":
+            all_ = True
+        else:
+            all_ = False
         did = req.get_param("did")  # already has url-decoded query parameter value
-        if not did:
-            raise falcon.HTTPError(falcon.HTTP_400,
-                                           'Query Parameter Error',
-                                    'Missing query did.')
 
-        # read from database
-        try:
-            dat, ser, sig = dbing.getSelfSigned(did)
-        except dbing.DatabaseError as ex:
-            raise falcon.HTTPError(falcon.HTTP_400,
-                            'Resource Verification Error',
-                            'Error verifying resource. {}'.format(ex))
+        if all_:
+            try:  # read from database
+                entries = dbing.getAgents()
+            except dbing.DatabaseError as ex:
+                raise falcon.HTTPError(falcon.HTTP_400,
+                                'Resource Lookup Error',
+                                'Error retrieving resource. {}'.format(ex))
+            ser = json.dumps(entries, indent=2)
+        else:
+            if not did:
+                raise falcon.HTTPError(falcon.HTTP_400,
+                                               'Query Parameter Error',
+                                        'Missing query did.')
 
-        rep.set_header("Signature", 'signer="{}"'.format(sig))
+            # read from database
+            try:
+                dat, ser, sig = dbing.getSelfSigned(did)
+            except dbing.DatabaseError as ex:
+                raise falcon.HTTPError(falcon.HTTP_400,
+                                'Resource Verification Error',
+                                'Error verifying resource. {}'.format(ex))
+
+            rep.set_header("Signature", 'signer="{}"'.format(sig))
+
         rep.set_header("Content-Type", "application/json; charset=UTF-8")
         rep.status = falcon.HTTP_200  # This is the default status
         rep.body = ser
@@ -772,41 +788,57 @@ class ThingResource:
         with did
 
         """
+        all_ = req.get_param("all") # returns url-decoded query parameter value
+        if all_ and all_.lower() == "true":
+            all_ = True
+        else:
+            all_ = False
+
         hid = req.get_param("hid")  # already has url-decoded query parameter value
         did = req.get_param("did")  # already has url-decoded query parameter value
 
-
-        if hid:
+        if all_:
             try:  # read from database
-                did = dbing.getHid(hid)
+                entries = dbing.getThings()
+            except dbing.DatabaseError as ex:
+                raise falcon.HTTPError(falcon.HTTP_400,
+                                'Resource Lookup Error',
+                                'Error retrieving resource. {}'.format(ex))
+            ser = json.dumps(entries, indent=2)
+
+        else:
+            if hid:
+                try:  # read from database
+                    did = dbing.getHid(hid)
+                except dbing.DatabaseError as ex:
+                    raise falcon.HTTPError(falcon.HTTP_400,
+                                    'Resource Verification Error',
+                                    'Error verifying resource. {}'.format(ex))
+
+                if not did:  # empty entry
+                    raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
+                                                       'Not Found Error',
+                                                       'DID for HID no longer exists.')
+
+            if not did:
+                raise falcon.HTTPError(falcon.HTTP_400,
+                                                   'Query Parameter Error',
+                                                   'Missing query parameters.')
+
+            try:  # read from database
+                dat, ser, sig = dbing.getSigned(did)
             except dbing.DatabaseError as ex:
                 raise falcon.HTTPError(falcon.HTTP_400,
                                 'Resource Verification Error',
                                 'Error verifying resource. {}'.format(ex))
 
-            if not did:  # empy entry
+            if dat is None:
                 raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
                                                    'Not Found Error',
-                                                   'DID for HID no longer exists.')
+                                'DID "{}" resource does not exist'.format(did))
 
-        if not did:
-            raise falcon.HTTPError(falcon.HTTP_400,
-                                               'Query Parameter Error',
-                                               'Missing query parameters.')
+            rep.set_header("Signature", 'signer="{}"'.format(sig))
 
-        try:  # read from database
-            dat, ser, sig = dbing.getSigned(did)
-        except dbing.DatabaseError as ex:
-            raise falcon.HTTPError(falcon.HTTP_400,
-                            'Resource Verification Error',
-                            'Error verifying resource. {}'.format(ex))
-
-        if dat is None:
-            raise falcon.HTTPError(falcon.HTTP_NOT_FOUND,
-                                               'Not Found Error',
-                            'DID "{}" resource does not exist'.format(did))
-
-        rep.set_header("Signature", 'signer="{}"'.format(sig))
         rep.set_header("Content-Type", "application/json; charset=UTF-8")
         rep.status = falcon.HTTP_200  # This is the default status
         rep.body = ser

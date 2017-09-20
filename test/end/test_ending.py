@@ -280,6 +280,29 @@ def test_post_AgentRegisterSigned():
 
     assert verify64u(sig, ser, dat['keys'][0]['key'])
 
+    # now get all
+    headers = odict([('Accept', 'application/json'),
+                     ('Content-Length', 0)])
+
+    path = "/agent"
+    qargs = odict(all="true")
+    patron.request(method='GET', path=path, qargs=qargs, headers=headers)
+    timer = timing.StoreTimer(store, duration=1.0)
+    while (patron.requests or patron.connector.txes or not patron.responses or
+           not valet.idle()):
+        valet.serviceAll()
+        time.sleep(0.05)
+        patron.serviceAll()
+        time.sleep(0.05)
+        store.advanceStamp(0.1)
+
+    assert len(patron.responses) == 1
+    rep = patron.responses.popleft()
+    assert rep['status'] == 200
+    assert rep['headers']['content-type'] == 'application/json; charset=UTF-8'
+    assert len(rep['data']) == 2  # server and new agent
+    assert did in rep["data"]
+
     cleanupTmpBaseDir(dbEnv.path())
     valet.close()
     patron.close()
@@ -893,6 +916,29 @@ def test_post_ThingRegisterSigned():  # client is a fixture in pytest_falcon
     ser = rep['body'].decode()
     assert ser == tregistration
     assert verify64u(ssignature, ser, sverkey)
+
+    # now get all
+    headers = odict([('Accept', 'application/json'),
+                     ('Content-Length', 0)])
+
+    path = "/thing"
+    qargs = odict(all="true")
+    patron.request(method='GET', path=path, qargs=qargs, headers=headers)
+    timer = timing.StoreTimer(store, duration=1.0)
+    while (patron.requests or patron.connector.txes or not patron.responses or
+           not valet.idle()):
+        valet.serviceAll()
+        time.sleep(0.05)
+        patron.serviceAll()
+        time.sleep(0.05)
+        store.advanceStamp(0.1)
+
+    assert len(patron.responses) == 1
+    rep = patron.responses.popleft()
+    assert rep['status'] == 200
+    assert rep['headers']['content-type'] == 'application/json; charset=UTF-8'
+    assert len(rep['data']) == 1  # new thing
+    assert tdid in rep["data"]
 
     cleanupTmpBaseDir(dbEnv.path())
     valet.close()

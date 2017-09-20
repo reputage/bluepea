@@ -386,6 +386,48 @@ Date: Tue, 11 Jul 2017 01:17:11 GMT
 }
 ```
 
+### *Agent* Read Query All
+
+To get a list of the DIDs of all the agents in the database, send a GET request with query parameter all with value true, that is, all=true.
+
+This returns a list of the DIDs of all the agents in the following form:
+
+```json
+[
+  "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+  "did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148="
+]
+```
+
+A DID from the list can then be used to generate a GET request to get the resource for the associated Agent using the endpoint described in the previous section.
+
+Example request and response are shown below:
+
+#### Request
+
+```http
+GET /agent?all=true HTTP/1.1
+Content-Type: application/json; charset=utf-8
+Host: localhost:8080
+Connection: close
+User-Agent: Paw/3.1.4 (Macintosh; OS X/10.12.6) GCDHTTPRequest
+```
+
+#### Response
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=UTF-8
+Content-Length: 118
+Server: Ioflo WSGI Server
+Date: Wed, 20 Sep 2017 03:42:31 GMT
+
+[
+  "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+  "did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148="
+]
+```
+
 
 ## *Issuer* *Agent* Creation 
 
@@ -998,7 +1040,7 @@ If successful the response includes a custom "Signature" header whose *signer* f
 
 Example requests and responses are shown below.
 
-## Request
+#### Request
 
 ```http
 GET /thing?did=did%3Aigo%3A4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM%3D HTTP/1.1
@@ -1008,7 +1050,7 @@ Connection: close
 User-Agent: Paw/3.1.3 (Macintosh; OS X/10.12.6) GCDHTTPRequest
 ```
 
-## Response
+#### Response
 
 ```http
 HTTP/1.1 200 OK
@@ -1034,6 +1076,7 @@ Date: Tue, 29 Aug 2017 17:25:37 GMT
 }
 ```
 
+### *Thing* Read Query HID
 The request for a Thing by querying the HID is made by sending an HTTP Get to ```/thing``` with an *hid* query parameter whose value is the associated HID. This value needs to be URL encoded.
 
 A successful request will return status code 200. An unsuccessful request will return an error status code such as 404 Not Found. 
@@ -1042,7 +1085,7 @@ If successful the response includes a custom "Signature" header whose *signer* f
 
 Example requests and responses are shown below.
 
-## Request
+#### Request
 
 ```http
 GET /thing?hid=hid%3Adns%3Alocalhost%2302 HTTP/1.1
@@ -1052,7 +1095,7 @@ Connection: close
 User-Agent: Paw/3.1.3 (Macintosh; OS X/10.12.6) GCDHTTPRequest
 ```
 
-## Response
+#### Response
 
 ```http
 HTTP/1.1 200 OK
@@ -1076,6 +1119,46 @@ Date: Fri, 15 Sep 2017 19:51:54 GMT
     "message": "If found please return."
   }
 }
+```
+
+### *Thing* Read Query All
+
+To get a list of the DIDs of all the things in the database, send a GET request with query parameter all with value true, that is, all=true.
+
+This returns a list of the DIDs of all the things in the following form:
+
+```json
+[
+  "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM="
+]
+```
+
+A DID from the list can then be used to generate a GET request to get the resource for the associated Thing using the endpoint described previously.
+
+Example request and response are shown below:
+
+#### Request
+
+```http
+GET /thing?all=true HTTP/1.1
+Content-Type: application/json; charset=utf-8
+Host: localhost:8080
+Connection: close
+User-Agent: Paw/3.1.4 (Macintosh; OS X/10.12.6) GCDHTTPRequest
+```
+
+#### Response
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=UTF-8
+Content-Length: 60
+Server: Ioflo WSGI Server
+Date: Wed, 20 Sep 2017 03:51:19 GMT
+
+[
+  "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM="
+]
 ```
 
 ## *Thing* Read (GET) by DID
