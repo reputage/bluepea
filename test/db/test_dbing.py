@@ -358,6 +358,12 @@ def test_getAgents():
                     'did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=',
                     'did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=']
 
+    entries = dbing.getAgents(issuer=True)
+    assert len(entries) == 3
+    assert entries == ['did:igo:3syVH2woCpOvPF0SD9Z0bu_OxNe2ZgxKjTQ961LlMnA=',
+                        'did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=',
+                        'did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=']
+
 
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")

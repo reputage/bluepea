@@ -388,7 +388,7 @@ Date: Tue, 11 Jul 2017 01:17:11 GMT
 
 ### *Agent* Read Query All
 
-To get a list of the DIDs of all the agents in the database, send a GET request with query parameter all with value true, that is, all=true.
+To get a list of the DIDs of all the agents in the database, send a GET request with query parameter *all* with value *true*, that is, *all=true*.
 
 This returns a list of the DIDs of all the agents in the following form:
 
@@ -399,9 +399,12 @@ This returns a list of the DIDs of all the agents in the following form:
 ]
 ```
 
+To get a list of just the *Issuer Agents* (see below for what constitutes an *Issuer Agent*), add the query parameter *issuer* with value *true*, that is, *issuer=true*.
+
+
 A DID from the list can then be used to generate a GET request to get the resource for the associated Agent using the endpoint described in the previous section.
 
-Example request and response are shown below:
+Example request and response for all Agents are shown below:
 
 #### Request
 
@@ -428,6 +431,31 @@ Date: Wed, 20 Sep 2017 03:42:31 GMT
 ]
 ```
 
+Example request and response for all Issuer Agents are shown below:
+
+#### Request
+
+```http
+GET /agent?all=true&issuer=true HTTP/1.1
+Content-Type: application/json; charset=utf-8
+Host: localhost:8080
+Connection: close
+User-Agent: Paw/3.1.4 (Macintosh; OS X/10.12.6) GCDHTTPRequest
+```
+
+#### Response
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=UTF-8
+Content-Length: 60
+Server: Ioflo WSGI Server
+Date: Wed, 20 Sep 2017 04:17:31 GMT
+
+[
+  "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY="
+]
+```
 
 ## *Issuer* *Agent* Creation 
 

@@ -280,9 +280,16 @@ class AgentResource:
             all_ = False
         did = req.get_param("did")  # already has url-decoded query parameter value
 
+        issuer = req.get_param("issuer") # returns url-decoded query parameter value
+        if issuer and issuer.lower() == "true":
+            issuer = True
+        else:
+            issuer = False
+
+
         if all_:
             try:  # read from database
-                entries = dbing.getAgents()
+                entries = dbing.getAgents(issuer=issuer)
             except dbing.DatabaseError as ex:
                 raise falcon.HTTPError(falcon.HTTP_400,
                                 'Resource Lookup Error',

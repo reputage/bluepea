@@ -361,7 +361,7 @@ def getEntities(dbn='core', env=None):
                         break
     return entries
 
-def getAgents(dbn='core', env=None):
+def getAgents(issuer=False, dbn='core', env=None):
     """
     Returns a list of the DIDs of all the agents in the db
     If none exist returns empty list
@@ -369,6 +369,7 @@ def getAgents(dbn='core', env=None):
     Each entry in list is str of did :
 
     Parameters:
+        issuer is flag True means get only issuer Agents
         dbn is name str of named sub database, Default is 'did2offer'
         env is main LMDB database environment
             If env is not provided then use global gDbEnv
@@ -407,7 +408,11 @@ def getAgents(dbn='core', env=None):
                                 break
 
                         if did == key:  # self signed so agent
-                            entries.append(key)
+                            if issuer:
+                                if "issuants" in dat:
+                                    entries.append(key)
+                            else:
+                                entries.append(key)
                     if not cursor.next():  # next key in database if any
                         break
     return entries
@@ -965,7 +970,7 @@ def setupTestDbAgentsThings(dbn="core", clobber=False):
     dt = datetime.datetime(2000, 1, 1, tzinfo=datetime.timezone.utc)
     changed = timing.iso8601(dt, aware=True)
 
-    # make "ann" the agent
+    # make "ann" the agent and issuer
     seed = (b'PTi\x15\xd5\xd3`\xf1u\x15}^r\x9bfH\x02l\xc6\x1b\x1d\x1c\x0b9\xd7{\xc0_'
             b'\xf2K\x93`')
 
@@ -1054,6 +1059,7 @@ def setupTestDbAgentsThings(dbn="core", clobber=False):
     agents['fae'] = (fdid, fvk, fsk)
 
     # make "ike" another issurer for demo testing
+
     #seed = libnacl.randombytes(libnacl.crypto_sign_SEEDBYTES)
     seed = (b'!\x85\xaa\x8bq\xc3\xf8n\x93]\x8c\xb18w\xb9\xd8\xd7\xc3\xcf\x8a\x1dP\xa9m'
                    b'\x89\xb6h\xfe\x10\x80\xa6S')
