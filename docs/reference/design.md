@@ -402,7 +402,7 @@ An example *Thing * data resource expressed as a* * JSON object is as follows:
 
 This is actually stored in the database as a wrapped serialization with signature (see the section above on Serialization Issues). The *signer* field refers to the controlling *Agent* such as an *Owner* or *Issuer*.
 
-The *data* field stores optional identifier information about the *Thing* that might be used by a *Finder* to identify the physical item. The enclosed data fields *make*, *model*, and *serial* are just examples of public fields that might be used to generate secondary indices to enable a *Finder* to query the database to find the DID of the *Controller* of the associated *Thing*.
+The *data* field stores optional identifier information about the *Thing* that might be used by a client to further identify the physical item. 
 
 If present the *message* field in the *data* field object will be displayed by the client application when an object is looked up by a Finder.
 
