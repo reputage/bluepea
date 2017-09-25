@@ -28,15 +28,108 @@
 							return m ('div', 'hello ' + self.Name);
 						});}
 					});
-					var Entities = __class__ ('Entities', [Tab], {
+					var TabledTab = __class__ ('TabledTab', [Tab], {
+						get __init__ () {return __get__ (this, function (self) {
+							__super__ (TabledTab, '__init__') (self);
+							self.table = null;
+							self.setup_table ();
+						});},
+						get setup_table () {return __get__ (this, function (self) {
+							// pass;
+						});},
+						get main_view () {return __get__ (this, function (self) {
+							return m ('div.table-container', m (self.table.view));
+						});}
+					});
+					var Field = __class__ ('Field', [object], {
+						Name: null,
+						get __init__ () {return __get__ (this, function (self, py_name) {
+							if (typeof py_name == 'undefined' || (py_name != null && py_name .hasOwnProperty ("__kwargtrans__"))) {;
+								var py_name = null;
+							};
+							self.py_name = self.Name;
+							if (py_name !== null) {
+								self.py_name = py_name;
+							}
+						});},
+						get format () {return __get__ (this, function (self, string) {
+							if (len (string) > 8) {
+								var string = string.__getslice__ (0, 5, 1) + '...';
+							}
+							return string;
+						});},
+						get view () {return __get__ (this, function (self, data) {
+							return m ('td', dict ({'title': data}), self.format (data));
+						});}
+					});
+					var Table = __class__ ('Table', [object], {
+						get __init__ () {return __get__ (this, function (self, fields) {
+							self.fields = fields;
+							self.data = dict ({});
+							self.view = dict ({'oninit': self._oninit, 'view': self._view});
+							self._selectedRow = null;
+						});},
+						get _selectRow () {return __get__ (this, function (self, event) {
+							if (self._selectedRow !== null) {
+								jQuery (self._selectedRow).removeClass ('active');
+							}
+							self._selectedRow = event.currentTarget;
+							jQuery (self._selectedRow).addClass ('active');
+						});},
+						get _oninit () {return __get__ (this, function (self) {
+							for (var i = 0; i < 10; i++) {
+								var obj = dict ({});
+								var __iterable0__ = self.fields;
+								for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+									var field = __iterable0__ [__index0__];
+									obj [field.py_name] = 'test{0} {1}'.format (i, field.py_name);
+								}
+								self.data [i] = obj;
+							}
+						});},
+						get _view () {return __get__ (this, function (self) {
+							var headers = function () {
+								var __accu0__ = [];
+								var __iterable0__ = self.fields;
+								for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+									var field = __iterable0__ [__index0__];
+									__accu0__.append (m ('th', field.py_name));
+								}
+								return __accu0__;
+							} ();
+							var rows = list ([]);
+							var __iterable0__ = self.data.py_values ();
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var obj = __iterable0__ [__index0__];
+								var row = function () {
+									var __accu0__ = [];
+									var __iterable1__ = self.fields;
+									for (var __index1__ = 0; __index1__ < __iterable1__.length; __index1__++) {
+										var field = __iterable1__ [__index1__];
+										__accu0__.append (field.view (obj [field.py_name]));
+									}
+									return __accu0__;
+								} ();
+								rows.append (m ('tr', dict ({'onclick': self._selectRow}), row));
+							}
+							return m ('table', dict ({'class': 'ui selectable celled unstackable single line left aligned table'}), m ('thead', m ('tr', dict ({'class': 'center aligned'}), headers)), m ('tbody', rows));
+						});}
+					});
+					var Entities = __class__ ('Entities', [TabledTab], {
 						Name: 'Entities',
 						Data_tab: 'entities',
 						Active: true,
-						_view: dict ({'view': (function __lambda__ () {
-							return m ('div', 'hello Entities');
-						})}),
-						get main_view () {return __get__ (this, function (self) {
-							return m (self._view);
+						get setup_table () {return __get__ (this, function (self) {
+							var fields = function () {
+								var __accu0__ = [];
+								var __iterable0__ = list (['DID', 'HID', 'Signer', 'Changed', 'Issuants', 'Data', 'Keys']);
+								for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+									var x = __iterable0__ [__index0__];
+									__accu0__.append (Field (x));
+								}
+								return __accu0__;
+							} ();
+							self.table = Table (fields);
 						});}
 					});
 					var Issuants = __class__ ('Issuants', [Tab], {
@@ -79,11 +172,14 @@
 					__pragma__ ('<all>')
 						__all__.AnonMsgs = AnonMsgs;
 						__all__.Entities = Entities;
+						__all__.Field = Field;
 						__all__.Issuants = Issuants;
 						__all__.Messages = Messages;
 						__all__.Offers = Offers;
 						__all__.Renderer = Renderer;
 						__all__.Tab = Tab;
+						__all__.Table = Table;
+						__all__.TabledTab = TabledTab;
 						__all__.Tabs = Tabs;
 						__all__.tabs = tabs;
 					__pragma__ ('</all>')

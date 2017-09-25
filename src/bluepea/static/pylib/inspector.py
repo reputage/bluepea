@@ -43,17 +43,113 @@ class Tab:
         return m("div", "hello " + self.Name)
 
 
-class Entities(Tab):
+class TabledTab(Tab):
+    """
+    Base class for tabs in the Inspector interface, using a table and "details" view.
+    """
+    def __init__(self):
+        super().__init__()
+        self.table = None
+        self.setup_table()
+
+    def setup_table(self):
+        """
+        Called on startup for the purpose of creating the Table object.
+        """
+        pass
+
+    def main_view(self):
+        # Table needs to be in a special container to handle scrolling/sticky table header.
+        return m("div.table-container", m(self.table.view))
+
+
+class Field:
+    """
+    A field/column of a table.
+    """
+    Name = None
+    """Friendly name to display in table header."""
+
+    def __init__(self, name=None):
+        self.name = self.Name
+        if name is not None:
+            self.name = name
+
+    def format(self, string):
+        """
+        Formats the string to match the expected view for this field.
+        """
+        if len(string) > 8:
+            string = string[:5] + "..."
+        return string
+
+    def view(self, data):
+        """
+        Returns a vnode <td> suitable for display in a table.
+        """
+        return m("td", {"title": data}, self.format(data))
+
+
+class Table:
+    """
+    A table, its headers, and its data to be displayed.
+    """
+    def __init__(self, fields):
+        self.fields = fields
+        self.data = {}
+        self.view = {
+            "oninit": self._oninit,
+            "view": self._view
+        }
+        self._selectedRow = None
+
+    def _selectRow(self, event):
+        """
+        Deselects any previously selected row and
+        selects the row specified in the event.
+        """
+        if self._selectedRow is not None:
+            jQuery(self._selectedRow).removeClass("active")
+
+        self._selectedRow = event.currentTarget
+        jQuery(self._selectedRow).addClass("active")
+
+    def _oninit(self):
+        """
+        Loads any initial data.
+        """
+        for i in range(10):
+            obj = {}
+            for field in self.fields:
+                obj[field.name] = "test{0} {1}".format(i, field.name)
+            self.data[i] = obj
+
+    def _view(self):
+        headers = [m("th", field.name) for field in self.fields]
+
+        rows = []
+        for obj in self.data.values():
+            row = [field.view(obj[field.name]) for field in self.fields]
+            rows.append(m("tr", {"onclick": self._selectRow}, row))
+
+        return m("table", {"class": "ui selectable celled unstackable single line left aligned table"},
+                 m("thead",
+                   m("tr", {"class": "center aligned"}, headers)
+                   ),
+                 m("tbody",
+                   rows
+                   )
+                 )
+
+
+class Entities(TabledTab):
     Name = "Entities"
     Data_tab = "entities"
     Active = True
 
-    _view = {
-        "view": lambda: m("div", "hello Entities")
-    }
-
-    def main_view(self):
-        return m(self._view)
+    def setup_table(self):
+        fields = [Field(x) for x in ["DID", "HID", "Signer", "Changed", "Issuants", "Data", "Keys"]]
+        self.table = Table(fields)
 
 
 class Issuants(Tab):
