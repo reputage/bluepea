@@ -1,7 +1,7 @@
 "use strict";
-// Transcrypt'ed from Python, 2017-09-19 10:27:00
+// Transcrypt'ed from Python, 2017-09-25 11:03:11
 function main () {
-   var __symbols__ = ['__py3.6__', '__esv6__'];
+   var __symbols__ = ['__py3.6__', '__esv5__'];
     var __all__ = {};
     var __world__ = __all__;
     
@@ -47,8 +47,6 @@ function main () {
     __all__.__init__ = __init__;
     
     
-    // Proxy switch, controlled by __pragma__ ('proxy') and __pragma ('noproxy')
-    var __proxy__ = false;  // No use assigning it to __all__, only its transient state is important
     
     
     // Since we want to assign functions, a = b.f should make b.f produce a bound function
@@ -107,12 +105,6 @@ function main () {
                     var descrip = Object.getOwnPropertyDescriptor (base, attrib);
                     Object.defineProperty (cls, attrib, descrip);
                 }           
-
-                for (var symbol of Object.getOwnPropertySymbols (base)) {
-                    var descrip = Object.getOwnPropertyDescriptor (base, symbol);
-                    Object.defineProperty (cls, symbol, descrip);
-                }
-                
             }
             
             // Add class specific attributes to the created cls object
@@ -125,12 +117,6 @@ function main () {
                 var descrip = Object.getOwnPropertyDescriptor (attribs, attrib);
                 Object.defineProperty (cls, attrib, descrip);
             }
-
-            for (var symbol of Object.getOwnPropertySymbols (attribs)) {
-                var descrip = Object.getOwnPropertyDescriptor (attribs, symbol);
-                Object.defineProperty (cls, symbol, descrip);
-            }
-            
             // Return created cls object
             return cls;
         }
@@ -153,28 +139,6 @@ function main () {
             // The descriptor produced by __get__ will return the right method flavor
             var instance = Object.create (this, {__class__: {value: this, enumerable: true}});
             
-            if ('__getattr__' in this || '__setattr__' in this) {
-                instance = new Proxy (instance, {
-                    get: function (target, name) {
-                        var result = target [name];
-                        if (result == undefined) {  // Target doesn't have attribute named name
-                            return target.__getattr__ (name);
-                        }
-                        else {
-                            return result;
-                        }
-                    },
-                    set: function (target, name, value) {
-                        try {
-                            target.__setattr__ (name, value);
-                        }
-                        catch (exception) {         // Target doesn't have a __setattr__ method
-                            target [name] = value;
-                        }
-                        return true;
-                    }
-                })
-            }
 
             // Call constructor
             this.__init__.apply (null, [instance] .concat (args));
@@ -411,7 +375,9 @@ function main () {
 					var map = function (func, iterable) {
 						return function () {
 							var __accu0__ = [];
-							for (var item of iterable) {
+							var __iterable0__ = iterable;
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var item = __iterable0__ [__index0__];
 								__accu0__.append (func (item));
 							}
 							return __accu0__;
@@ -423,7 +389,9 @@ function main () {
 						}
 						return function () {
 							var __accu0__ = [];
-							for (var item of iterable) {
+							var __iterable0__ = iterable;
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var item = __iterable0__ [__index0__];
 								if (func (item)) {
 									__accu0__.append (item);
 								}
@@ -469,7 +437,9 @@ function main () {
 							}
 							self.buffer = '{}{}{}'.format (self.buffer, sep.join (function () {
 								var __accu0__ = [];
-								for (var arg of args) {
+								var __iterable0__ = args;
+								for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+									var arg = __iterable0__ [__index0__];
 									__accu0__.append (str (arg));
 								}
 								return __accu0__;
@@ -481,7 +451,9 @@ function main () {
 							else {
 								console.log (sep.join (function () {
 									var __accu0__ = [];
-									for (var arg of args) {
+									var __iterable0__ = args;
+									for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+										var arg = __iterable0__ [__index0__];
 										__accu0__.append (str (arg));
 									}
 									return __accu0__;
@@ -624,7 +596,8 @@ function main () {
         // Lean and fast, no C3 linearization, only call first implementation encountered
         // Will allow __super__ ('<methodName>') (self, <params>) rather than only <className>.<methodName> (self, <params>)
         
-        for (let base of aClass.__bases__) {
+        for (var index = 0; index < aClass.__bases__.length; index++) {
+            var base = aClass.__bases__ [index];
             if (methodName in base) {
                return base [methodName];
             }
@@ -858,7 +831,8 @@ function main () {
         }
 
         if (classinfo instanceof Array) {   // Assume in most cases it isn't, then making it recursive rather than two functions saves a call
-            for (let aClass of classinfo) {
+            for (var index = 0; index < classinfo.length; index++) {
+                var aClass = classinfo [index];
                 if (isinstance (anObject, aClass)) {
                     return true;
                 }
@@ -1139,25 +1113,25 @@ function main () {
     // Any, all and sum
 
     function any (iterable) {
-        for (let item of iterable) {
-            if (bool (item)) {
+        for (var index = 0; index < iterable.length; index++) {
+            if (bool (iterable [index])) {
                 return true;
             }
         }
         return false;
     }
     function all (iterable) {
-        for (let item of iterable) {
-            if (! bool (item)) {
+        for (var index = 0; index < iterable.length; index++) {
+            if (! bool (iterable [index])) {
                 return false;
             }
         }
         return true;
     }
     function sum (iterable) {
-        let result = 0;
-        for (let item of iterable) {
-            result += item;
+        var result = 0;
+        for (var index = 0; index < iterable.length; index++) {
+            result += iterable [index];
         }
         return result;
     }
@@ -1209,7 +1183,7 @@ function main () {
     // List extensions to Array
 
     function list (iterable) {                                      // All such creators should be callable without new
-        var instance = iterable ? Array.from (iterable) : [];
+        var instance = iterable ? [] .slice.apply (iterable) : [];  // Spread iterable, n.b. array.slice (), so array before dot
         // Sort is the normal JavaScript sort, Python sort is a non-member function
         return instance;
     }
@@ -1662,7 +1636,6 @@ function main () {
     };
 
     String.prototype.join = function (strings) {
-        strings = Array.from (strings); // Much faster than iterating through strings char by char
         return strings.join (this);
     };
 
@@ -2441,32 +2414,126 @@ function main () {
     __all__.__setslice__ = __setslice__;
 	__nest__ (
 		__all__,
-		'pylib.hello', {
+		'pylib.inspector', {
 			__all__: {
 				__inited__: false,
 				__init__: function (__all__) {
-					var root = document.body;
-					var test = function () {
-						m.render (root, list ([m ('h2', dict ({'class': 'title'}), 'Hello Python Module World'), m ('button', dict ({'class': 'ui button'}), 'Go Python Module')]));
-					};
+					var Tab = __class__ ('Tab', [object], {
+						Name: '',
+						Data_tab: '',
+						Active: false,
+						get __init__ () {return __get__ (this, function (self) {
+							self._menu_attrs = dict ({'data-tab': self.Data_tab});
+							self._tab_attrs = dict ({'data-tab': self.Data_tab});
+							self._menu = 'a.item';
+							self._tab = 'div.ui.bottom.attached.tab.segment';
+							if (self.Active) {
+								self._menu += '.active';
+								self._tab += '.active';
+							}
+						});},
+						get menu_item () {return __get__ (this, function (self) {
+							return m (self._menu, self._menu_attrs, self.Name);
+						});},
+						get tab_item () {return __get__ (this, function (self) {
+							return m (self._tab, self._tab_attrs, self.main_view ());
+						});},
+						get main_view () {return __get__ (this, function (self) {
+							return m ('div', 'hello ' + self.Name);
+						});}
+					});
+					var Entities = __class__ ('Entities', [Tab], {
+						Name: 'Entities',
+						Data_tab: 'entities',
+						Active: true,
+						_view: dict ({'view': (function __lambda__ () {
+							return m ('div', 'hello Entities');
+						})}),
+						get main_view () {return __get__ (this, function (self) {
+							return m (self._view);
+						});}
+					});
+					var Issuants = __class__ ('Issuants', [Tab], {
+						Name: 'Issuants',
+						Data_tab: 'issuants'
+					});
+					var Offers = __class__ ('Offers', [Tab], {
+						Name: 'Offers',
+						Data_tab: 'offers'
+					});
+					var Messages = __class__ ('Messages', [Tab], {
+						Name: 'Messages',
+						Data_tab: 'messages'
+					});
+					var AnonMsgs = __class__ ('AnonMsgs', [Tab], {
+						Name: 'Anon Msgs',
+						Data_tab: 'anonmsgs'
+					});
+					var Tabs = __class__ ('Tabs', [object], {
+						get __init__ () {return __get__ (this, function (self) {
+							self.tabs = list ([Entities (), Issuants (), Offers (), Messages (), AnonMsgs ()]);
+							jQuery (document).ready ((function __lambda__ () {
+								return jQuery ('.menu .item').tab ();
+							}));
+						});},
+						get view () {return __get__ (this, function (self) {
+							var menu_items = list ([]);
+							var tab_items = list ([]);
+							var __iterable0__ = self.tabs;
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var tab = __iterable0__ [__index0__];
+								menu_items.append (tab.menu_item ());
+								tab_items.append (tab.tab_item ());
+							}
+							return m ('div', m ('div.ui.top.attached.pointing.menu', menu_items), tab_items);
+						});}
+					});
+					var tabs = Tabs ();
+					var Renderer = dict ({'render': tabs.view});
 					__pragma__ ('<all>')
-						__all__.root = root;
-						__all__.test = test;
+						__all__.AnonMsgs = AnonMsgs;
+						__all__.Entities = Entities;
+						__all__.Issuants = Issuants;
+						__all__.Messages = Messages;
+						__all__.Offers = Offers;
+						__all__.Renderer = Renderer;
+						__all__.Tab = Tab;
+						__all__.Tabs = Tabs;
+						__all__.tabs = tabs;
+					__pragma__ ('</all>')
+				}
+			}
+		}
+	);
+	__nest__ (
+		__all__,
+		'pylib.router', {
+			__all__: {
+				__inited__: false,
+				__init__: function (__all__) {
+					var inspector = __init__ (__world__.pylib.inspector);
+					var route = function (root) {
+						m.route (root, '/inspector', dict ({'/inspector': inspector.Renderer}));
+					};
+					__pragma__ ('<use>' +
+						'pylib.inspector' +
+					'</use>')
+					__pragma__ ('<all>')
+						__all__.inspector = inspector;
+						__all__.route = route;
 					__pragma__ ('</all>')
 				}
 			}
 		}
 	);
 	(function () {
-		var pylib = {};
-		__nest__ (pylib, 'hello', __init__ (__world__.pylib.hello));
-		var root = document.body;
-		m.render (root, list ([m ('h1', dict ({'class': 'title'}), 'Hello Python World'), m ('button', dict ({'class': 'ui button'}), 'Go Python')]));
+		var router = __init__ (__world__.pylib.router);
+		router.route (document.body);
 		__pragma__ ('<use>' +
-			'pylib.hello' +
+			'pylib.router' +
 		'</use>')
 		__pragma__ ('<all>')
-			__all__.root = root;
+			__all__.router = router;
 		__pragma__ ('</all>')
 	}) ();
    return __all__;

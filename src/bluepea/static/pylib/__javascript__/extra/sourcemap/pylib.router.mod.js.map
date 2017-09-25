@@ -1,0 +1,11 @@
+{
+	"version": 3,
+	"file": "C:/Users/elong/AdHoc/bluepea/src/bluepea/static/pylib/__javascript__/pylib.router.mod.js",
+	"sources": [
+		"C:/Users/elong/AdHoc/bluepea/src/bluepea/static/pylib/router.py"
+	],
+	"sourcesContent": [
+		"\"\"\"\nRouting between urls and pages.\n\"\"\"\nfrom .pylib import inspector\n\n\ndef route(root):\n    m.route(root, \"/inspector\",\n        {\n            \"/inspector\": inspector.Renderer\n        })\n"
+	],
+	"mappings": "AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAGA;AAGA;AACA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA"
+}
