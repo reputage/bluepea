@@ -33,12 +33,13 @@
 							__super__ (TabledTab, '__init__') (self);
 							self.table = null;
 							self.setup_table ();
+							self.copiedDetails = '';
 						});},
 						get setup_table () {return __get__ (this, function (self) {
 							// pass;
 						});},
 						get main_view () {return __get__ (this, function (self) {
-							return m ('div.table-container', m (self.table.view));
+							return m ('div', m ('div.table-container', m (self.table.view)), m ('div.ui.hidden.divider'), m ('div.ui.two.cards', dict ({'style': 'height: 45%;'}), m ('div.ui.card', m ('div.content.small-header', m ('div.header', 'Details')), m ('pre.content.code-block', self.table.detailSelected)), m ('div.ui.card', m ('div.content.small-header', m ('div.header', 'Copied')), m ('pre.content.code-block', self.copiedDetails))));
 						});}
 					});
 					var Field = __class__ ('Field', [object], {
@@ -64,20 +65,28 @@
 					});
 					var Table = __class__ ('Table', [object], {
 						get __init__ () {return __get__ (this, function (self, fields) {
+							self.max_size = 8;
 							self.fields = fields;
 							self.data = dict ({});
 							self.view = dict ({'oninit': self._oninit, 'view': self._view});
 							self._selectedRow = null;
+							self._selectedUid = null;
+							self.detailSelected = '';
 						});},
-						get _selectRow () {return __get__ (this, function (self, event) {
+						get _selectRow () {return __get__ (this, function (self, event, uid) {
+							if (uid == self._selectedUid) {
+								return ;
+							}
+							self._selectedUid = uid;
 							if (self._selectedRow !== null) {
 								jQuery (self._selectedRow).removeClass ('active');
 							}
 							self._selectedRow = event.currentTarget;
 							jQuery (self._selectedRow).addClass ('active');
+							self.detailSelected = JSON.stringify (self.data [uid], null, 2);
 						});},
 						get _oninit () {return __get__ (this, function (self) {
-							for (var i = 0; i < 10; i++) {
+							for (var i = 0; i < 20; i++) {
 								var obj = dict ({});
 								var __iterable0__ = self.fields;
 								for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
@@ -98,9 +107,16 @@
 								return __accu0__;
 							} ();
 							var rows = list ([]);
-							var __iterable0__ = self.data.py_values ();
+							var __iterable0__ = enumerate (self.data.py_keys ());
 							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
-								var obj = __iterable0__ [__index0__];
+								var __left0__ = __iterable0__ [__index0__];
+								var i = __left0__ [0];
+								var key = __left0__ [1];
+								if (i >= self.max_size) {
+									rows.append (m ('tr', m ('td', 'Limited to {} results.'.format (self.max_size))));
+									break;
+								}
+								var obj = self.data [key];
 								var row = function () {
 									var __accu0__ = [];
 									var __iterable1__ = self.fields;
@@ -110,7 +126,12 @@
 									}
 									return __accu0__;
 								} ();
-								rows.append (m ('tr', dict ({'onclick': self._selectRow}), row));
+								var makeScope = function (uid) {
+									return (function __lambda__ (event) {
+										return self._selectRow (event, uid);
+									});
+								};
+								rows.append (m ('tr', dict ({'onclick': makeScope (key)}), row));
 							}
 							return m ('table', dict ({'class': 'ui selectable celled unstackable single line left aligned table'}), m ('thead', m ('tr', dict ({'class': 'center aligned'}), headers)), m ('tbody', rows));
 						});}

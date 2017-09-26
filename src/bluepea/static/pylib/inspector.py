@@ -51,6 +51,7 @@ class TabledTab(Tab):
         super().__init__()
         self.table = None
         self.setup_table()
+        self.copiedDetails = ""
 
     def setup_table(self):
         """
@@ -59,8 +60,29 @@ class TabledTab(Tab):
         pass
 
     def main_view(self):
-        # Table needs to be in a special container to handle scrolling/sticky table header.
-        return m("div.table-container", m(self.table.view))
+        return m("div",
+                 # Table needs to be in a special container to handle scrolling/sticky table header
+                 m("div.table-container", m(self.table.view)),
+                 m("div.ui.hidden.divider"),
+                 m("div.ui.two.cards", {"style": "height: 45%;"},
+                   m("div.ui.card",
+                     m("div.content.small-header",
+                       m("div.header", "Details")
+                       ),
+                     m("pre.content.code-block",
+                       self.table.detailSelected
+                       )
+                     ),
+                   m("div.ui.card",
+                     m("div.content.small-header",
+                       m("div.header", "Copied")
+                       ),
+                     m("pre.content.code-block",
+                       self.copiedDetails
+                       )
+                     )
+                   )
+                 )
 
 
 class Field:
@@ -95,6 +117,7 @@ class Table:
     A table, its headers, and its data to be displayed.
     """
     def __init__(self, fields):
+        self.max_size = 8
         self.fields = fields
         self.data = {}
         self.view = {
@@ -102,23 +125,32 @@ class Table:
             "view": self._view
         }
         self._selectedRow = None
+        self._selectedUid = None
+        self.detailSelected = ""
 
-    def _selectRow(self, event):
+    def _selectRow(self, event, uid):
         """
         Deselects any previously selected row and
         selects the row specified in the event.
         """
+        if uid == self._selectedUid:
+            return
+
+        self._selectedUid = uid
+
         if self._selectedRow is not None:
             jQuery(self._selectedRow).removeClass("active")
 
         self._selectedRow = event.currentTarget
         jQuery(self._selectedRow).addClass("active")
 
+        self.detailSelected = JSON.stringify(self.data[uid], None, 2)
+
     def _oninit(self):
         """
         Loads any initial data.
         """
-        for i in range(10):
+        for i in range(20):
             obj = {}
             for field in self.fields:
                 obj[field.name] = "test{0} {1}".format(i, field.name)
@@ -127,10 +159,21 @@ class Table:
     def _view(self):
         headers = [m("th", field.name) for field in self.fields]
 
+        # Create the rows of the table
         rows = []
-        for obj in self.data.values():
+        for i, key in enumerate(self.data.keys()):
+            if i >= self.max_size:
+                rows.append(m("tr", m("td", "Limited to {} results.".format(self.max_size))))
+                break
+
+            obj = self.data[key]
+            # Format each cell based on the corresponding Field
             row = [field.view(obj[field.name]) for field in self.fields]
-            rows.append(m("tr", {"onclick": self._selectRow}, row))
+
+            # Needed so we can pass through the key as-is to the lambda, without it changing through the loop
+            def makeScope(uid):
+                return lambda event: self._selectRow(event, uid)
+            rows.append(m("tr", {"onclick": makeScope(key)}, row))
 
         return m("table", {"class": "ui selectable celled unstackable single line left aligned table"},
                  m("thead",

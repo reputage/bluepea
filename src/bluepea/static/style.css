@@ -29,3 +29,12 @@
     display: table;
     table-layout: fixed;
 }
+
+
+div .ui.card>.content.small-header {
+    flex-grow: 0;
+}
+
+pre.content.code-block {
+    overflow-x: auto;
+}
