@@ -57,7 +57,7 @@ class TabledTab(Tab):
         """
         Called on startup for the purpose of creating the Table object.
         """
-        pass
+        self.table = Table([])
 
     def _copyDetails(self):
         self.copiedDetails = self.table.detailSelected
@@ -139,6 +139,7 @@ class Table:
         self._selectedRow = None
         self._selectedUid = None
         self.detailSelected = ""
+        self.filter = None
 
     def _selectRow(self, event, uid):
         """
@@ -173,12 +174,18 @@ class Table:
 
         # Create the rows of the table
         rows = []
-        for i, key in enumerate(self.data.keys()):
-            if i >= self.max_size:
+        count = 0
+        for key, obj in self.data.items():
+            # Make sure we don't display too many items
+            if count >= self.max_size:
                 rows.append(m("tr", m("td", "Limited to {} results.".format(self.max_size))))
                 break
 
-            obj = self.data[key]
+            # Make sure object passes any current search filter
+            if self.filter is not None:
+                if not self.filter(obj):
+                    continue
+
             # Format each cell based on the corresponding Field
             row = [field.view(obj[field.name]) for field in self.fields]
 
@@ -186,6 +193,11 @@ class Table:
             def makeScope(uid):
                 return lambda event: self._selectRow(event, uid)
             rows.append(m("tr", {"onclick": makeScope(key)}, row))
+
+            count += 1
+
+        if not count:
+            rows.append(m("tr", m("td", "No results found.")))
 
         return m("table", {"class": "ui selectable celled unstackable single line left aligned table"},
                  m("thead",
@@ -207,24 +219,66 @@ class Entities(TabledTab):
         self.table = Table(fields)
 
 
-class Issuants(Tab):
+class Issuants(TabledTab):
     Name = "Issuants"
     Data_tab = "issuants"
 
 
-class Offers(Tab):
+class Offers(TabledTab):
     Name = "Offers"
     Data_tab = "offers"
 
 
-class Messages(Tab):
+class Messages(TabledTab):
     Name = "Messages"
     Data_tab = "messages"
 
 
-class AnonMsgs(Tab):
+class AnonMsgs(TabledTab):
     Name = "Anon Msgs"
     Data_tab = "anonmsgs"
+
+
+class Searcher:
+    def __init__(self):
+        self.searchTerm = None
+        self.caseSensitive = False
+
+    def setSearch(self, term: str):
+        self.searchTerm = term
+        self.caseSensitive = term.startswith('"') and term.endswith('"')
+        if self.caseSensitive:
+            # Remove surrounding quotes
+            self.searchTerm = self.searchTerm[1:-1]
+        else:
+            self.searchTerm = self.searchTerm.lower()
+
+    def _checkPrimitive(self, item):
+        if isinstance(item, str):
+            if not self.caseSensitive:
+                item = item.lower()
+            return self.searchTerm in item
+        return False
+
+    def _checkAny(self, value):
+        if isinstance(value, dict):
+            return self.search(value)
+        elif isinstance(value, list):
+            for item in value:
+                if self._checkAny(item):
+                    return True
+            return False
+        else:
+            return self._checkPrimitive(value)
+
+    def search(self, obj: dict):
+        """
+        Returns true if the obj recursively contains the string in a field.
+        """
+        for value in obj.values():
+            if self._checkAny(value):
+                return True
+        return False
 
 
 class Tabs:
@@ -234,17 +288,26 @@ class Tabs:
     def __init__(self):
         self.tabs = [Entities(), Issuants(), Offers(), Messages(), AnonMsgs()]
         self._searchId = "inspectorSearchId"
+        self.searcher = Searcher()
 
         # Required to activate tab functionality (so clicking a menu item will activate that tab)
-        jQuery(document).ready(lambda: jQuery('.menu .item').tab())
+        jQuery(document).ready(lambda: jQuery('.menu > a.item').tab())
 
     def search(self):
         text = jQuery("#" + self._searchId).val()
-        #todo search for text in current tab's data
+        currentTab = jQuery(".menu a.item.active")
+        data_tab = currentTab.attr("data-tab")
+        self.searcher.setSearch(text)
 
-    def searchWithin(self):
-        text = jQuery("#" + self._searchId).val()
-        #todo search for text in all tabs' data
+        # Clear any previous tab's searches and apply current search to current tab
+        for tab in self.tabs:
+            if text and tab.Data_tab == data_tab:
+                tab.table.filter = self.searcher.search
+            else:
+                tab.table.filter = None
+
+    # def searchWithin(self):
+    #     text = jQuery("#" + self._searchId).val()
 
     def view(self):
         menu_items = []
@@ -266,9 +329,9 @@ class Tabs:
                        m("div.item",
                          m("input.ui.primary.button[type=submit][value=Search]")
                          ),
-                       m("div.item",
-                         m("div.ui.secondary.button", {"onclick": self.searchWithin}, "Search Within")
-                         )
+                       # m("div.item",
+                       #   m("div.ui.secondary.button", {"onclick": self.searchWithin}, "Search Within")
+                       #   )
                        )
                      ),
                    ),

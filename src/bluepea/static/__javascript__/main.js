@@ -1,5 +1,5 @@
 "use strict";
-// Transcrypt'ed from Python, 2017-09-26 00:25:51
+// Transcrypt'ed from Python, 2017-09-26 10:31:19
 function main () {
    var __symbols__ = ['__py3.6__', '__esv5__'];
     var __all__ = {};
@@ -2450,7 +2450,7 @@ function main () {
 							self.copiedDetails = '';
 						});},
 						get setup_table () {return __get__ (this, function (self) {
-							// pass;
+							self.table = Table (list ([]));
 						});},
 						get _copyDetails () {return __get__ (this, function (self) {
 							self.copiedDetails = self.table.detailSelected;
@@ -2492,6 +2492,7 @@ function main () {
 							self._selectedRow = null;
 							self._selectedUid = null;
 							self.detailSelected = '';
+							self.filter = null;
 						});},
 						get _selectRow () {return __get__ (this, function (self, event, uid) {
 							if (uid == self._selectedUid) {
@@ -2527,16 +2528,21 @@ function main () {
 								return __accu0__;
 							} ();
 							var rows = list ([]);
-							var __iterable0__ = enumerate (self.data.py_keys ());
+							var count = 0;
+							var __iterable0__ = self.data.py_items ();
 							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
 								var __left0__ = __iterable0__ [__index0__];
-								var i = __left0__ [0];
-								var key = __left0__ [1];
-								if (i >= self.max_size) {
+								var key = __left0__ [0];
+								var obj = __left0__ [1];
+								if (count >= self.max_size) {
 									rows.append (m ('tr', m ('td', 'Limited to {} results.'.format (self.max_size))));
 									break;
 								}
-								var obj = self.data [key];
+								if (self.filter !== null) {
+									if (!(self.filter (obj))) {
+										continue;
+									}
+								}
 								var row = function () {
 									var __accu0__ = [];
 									var __iterable1__ = self.fields;
@@ -2552,6 +2558,10 @@ function main () {
 									});
 								};
 								rows.append (m ('tr', dict ({'onclick': makeScope (key)}), row));
+								count++;
+							}
+							if (!(count)) {
+								rows.append (m ('tr', m ('td', 'No results found.')));
 							}
 							return m ('table', dict ({'class': 'ui selectable celled unstackable single line left aligned table'}), m ('thead', m ('tr', dict ({'class': 'center aligned'}), headers)), m ('tbody', rows));
 						});}
@@ -2573,35 +2583,99 @@ function main () {
 							self.table = Table (fields);
 						});}
 					});
-					var Issuants = __class__ ('Issuants', [Tab], {
+					var Issuants = __class__ ('Issuants', [TabledTab], {
 						Name: 'Issuants',
 						Data_tab: 'issuants'
 					});
-					var Offers = __class__ ('Offers', [Tab], {
+					var Offers = __class__ ('Offers', [TabledTab], {
 						Name: 'Offers',
 						Data_tab: 'offers'
 					});
-					var Messages = __class__ ('Messages', [Tab], {
+					var Messages = __class__ ('Messages', [TabledTab], {
 						Name: 'Messages',
 						Data_tab: 'messages'
 					});
-					var AnonMsgs = __class__ ('AnonMsgs', [Tab], {
+					var AnonMsgs = __class__ ('AnonMsgs', [TabledTab], {
 						Name: 'Anon Msgs',
 						Data_tab: 'anonmsgs'
+					});
+					var Searcher = __class__ ('Searcher', [object], {
+						get __init__ () {return __get__ (this, function (self) {
+							self.searchTerm = null;
+							self.caseSensitive = false;
+						});},
+						get setSearch () {return __get__ (this, function (self, term) {
+							self.searchTerm = term;
+							self.caseSensitive = term.startswith ('"') && term.endswith ('"');
+							if (self.caseSensitive) {
+								self.searchTerm = self.searchTerm.__getslice__ (1, -(1), 1);
+							}
+							else {
+								self.searchTerm = self.searchTerm.lower ();
+							}
+						});},
+						get _checkPrimitive () {return __get__ (this, function (self, item) {
+							if (isinstance (item, str)) {
+								if (!(self.caseSensitive)) {
+									var item = item.lower ();
+								}
+								return __in__ (self.searchTerm, item);
+							}
+							return false;
+						});},
+						get _checkAny () {return __get__ (this, function (self, value) {
+							if (isinstance (value, dict)) {
+								return self.search (value);
+							}
+							else if (isinstance (value, list)) {
+								var __iterable0__ = value;
+								for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+									var item = __iterable0__ [__index0__];
+									if (self._checkAny (item)) {
+										return true;
+									}
+								}
+								return false;
+							}
+							else {
+								return self._checkPrimitive (value);
+							}
+						});},
+						get search () {return __get__ (this, function (self, obj) {
+							var __iterable0__ = obj.py_values ();
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var value = __iterable0__ [__index0__];
+								if (self._checkAny (value)) {
+									return true;
+								}
+							}
+							return false;
+						});}
 					});
 					var Tabs = __class__ ('Tabs', [object], {
 						get __init__ () {return __get__ (this, function (self) {
 							self.tabs = list ([Entities (), Issuants (), Offers (), Messages (), AnonMsgs ()]);
 							self._searchId = 'inspectorSearchId';
+							self.searcher = Searcher ();
 							jQuery (document).ready ((function __lambda__ () {
-								return jQuery ('.menu .item').tab ();
+								return jQuery ('.menu > a.item').tab ();
 							}));
 						});},
 						get search () {return __get__ (this, function (self) {
 							var text = jQuery ('#' + self._searchId).val ();
-						});},
-						get searchWithin () {return __get__ (this, function (self) {
-							var text = jQuery ('#' + self._searchId).val ();
+							var currentTab = jQuery ('.menu a.item.active');
+							var data_tab = currentTab.attr ('data-tab');
+							self.searcher.setSearch (text);
+							var __iterable0__ = self.tabs;
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var tab = __iterable0__ [__index0__];
+								if (text && tab.Data_tab == data_tab) {
+									tab.table.filter = self.searcher.search;
+								}
+								else {
+									tab.table.filter = null;
+								}
+							}
 						});},
 						get view () {return __get__ (this, function (self) {
 							var menu_items = list ([]);
@@ -2612,7 +2686,7 @@ function main () {
 								menu_items.append (tab.menu_item ());
 								tab_items.append (tab.tab_item ());
 							}
-							return m ('div', m ('form', dict ({'onsubmit': self.search}), m ('div.ui.borderless.menu', m ('div.right.menu', dict ({'style': 'padding-right: 40%'}), m ('div.item', dict ({'style': 'width: 80%'}), m ('div.ui.transparent.icon.input', m ('input[type=text][placeholder=Search...]', dict ({'id': self._searchId})), m ('i.search.icon'))), m ('div.item', m ('input.ui.primary.button[type=submit][value=Search]')), m ('div.item', m ('div.ui.secondary.button', dict ({'onclick': self.searchWithin}), 'Search Within'))))), m ('div.ui.top.attached.pointing.five.item.menu', menu_items), tab_items);
+							return m ('div', m ('form', dict ({'onsubmit': self.search}), m ('div.ui.borderless.menu', m ('div.right.menu', dict ({'style': 'padding-right: 40%'}), m ('div.item', dict ({'style': 'width: 80%'}), m ('div.ui.transparent.icon.input', m ('input[type=text][placeholder=Search...]', dict ({'id': self._searchId})), m ('i.search.icon'))), m ('div.item', m ('input.ui.primary.button[type=submit][value=Search]'))))), m ('div.ui.top.attached.pointing.five.item.menu', menu_items), tab_items);
 						});}
 					});
 					var tabs = Tabs ();
@@ -2625,6 +2699,7 @@ function main () {
 						__all__.Messages = Messages;
 						__all__.Offers = Offers;
 						__all__.Renderer = Renderer;
+						__all__.Searcher = Searcher;
 						__all__.Tab = Tab;
 						__all__.Table = Table;
 						__all__.TabledTab = TabledTab;
