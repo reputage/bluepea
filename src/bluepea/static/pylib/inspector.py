@@ -233,9 +233,18 @@ class Tabs:
     """
     def __init__(self):
         self.tabs = [Entities(), Issuants(), Offers(), Messages(), AnonMsgs()]
+        self._searchId = "inspectorSearchId"
 
         # Required to activate tab functionality (so clicking a menu item will activate that tab)
         jQuery(document).ready(lambda: jQuery('.menu .item').tab())
+
+    def search(self):
+        text = jQuery("#" + self._searchId).val()
+        #todo search for text in current tab's data
+
+    def searchWithin(self):
+        text = jQuery("#" + self._searchId).val()
+        #todo search for text in all tabs' data
 
     def view(self):
         menu_items = []
@@ -245,7 +254,25 @@ class Tabs:
             tab_items.append(tab.tab_item())
 
         return m("div",
-                 m("div.ui.top.attached.pointing.menu",
+                 m("form", {"onsubmit": self.search},
+                   m("div.ui.borderless.menu",
+                     m("div.right.menu", {"style": "padding-right: 40%"},
+                       m("div.item", {"style": "width: 80%"},
+                         m("div.ui.transparent.icon.input",
+                           m("input[type=text][placeholder=Search...]", {"id": self._searchId}),
+                           m("i.search.icon")
+                           )
+                         ),
+                       m("div.item",
+                         m("input.ui.primary.button[type=submit][value=Search]")
+                         ),
+                       m("div.item",
+                         m("div.ui.secondary.button", {"onclick": self.searchWithin}, "Search Within")
+                         )
+                       )
+                     ),
+                   ),
+                 m("div.ui.top.attached.pointing.five.item.menu",
                    menu_items
                    ),
                  tab_items

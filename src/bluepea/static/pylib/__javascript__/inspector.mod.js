@@ -178,9 +178,16 @@
 					var Tabs = __class__ ('Tabs', [object], {
 						get __init__ () {return __get__ (this, function (self) {
 							self.tabs = list ([Entities (), Issuants (), Offers (), Messages (), AnonMsgs ()]);
+							self._searchId = 'inspectorSearchId';
 							jQuery (document).ready ((function __lambda__ () {
 								return jQuery ('.menu .item').tab ();
 							}));
+						});},
+						get search () {return __get__ (this, function (self) {
+							var text = jQuery ('#' + self._searchId).val ();
+						});},
+						get searchWithin () {return __get__ (this, function (self) {
+							var text = jQuery ('#' + self._searchId).val ();
 						});},
 						get view () {return __get__ (this, function (self) {
 							var menu_items = list ([]);
@@ -191,7 +198,7 @@
 								menu_items.append (tab.menu_item ());
 								tab_items.append (tab.tab_item ());
 							}
-							return m ('div', m ('div.ui.top.attached.pointing.menu', menu_items), tab_items);
+							return m ('div', m ('form', dict ({'onsubmit': self.search}), m ('div.ui.borderless.menu', m ('div.right.menu', dict ({'style': 'padding-right: 40%'}), m ('div.item', dict ({'style': 'width: 80%'}), m ('div.ui.transparent.icon.input', m ('input[type=text][placeholder=Search...]', dict ({'id': self._searchId})), m ('i.search.icon'))), m ('div.item', m ('input.ui.primary.button[type=submit][value=Search]')), m ('div.item', m ('div.ui.secondary.button', dict ({'onclick': self.searchWithin}), 'Search Within'))))), m ('div.ui.top.attached.pointing.five.item.menu', menu_items), tab_items);
 						});}
 					});
 					var tabs = Tabs ();
