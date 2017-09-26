@@ -59,6 +59,12 @@ class TabledTab(Tab):
         """
         pass
 
+    def _copyDetails(self):
+        self.copiedDetails = self.table.detailSelected
+
+    def _clearCopy(self):
+        self.copiedDetails = ""
+
     def main_view(self):
         return m("div",
                  # Table needs to be in a special container to handle scrolling/sticky table header
@@ -67,7 +73,10 @@ class TabledTab(Tab):
                  m("div.ui.two.cards", {"style": "height: 45%;"},
                    m("div.ui.card",
                      m("div.content.small-header",
-                       m("div.header", "Details")
+                       m("div.header",
+                         m("span", "Details"),
+                         m("span.ui.mini.right.floated.button", {"onclick": self._copyDetails}, "Copy")
+                         )
                        ),
                      m("pre.content.code-block",
                        self.table.detailSelected
@@ -75,7 +84,10 @@ class TabledTab(Tab):
                      ),
                    m("div.ui.card",
                      m("div.content.small-header",
-                       m("div.header", "Copied")
+                       m("div.header",
+                         m("span", "Copied"),
+                         m("span.ui.mini.right.floated.button", {"onclick": self._clearCopy}, "Clear")
+                         )
                        ),
                      m("pre.content.code-block",
                        self.copiedDetails

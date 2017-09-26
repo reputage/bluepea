@@ -1,5 +1,5 @@
 "use strict";
-// Transcrypt'ed from Python, 2017-09-25 21:12:59
+// Transcrypt'ed from Python, 2017-09-25 22:51:03
 function main () {
    var __symbols__ = ['__py3.6__', '__esv5__'];
     var __all__ = {};
@@ -2452,8 +2452,14 @@ function main () {
 						get setup_table () {return __get__ (this, function (self) {
 							// pass;
 						});},
+						get _copyDetails () {return __get__ (this, function (self) {
+							self.copiedDetails = self.table.detailSelected;
+						});},
+						get _clearCopy () {return __get__ (this, function (self) {
+							self.copiedDetails = '';
+						});},
 						get main_view () {return __get__ (this, function (self) {
-							return m ('div', m ('div.table-container', m (self.table.view)), m ('div.ui.hidden.divider'), m ('div.ui.two.cards', dict ({'style': 'height: 45%;'}), m ('div.ui.card', m ('div.content.small-header', m ('div.header', 'Details')), m ('pre.content.code-block', self.table.detailSelected)), m ('div.ui.card', m ('div.content.small-header', m ('div.header', 'Copied')), m ('pre.content.code-block', self.copiedDetails))));
+							return m ('div', m ('div.table-container', m (self.table.view)), m ('div.ui.hidden.divider'), m ('div.ui.two.cards', dict ({'style': 'height: 45%;'}), m ('div.ui.card', m ('div.content.small-header', m ('div.header', m ('span', 'Details'), m ('span.ui.mini.right.floated.button', dict ({'onclick': self._copyDetails}), 'Copy'))), m ('pre.content.code-block', self.table.detailSelected)), m ('div.ui.card', m ('div.content.small-header', m ('div.header', m ('span', 'Copied'), m ('span.ui.mini.right.floated.button', dict ({'onclick': self._clearCopy}), 'Clear'))), m ('pre.content.code-block', self.copiedDetails))));
 						});}
 					});
 					var Field = __class__ ('Field', [object], {
