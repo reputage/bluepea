@@ -240,11 +240,26 @@ class AnonMsgs(TabledTab):
 
 
 class Searcher:
+    """
+    Methods for searching for a certain string in any dict object.
+
+    Attributes:
+        searchTerm (str): current string to search for
+        caseSensitive (bool): if True, searches are case sensitive
+    """
     def __init__(self):
         self.searchTerm = None
         self.caseSensitive = False
 
-    def setSearch(self, term: str):
+    def setSearch(self, term):
+        """
+        Sets our search term.
+        If term is surrounded by quotes, removes them and makes the search
+        case sensitive. Otherwise, the search is not case sensitive.
+
+        Args:
+            term (str): base string to search for
+        """
         self.searchTerm = term
         self.caseSensitive = term.startswith('"') and term.endswith('"')
         if self.caseSensitive:
@@ -254,6 +269,9 @@ class Searcher:
             self.searchTerm = self.searchTerm.lower()
 
     def _checkPrimitive(self, item):
+        """
+        Checks for .searchTerm in the provided string.
+        """
         if isinstance(item, str):
             if not self.caseSensitive:
                 item = item.lower()
@@ -261,6 +279,9 @@ class Searcher:
         return False
 
     def _checkAny(self, value):
+        """
+        Checks for .searchTerm in any provided dict, list, or primitive type
+        """
         if isinstance(value, dict):
             return self.search(value)
         elif isinstance(value, list):
@@ -273,7 +294,7 @@ class Searcher:
 
     def search(self, obj: dict):
         """
-        Returns true if the obj recursively contains the string in a field.
+        Returns True if obj recursively contains the .searchTerm string in any field.
         """
         for value in obj.values():
             if self._checkAny(value):
@@ -294,6 +315,10 @@ class Tabs:
         jQuery(document).ready(lambda: jQuery('.menu > a.item').tab())
 
     def search(self):
+        """
+        Initiates searching in the current tab based on the current search string.
+        Clears any searches in other tabs.
+        """
         text = jQuery("#" + self._searchId).val()
         currentTab = jQuery(".menu a.item.active")
         data_tab = currentTab.attr("data-tab")
@@ -340,9 +365,3 @@ class Tabs:
                    ),
                  tab_items
                  )
-
-
-tabs = Tabs()
-Renderer = {
-    "render": tabs.view
-}

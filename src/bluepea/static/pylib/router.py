@@ -5,7 +5,15 @@ from .pylib import inspector
 
 
 def route(root):
+    """
+    Sets up the routes to pages, based around the given root
+    (typically document.body)
+    """
+    tabs = inspector.Tabs()
+
     m.route(root, "/inspector",
         {
-            "/inspector": inspector.Renderer
+            "/inspector": {
+                "render": tabs.view
+            }
         })
