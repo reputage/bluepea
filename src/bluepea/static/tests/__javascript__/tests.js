@@ -1,6 +1,6 @@
 "use strict";
-// Transcrypt'ed from Python, 2017-09-27 18:27:32
-function main () {
+// Transcrypt'ed from Python, 2017-09-28 13:17:03
+function tests () {
    var __symbols__ = ['__py3.6__', '__esv5__'];
     var __all__ = {};
     var __world__ = __all__;
@@ -2708,38 +2708,148 @@ function main () {
 	);
 	__nest__ (
 		__all__,
-		'pylib.router', {
+		'tests.test_inspector', {
 			__all__: {
 				__inited__: false,
 				__init__: function (__all__) {
+					global.jQuery = require ('jquery');
+					var o = require ('mithril/ospec/ospec');
 					var inspector = __init__ (__world__.pylib.inspector);
-					var route = function (root) {
-						var tabs = inspector.Tabs ();
-						m.route (root, '/inspector', dict ({'/inspector': dict ({'render': tabs.view})}));
+					var test = function (Cls) {
+						var Wrapper = __class__ ('Wrapper', [object], {
+							get __init__ () {return __get__ (this, function (self) {
+								var original = Cls ();
+								var dospec = function () {
+									var funcs = list ([]);
+									for (var key in original) {
+										if (key == 'beforeEach') {
+											o.beforeEach (original [key]);
+										}
+										else {
+											var obj = original [key];
+											if (key [0].isupper ()) {
+												test (obj);
+											}
+											else if (!(key.startswith ('_'))) {
+												funcs.append (tuple ([key, obj]));
+											}
+										}
+									}
+									var __iterable0__ = funcs;
+									for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+										var __left0__ = __iterable0__ [__index0__];
+										var py_name = __left0__ [0];
+										var func = __left0__ [1];
+										o (py_name, func);
+									}
+								};
+								o.spec (Cls.__name__, dospec);
+							});}
+						});
+						Wrapper ();
+						return Wrapper;
 					};
+					var Searcher = __class__ ('Searcher', [object], {
+						CaseSensitive: __class__ ('CaseSensitive', [object], {
+							get beforeEach () {return __get__ (this, function (self) {
+								self.searcher = inspector.Searcher ();
+							});},
+							get setSearch () {return __get__ (this, function (self) {
+								self.searcher.setSearch ('"SensITive"');
+								o (self.searcher.searchTerm).equals ('SensITive');
+								o (self.searcher.caseSensitive).equals (true);
+							});},
+							get searchBasic () {return __get__ (this, function (self) {
+								self.searcher.setSearch ('"Foo"');
+								o (self.searcher.search (dict ({'bar': 'foo'}))).equals (false);
+								o (self.searcher.search (dict ({'foo': 'bar'}))).equals (false);
+								o (self.searcher.search (dict ({'Foo': 'bar'}))).equals (false);
+								o (self.searcher.search (dict ({'Bar': 'Foo'}))).equals (true);
+							});},
+							get searchNested () {return __get__ (this, function (self) {
+								self.searcher.setSearch ('"Foo"');
+								o (self.searcher.search (dict ({'bar': dict ({'bar': 'foo'})}))).equals (false);
+								o (self.searcher.search (dict ({'bar': dict ({'bar': 'Foo'})}))).equals (true);
+							});},
+							get searchList () {return __get__ (this, function (self) {
+								self.searcher.setSearch ('"Foo"');
+								o (self.searcher.search (dict ({'foo': list ([0, 1, 'foo', 3])}))).equals (false);
+								o (self.searcher.search (dict ({'foo': list ([0, 1, 'Foo', 3])}))).equals (true);
+							});},
+							get searchListNested () {return __get__ (this, function (self) {
+								self.searcher.setSearch ('"Foo"');
+								o (self.searcher.search (dict ({'bar': list ([0, 1, dict ({'bar': 'foo'}), list ([3, 'foo', 5]), 6])}))).equals (false);
+								o (self.searcher.search (dict ({'bar': list ([0, 1, dict ({'bar': 'foo'}), list ([3, 'Foo', 5]), 6])}))).equals (true);
+								o (self.searcher.search (dict ({'bar': list ([0, 1, dict ({'bar': 'Foo'}), list ([3, 'foo', 5]), 6])}))).equals (true);
+							});},
+							get searchInnerString () {return __get__ (this, function (self) {
+								self.searcher.setSearch ('"Foo"');
+								o (self.searcher.search (dict ({'foo': 'blah Fblahooblah blah'}))).equals (false);
+								o (self.searcher.search (dict ({'foo': 'blah blahFooblah blah'}))).equals (true);
+							});}
+						}),
+						CaseInsensitive: __class__ ('CaseInsensitive', [object], {
+							get beforeEach () {return __get__ (this, function (self) {
+								self.searcher = inspector.Searcher ();
+							});},
+							get setSearch () {return __get__ (this, function (self) {
+								self.searcher.setSearch ('InSensItive');
+								o (self.searcher.searchTerm).equals ('insensitive');
+								o (self.searcher.caseSensitive).equals (false);
+							});},
+							get searchBasic () {return __get__ (this, function (self) {
+								self.searcher.setSearch ('Foo');
+								o (self.searcher.search (dict ({'bar': 'foo'}))).equals (true);
+								o (self.searcher.search (dict ({'foo': 'bar'}))).equals (false);
+								o (self.searcher.search (dict ({'Foo': 'bar'}))).equals (false);
+								o (self.searcher.search (dict ({'Bar': 'Foo'}))).equals (true);
+							});},
+							get searchNested () {return __get__ (this, function (self) {
+								self.searcher.setSearch ('foo');
+								o (self.searcher.search (dict ({'bar': dict ({'bar': 'bar'})}))).equals (false);
+								o (self.searcher.search (dict ({'bar': dict ({'bar': 'Foo'})}))).equals (true);
+							});},
+							get searchList () {return __get__ (this, function (self) {
+								self.searcher.setSearch ('foo');
+								o (self.searcher.search (dict ({'foo': list ([0, 1, 'bar', 3])}))).equals (false);
+								o (self.searcher.search (dict ({'foo': list ([0, 1, 'Foo', 3])}))).equals (true);
+							});},
+							get searchInnerString () {return __get__ (this, function (self) {
+								self.searcher.setSearch ('foo');
+								o (self.searcher.search (dict ({'foo': 'blah Fblahooblah blah'}))).equals (false);
+								o (self.searcher.search (dict ({'foo': 'blah blahFooblah blah'}))).equals (true);
+							});},
+							get searchListNested () {return __get__ (this, function (self) {
+								self.searcher.setSearch ('foo');
+								o (self.searcher.search (dict ({'bar': list ([0, 1, dict ({'bar': 'boo'}), list ([3, 'boo', 5]), 6])}))).equals (false);
+								o (self.searcher.search (dict ({'bar': list ([0, 1, dict ({'bar': 'Foo'}), list ([3, 'boo', 5]), 6])}))).equals (true);
+								o (self.searcher.search (dict ({'bar': list ([0, 1, dict ({'bar': 'boo'}), list ([3, 'Foo', 5]), 6])}))).equals (true);
+							});}
+						})
+					})
+					var Searcher = test (Searcher);
 					__pragma__ ('<use>' +
 						'pylib.inspector' +
 					'</use>')
 					__pragma__ ('<all>')
+						__all__.Searcher = Searcher;
 						__all__.inspector = inspector;
-						__all__.route = route;
+						__all__.o = o;
+						__all__.test = test;
 					__pragma__ ('</all>')
 				}
 			}
 		}
 	);
 	(function () {
-		var router = __init__ (__world__.pylib.router);
-		router.route (document.body);
+		var test_inspector = __init__ (__world__.tests.test_inspector);
 		__pragma__ ('<use>' +
-			'pylib.router' +
+			'tests.test_inspector' +
 		'</use>')
 		__pragma__ ('<all>')
-			__all__.router = router;
+			__all__.test_inspector = test_inspector;
 		__pragma__ ('</all>')
 	}) ();
    return __all__;
 }
-window ['main'] = main ();
-
-//# sourceMappingURL=extra/sourcemap/main.js.map
+tests ();
