@@ -4,6 +4,9 @@
   "description": "",
   "main": "main.js",
   "scripts": {
+    "prep-tests": "transcrypt -b -de -v -n -p .none tests.py && python -m clean_tests",
+    "transcrypt": "transcrypt -b -m main.py",
+    "debug-tests": "node %NODE_DEBUG_OPTION% tests/__javascript__/tests.js",
     "test": "ospec",
     "start": "webpack src/index.js bin/app.js -d --watch",
     "build": "webpack src/index.js bin/app.js -p"
