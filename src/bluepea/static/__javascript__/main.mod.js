@@ -1,6 +1,6 @@
 	(function () {
 		var router = __init__ (__world__.pylib.router);
-		router.route (document.body);
+		router.Router ().route (__kwargtrans__ ({root: document.body}));
 		__pragma__ ('<use>' +
 			'pylib.router' +
 		'</use>')

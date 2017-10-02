@@ -5,7 +5,7 @@
 		"C:/Users/elong/AdHoc/bluepea/src/bluepea/static/pylib/router.py"
 	],
 	"sourcesContent": [
-		"\"\"\"\nRouting between urls and pages.\n\"\"\"\nfrom .pylib import inspector\n\n\ndef route(root):\n    m.route(root, \"/inspector\",\n        {\n            \"/inspector\": inspector.Renderer\n        })\n"
+		"\"\"\"\nRouting between urls and pages.\n\"\"\"\nfrom .pylib import inspector\n\n\nclass Router:\n    def __init__(self):\n        self.tabs = inspector.Tabs()\n\n    def route(self, root=None):\n        \"\"\"\n        Sets up the routes to pages, based around the given root\n        (typically document.body)\n        \"\"\"\n        if root is None:\n            root = document.body\n        m.route(root, \"/inspector\",\n                {\n                    \"/inspector\": {\n                        \"render\": self.tabs.view\n                    }\n                })\n"
 	],
-	"mappings": "AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAGA;AAGA;AACA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA"
+	"mappings": "AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAGA;AAGA;AACA;AACA;AAAA;AAEA;AAAA;AAAA;AAAA;AAKA;AACA;AAAA;AACA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA"
 }

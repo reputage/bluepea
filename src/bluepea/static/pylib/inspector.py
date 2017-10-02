@@ -52,6 +52,10 @@ class TabledTab(Tab):
         self.table = None
         self.setup_table()
         self.copiedDetails = ""
+        self._detailsId = self.Data_tab + "DetailsCodeBlock"
+        self._copiedId = self.Data_tab + "CopiedCodeBlock"
+        self._copyButtonId = self.Data_tab + "CopyButton"
+        self._clearButtonId = self.Data_tab + "ClearButton"
 
     def setup_table(self):
         """
@@ -75,10 +79,11 @@ class TabledTab(Tab):
                      m("div.content.small-header",
                        m("div.header",
                          m("span", "Details"),
-                         m("span.ui.mini.right.floated.button", {"onclick": self._copyDetails}, "Copy")
+                         m("span.ui.mini.right.floated.button", {"onclick": self._copyDetails, "id": self._copyButtonId},
+                           "Copy")
                          )
                        ),
-                     m("pre.content.code-block",
+                     m("pre.content.code-block", {"id": self._detailsId},
                        self.table.detailSelected
                        )
                      ),
@@ -86,10 +91,11 @@ class TabledTab(Tab):
                      m("div.content.small-header",
                        m("div.header",
                          m("span", "Copied"),
-                         m("span.ui.mini.right.floated.button", {"onclick": self._clearCopy}, "Clear")
+                         m("span.ui.mini.right.floated.button", {"onclick": self._clearCopy, "id": self._clearButtonId},
+                           "Clear")
                          )
                        ),
-                     m("pre.content.code-block",
+                     m("pre.content.code-block", {"id": self._copiedId},
                        self.copiedDetails
                        )
                      )
@@ -100,14 +106,20 @@ class TabledTab(Tab):
 class Field:
     """
     A field/column of a table.
+
+    Attributes:
+        title (str): Friendly table header name
+        name (str): JSON key to use in data lookup
     """
-    Name = None
+    Title = None
     """Friendly name to display in table header."""
 
-    def __init__(self, name=None):
-        self.name = self.Name
-        if name is not None:
-            self.name = name
+    def __init__(self, title=None):
+        self.title = self.Title
+        if title is not None:
+            self.title = title
+
+        self.name = self.title.lower()
 
     def format(self, string):
         """
@@ -121,6 +133,7 @@ class Field:
         """
         Returns a vnode <td> suitable for display in a table.
         """
+        data = str(data)
         return m("td", {"title": data}, self.format(data))
 
 
@@ -128,6 +141,8 @@ class Table:
     """
     A table, its headers, and its data to be displayed.
     """
+    no_results_text = "No results found."
+
     def __init__(self, fields):
         self.max_size = 8
         self.fields = fields
@@ -140,6 +155,12 @@ class Table:
         self._selectedUid = None
         self.detailSelected = ""
         self.filter = None
+
+    def _stringify(self, obj):
+        """
+        Converts the provided json-like object to a user-friendly string.
+        """
+        return JSON.stringify(obj, None, 2)
 
     def _selectRow(self, event, uid):
         """
@@ -157,20 +178,35 @@ class Table:
         self._selectedRow = event.currentTarget
         jQuery(self._selectedRow).addClass("active")
 
-        self.detailSelected = JSON.stringify(self.data[uid], None, 2)
+        self.detailSelected = self._stringify(self.data[uid])
 
     def _oninit(self):
         """
         Loads any initial data.
         """
+        # Load test data
+        data = []
         for i in range(20):
             obj = {}
             for field in self.fields:
                 obj[field.name] = "test{0} {1}".format(i, field.name)
-            self.data[i] = obj
+            data.append(obj)
+
+        self._setData(data)
+
+    def _setData(self, data):
+        """
+        Clears existing data and uses the provided data instead.
+
+        Args:
+            data (list[dict])
+        """
+        self.data.clear()
+        for i, datum in enumerate(data):
+            self.data[i] = datum
 
     def _view(self):
-        headers = [m("th", field.name) for field in self.fields]
+        headers = [m("th", field.title) for field in self.fields]
 
         # Create the rows of the table
         rows = []
@@ -197,7 +233,7 @@ class Table:
             count += 1
 
         if not count:
-            rows.append(m("tr", m("td", "No results found.")))
+            rows.append(m("tr", m("td", self.no_results_text)))
 
         return m("table", {"class": "ui selectable celled unstackable single line left aligned table"},
                  m("thead",
@@ -260,8 +296,8 @@ class Searcher:
         Args:
             term (str): base string to search for
         """
-        self.searchTerm = term
-        self.caseSensitive = term.startswith('"') and term.endswith('"')
+        self.searchTerm = term or ""
+        self.caseSensitive = self.searchTerm.startswith('"') and self.searchTerm.endswith('"')
         if self.caseSensitive:
             # Remove surrounding quotes
             self.searchTerm = self.searchTerm[1:-1]
@@ -314,19 +350,30 @@ class Tabs:
         # Required to activate tab functionality (so clicking a menu item will activate that tab)
         jQuery(document).ready(lambda: jQuery('.menu > a.item').tab())
 
+    def currentTab(self):
+        """
+        Returns the current Tab, or None if not found.
+        """
+        active = jQuery(".menu a.item.active")
+        data_tab = active.attr("data-tab")
+        for tab in self.tabs:
+            if tab.Data_tab == data_tab:
+                return tab
+        return None
+
     def search(self):
         """
         Initiates searching in the current tab based on the current search string.
         Clears any searches in other tabs.
         """
         text = jQuery("#" + self._searchId).val()
-        currentTab = jQuery(".menu a.item.active")
-        data_tab = currentTab.attr("data-tab")
         self.searcher.setSearch(text)
+
+        current = self.currentTab()
 
         # Clear any previous tab's searches and apply current search to current tab
         for tab in self.tabs:
-            if text and tab.Data_tab == data_tab:
+            if text and tab.Data_tab == current.Data_tab:
                 tab.table.filter = self.searcher.search
             else:
                 tab.table.filter = None

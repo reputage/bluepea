@@ -34,6 +34,10 @@
 							self.table = null;
 							self.setup_table ();
 							self.copiedDetails = '';
+							self._detailsId = self.Data_tab + 'DetailsCodeBlock';
+							self._copiedId = self.Data_tab + 'CopiedCodeBlock';
+							self._copyButtonId = self.Data_tab + 'CopyButton';
+							self._clearButtonId = self.Data_tab + 'ClearButton';
 						});},
 						get setup_table () {return __get__ (this, function (self) {
 							self.table = Table (list ([]));
@@ -45,19 +49,20 @@
 							self.copiedDetails = '';
 						});},
 						get main_view () {return __get__ (this, function (self) {
-							return m ('div', m ('div.table-container', m (self.table.view)), m ('div.ui.hidden.divider'), m ('div.ui.two.cards', dict ({'style': 'height: 45%;'}), m ('div.ui.card', m ('div.content.small-header', m ('div.header', m ('span', 'Details'), m ('span.ui.mini.right.floated.button', dict ({'onclick': self._copyDetails}), 'Copy'))), m ('pre.content.code-block', self.table.detailSelected)), m ('div.ui.card', m ('div.content.small-header', m ('div.header', m ('span', 'Copied'), m ('span.ui.mini.right.floated.button', dict ({'onclick': self._clearCopy}), 'Clear'))), m ('pre.content.code-block', self.copiedDetails))));
+							return m ('div', m ('div.table-container', m (self.table.view)), m ('div.ui.hidden.divider'), m ('div.ui.two.cards', dict ({'style': 'height: 45%;'}), m ('div.ui.card', m ('div.content.small-header', m ('div.header', m ('span', 'Details'), m ('span.ui.mini.right.floated.button', dict ({'onclick': self._copyDetails, 'id': self._copyButtonId}), 'Copy'))), m ('pre.content.code-block', dict ({'id': self._detailsId}), self.table.detailSelected)), m ('div.ui.card', m ('div.content.small-header', m ('div.header', m ('span', 'Copied'), m ('span.ui.mini.right.floated.button', dict ({'onclick': self._clearCopy, 'id': self._clearButtonId}), 'Clear'))), m ('pre.content.code-block', dict ({'id': self._copiedId}), self.copiedDetails))));
 						});}
 					});
 					var Field = __class__ ('Field', [object], {
-						Name: null,
-						get __init__ () {return __get__ (this, function (self, py_name) {
-							if (typeof py_name == 'undefined' || (py_name != null && py_name .hasOwnProperty ("__kwargtrans__"))) {;
-								var py_name = null;
+						Title: null,
+						get __init__ () {return __get__ (this, function (self, title) {
+							if (typeof title == 'undefined' || (title != null && title .hasOwnProperty ("__kwargtrans__"))) {;
+								var title = null;
 							};
-							self.py_name = self.Name;
-							if (py_name !== null) {
-								self.py_name = py_name;
+							self.title = self.Title;
+							if (title !== null) {
+								self.title = title;
 							}
+							self.py_name = self.title.lower ();
 						});},
 						get format () {return __get__ (this, function (self, string) {
 							if (len (string) > 8) {
@@ -66,10 +71,12 @@
 							return string;
 						});},
 						get view () {return __get__ (this, function (self, data) {
+							var data = str (data);
 							return m ('td', dict ({'title': data}), self.format (data));
 						});}
 					});
 					var Table = __class__ ('Table', [object], {
+						no_results_text: 'No results found.',
 						get __init__ () {return __get__ (this, function (self, fields) {
 							self.max_size = 8;
 							self.fields = fields;
@@ -79,6 +86,9 @@
 							self._selectedUid = null;
 							self.detailSelected = '';
 							self.filter = null;
+						});},
+						get _stringify () {return __get__ (this, function (self, obj) {
+							return JSON.stringify (obj, null, 2);
 						});},
 						get _selectRow () {return __get__ (this, function (self, event, uid) {
 							if (uid == self._selectedUid) {
@@ -90,9 +100,10 @@
 							}
 							self._selectedRow = event.currentTarget;
 							jQuery (self._selectedRow).addClass ('active');
-							self.detailSelected = JSON.stringify (self.data [uid], null, 2);
+							self.detailSelected = self._stringify (self.data [uid]);
 						});},
 						get _oninit () {return __get__ (this, function (self) {
+							var data = list ([]);
 							for (var i = 0; i < 20; i++) {
 								var obj = dict ({});
 								var __iterable0__ = self.fields;
@@ -100,7 +111,18 @@
 									var field = __iterable0__ [__index0__];
 									obj [field.py_name] = 'test{0} {1}'.format (i, field.py_name);
 								}
-								self.data [i] = obj;
+								data.append (obj);
+							}
+							self._setData (data);
+						});},
+						get _setData () {return __get__ (this, function (self, data) {
+							self.data.py_clear ();
+							var __iterable0__ = enumerate (data);
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var __left0__ = __iterable0__ [__index0__];
+								var i = __left0__ [0];
+								var datum = __left0__ [1];
+								self.data [i] = datum;
 							}
 						});},
 						get _view () {return __get__ (this, function (self) {
@@ -109,7 +131,7 @@
 								var __iterable0__ = self.fields;
 								for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
 									var field = __iterable0__ [__index0__];
-									__accu0__.append (m ('th', field.py_name));
+									__accu0__.append (m ('th', field.title));
 								}
 								return __accu0__;
 							} ();
@@ -147,7 +169,7 @@
 								count++;
 							}
 							if (!(count)) {
-								rows.append (m ('tr', m ('td', 'No results found.')));
+								rows.append (m ('tr', m ('td', self.no_results_text)));
 							}
 							return m ('table', dict ({'class': 'ui selectable celled unstackable single line left aligned table'}), m ('thead', m ('tr', dict ({'class': 'center aligned'}), headers)), m ('tbody', rows));
 						});}
@@ -191,8 +213,8 @@
 							self.caseSensitive = false;
 						});},
 						get setSearch () {return __get__ (this, function (self, term) {
-							self.searchTerm = term;
-							self.caseSensitive = term.startswith ('"') && term.endswith ('"');
+							self.searchTerm = term || '';
+							self.caseSensitive = self.searchTerm.startswith ('"') && self.searchTerm.endswith ('"');
 							if (self.caseSensitive) {
 								self.searchTerm = self.searchTerm.__getslice__ (1, -(1), 1);
 							}
@@ -247,15 +269,26 @@
 								return jQuery ('.menu > a.item').tab ();
 							}));
 						});},
-						get search () {return __get__ (this, function (self) {
-							var text = jQuery ('#' + self._searchId).val ();
-							var currentTab = jQuery ('.menu a.item.active');
-							var data_tab = currentTab.attr ('data-tab');
-							self.searcher.setSearch (text);
+						get currentTab () {return __get__ (this, function (self) {
+							var active = jQuery ('.menu a.item.active');
+							var data_tab = active.attr ('data-tab');
 							var __iterable0__ = self.tabs;
 							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
 								var tab = __iterable0__ [__index0__];
-								if (text && tab.Data_tab == data_tab) {
+								if (tab.Data_tab == data_tab) {
+									return tab;
+								}
+							}
+							return null;
+						});},
+						get search () {return __get__ (this, function (self) {
+							var text = jQuery ('#' + self._searchId).val ();
+							self.searcher.setSearch (text);
+							var current = self.currentTab ();
+							var __iterable0__ = self.tabs;
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var tab = __iterable0__ [__index0__];
+								if (text && tab.Data_tab == current.Data_tab) {
 									tab.table.filter = self.searcher.search;
 								}
 								else {
@@ -275,8 +308,6 @@
 							return m ('div', m ('form', dict ({'onsubmit': self.search}), m ('div.ui.borderless.menu', m ('div.right.menu', dict ({'style': 'padding-right: 40%'}), m ('div.item', dict ({'style': 'width: 80%'}), m ('div.ui.transparent.icon.input', m ('input[type=text][placeholder=Search...]', dict ({'id': self._searchId})), m ('i.search.icon'))), m ('div.item', m ('input.ui.primary.button[type=submit][value=Search]'))))), m ('div.ui.top.attached.pointing.five.item.menu', menu_items), tab_items);
 						});}
 					});
-					var tabs = Tabs ();
-					var Renderer = dict ({'render': tabs.view});
 					__pragma__ ('<all>')
 						__all__.AnonMsgs = AnonMsgs;
 						__all__.Entities = Entities;
@@ -284,13 +315,11 @@
 						__all__.Issuants = Issuants;
 						__all__.Messages = Messages;
 						__all__.Offers = Offers;
-						__all__.Renderer = Renderer;
 						__all__.Searcher = Searcher;
 						__all__.Tab = Tab;
 						__all__.Table = Table;
 						__all__.TabledTab = TabledTab;
 						__all__.Tabs = Tabs;
-						__all__.tabs = tabs;
 					__pragma__ ('</all>')
 				}
 			}

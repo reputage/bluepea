@@ -11,4 +11,4 @@ from mithril.js import m
 """
 from pylib import router
 
-router.route(document.body)
+router.Router().route(root=document.body)
