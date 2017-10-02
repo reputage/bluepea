@@ -1,5 +1,5 @@
 "use strict";
-// Transcrypt'ed from Python, 2017-09-28 13:17:03
+// Transcrypt'ed from Python, 2017-10-02 10:22:03
 function tests () {
    var __symbols__ = ['__py3.6__', '__esv5__'];
     var __all__ = {};
@@ -2448,6 +2448,10 @@ function tests () {
 							self.table = null;
 							self.setup_table ();
 							self.copiedDetails = '';
+							self._detailsId = self.Data_tab + 'DetailsCodeBlock';
+							self._copiedId = self.Data_tab + 'CopiedCodeBlock';
+							self._copyButtonId = self.Data_tab + 'CopyButton';
+							self._clearButtonId = self.Data_tab + 'ClearButton';
 						});},
 						get setup_table () {return __get__ (this, function (self) {
 							self.table = Table (list ([]));
@@ -2459,19 +2463,20 @@ function tests () {
 							self.copiedDetails = '';
 						});},
 						get main_view () {return __get__ (this, function (self) {
-							return m ('div', m ('div.table-container', m (self.table.view)), m ('div.ui.hidden.divider'), m ('div.ui.two.cards', dict ({'style': 'height: 45%;'}), m ('div.ui.card', m ('div.content.small-header', m ('div.header', m ('span', 'Details'), m ('span.ui.mini.right.floated.button', dict ({'onclick': self._copyDetails}), 'Copy'))), m ('pre.content.code-block', self.table.detailSelected)), m ('div.ui.card', m ('div.content.small-header', m ('div.header', m ('span', 'Copied'), m ('span.ui.mini.right.floated.button', dict ({'onclick': self._clearCopy}), 'Clear'))), m ('pre.content.code-block', self.copiedDetails))));
+							return m ('div', m ('div.table-container', m (self.table.view)), m ('div.ui.hidden.divider'), m ('div.ui.two.cards', dict ({'style': 'height: 45%;'}), m ('div.ui.card', m ('div.content.small-header', m ('div.header', m ('span', 'Details'), m ('span.ui.mini.right.floated.button', dict ({'onclick': self._copyDetails, 'id': self._copyButtonId}), 'Copy'))), m ('pre.content.code-block', dict ({'id': self._detailsId}), self.table.detailSelected)), m ('div.ui.card', m ('div.content.small-header', m ('div.header', m ('span', 'Copied'), m ('span.ui.mini.right.floated.button', dict ({'onclick': self._clearCopy, 'id': self._clearButtonId}), 'Clear'))), m ('pre.content.code-block', dict ({'id': self._copiedId}), self.copiedDetails))));
 						});}
 					});
 					var Field = __class__ ('Field', [object], {
-						Name: null,
-						get __init__ () {return __get__ (this, function (self, py_name) {
-							if (typeof py_name == 'undefined' || (py_name != null && py_name .hasOwnProperty ("__kwargtrans__"))) {;
-								var py_name = null;
+						Title: null,
+						get __init__ () {return __get__ (this, function (self, title) {
+							if (typeof title == 'undefined' || (title != null && title .hasOwnProperty ("__kwargtrans__"))) {;
+								var title = null;
 							};
-							self.py_name = self.Name;
-							if (py_name !== null) {
-								self.py_name = py_name;
+							self.title = self.Title;
+							if (title !== null) {
+								self.title = title;
 							}
+							self.py_name = self.title.lower ();
 						});},
 						get format () {return __get__ (this, function (self, string) {
 							if (len (string) > 8) {
@@ -2480,10 +2485,12 @@ function tests () {
 							return string;
 						});},
 						get view () {return __get__ (this, function (self, data) {
+							var data = str (data);
 							return m ('td', dict ({'title': data}), self.format (data));
 						});}
 					});
 					var Table = __class__ ('Table', [object], {
+						no_results_text: 'No results found.',
 						get __init__ () {return __get__ (this, function (self, fields) {
 							self.max_size = 8;
 							self.fields = fields;
@@ -2493,6 +2500,9 @@ function tests () {
 							self._selectedUid = null;
 							self.detailSelected = '';
 							self.filter = null;
+						});},
+						get _stringify () {return __get__ (this, function (self, obj) {
+							return JSON.stringify (obj, null, 2);
 						});},
 						get _selectRow () {return __get__ (this, function (self, event, uid) {
 							if (uid == self._selectedUid) {
@@ -2504,9 +2514,10 @@ function tests () {
 							}
 							self._selectedRow = event.currentTarget;
 							jQuery (self._selectedRow).addClass ('active');
-							self.detailSelected = JSON.stringify (self.data [uid], null, 2);
+							self.detailSelected = self._stringify (self.data [uid]);
 						});},
 						get _oninit () {return __get__ (this, function (self) {
+							var data = list ([]);
 							for (var i = 0; i < 20; i++) {
 								var obj = dict ({});
 								var __iterable0__ = self.fields;
@@ -2514,7 +2525,18 @@ function tests () {
 									var field = __iterable0__ [__index0__];
 									obj [field.py_name] = 'test{0} {1}'.format (i, field.py_name);
 								}
-								self.data [i] = obj;
+								data.append (obj);
+							}
+							self._setData (data);
+						});},
+						get _setData () {return __get__ (this, function (self, data) {
+							self.data.py_clear ();
+							var __iterable0__ = enumerate (data);
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var __left0__ = __iterable0__ [__index0__];
+								var i = __left0__ [0];
+								var datum = __left0__ [1];
+								self.data [i] = datum;
 							}
 						});},
 						get _view () {return __get__ (this, function (self) {
@@ -2523,7 +2545,7 @@ function tests () {
 								var __iterable0__ = self.fields;
 								for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
 									var field = __iterable0__ [__index0__];
-									__accu0__.append (m ('th', field.py_name));
+									__accu0__.append (m ('th', field.title));
 								}
 								return __accu0__;
 							} ();
@@ -2561,7 +2583,7 @@ function tests () {
 								count++;
 							}
 							if (!(count)) {
-								rows.append (m ('tr', m ('td', 'No results found.')));
+								rows.append (m ('tr', m ('td', self.no_results_text)));
 							}
 							return m ('table', dict ({'class': 'ui selectable celled unstackable single line left aligned table'}), m ('thead', m ('tr', dict ({'class': 'center aligned'}), headers)), m ('tbody', rows));
 						});}
@@ -2605,8 +2627,8 @@ function tests () {
 							self.caseSensitive = false;
 						});},
 						get setSearch () {return __get__ (this, function (self, term) {
-							self.searchTerm = term;
-							self.caseSensitive = term.startswith ('"') && term.endswith ('"');
+							self.searchTerm = term || '';
+							self.caseSensitive = self.searchTerm.startswith ('"') && self.searchTerm.endswith ('"');
 							if (self.caseSensitive) {
 								self.searchTerm = self.searchTerm.__getslice__ (1, -(1), 1);
 							}
@@ -2661,15 +2683,26 @@ function tests () {
 								return jQuery ('.menu > a.item').tab ();
 							}));
 						});},
-						get search () {return __get__ (this, function (self) {
-							var text = jQuery ('#' + self._searchId).val ();
-							var currentTab = jQuery ('.menu a.item.active');
-							var data_tab = currentTab.attr ('data-tab');
-							self.searcher.setSearch (text);
+						get currentTab () {return __get__ (this, function (self) {
+							var active = jQuery ('.menu a.item.active');
+							var data_tab = active.attr ('data-tab');
 							var __iterable0__ = self.tabs;
 							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
 								var tab = __iterable0__ [__index0__];
-								if (text && tab.Data_tab == data_tab) {
+								if (tab.Data_tab == data_tab) {
+									return tab;
+								}
+							}
+							return null;
+						});},
+						get search () {return __get__ (this, function (self) {
+							var text = jQuery ('#' + self._searchId).val ();
+							self.searcher.setSearch (text);
+							var current = self.currentTab ();
+							var __iterable0__ = self.tabs;
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var tab = __iterable0__ [__index0__];
+								if (text && tab.Data_tab == current.Data_tab) {
 									tab.table.filter = self.searcher.search;
 								}
 								else {
@@ -2708,13 +2741,51 @@ function tests () {
 	);
 	__nest__ (
 		__all__,
+		'pylib.router', {
+			__all__: {
+				__inited__: false,
+				__init__: function (__all__) {
+					var inspector = __init__ (__world__.pylib.inspector);
+					var Router = __class__ ('Router', [object], {
+						get __init__ () {return __get__ (this, function (self) {
+							self.tabs = inspector.Tabs ();
+						});},
+						get route () {return __get__ (this, function (self, root) {
+							if (typeof root == 'undefined' || (root != null && root .hasOwnProperty ("__kwargtrans__"))) {;
+								var root = null;
+							};
+							if (root === null) {
+								var root = document.body;
+							}
+							m.route (root, '/inspector', dict ({'/inspector': dict ({'render': self.tabs.view})}));
+						});}
+					});
+					__pragma__ ('<use>' +
+						'pylib.inspector' +
+					'</use>')
+					__pragma__ ('<all>')
+						__all__.Router = Router;
+						__all__.inspector = inspector;
+					__pragma__ ('</all>')
+				}
+			}
+		}
+	);
+	__nest__ (
+		__all__,
 		'tests.test_inspector', {
 			__all__: {
 				__inited__: false,
 				__init__: function (__all__) {
+					var jsdom = require ('jsdom');
+					global.window = new jsdom.JSDOM ().window;
+					global.document = window.document;
 					global.jQuery = require ('jquery');
+					global.m = require ('mithril');
+					require ('../../semantic/dist/semantic');
 					var o = require ('mithril/ospec/ospec');
 					var inspector = __init__ (__world__.pylib.inspector);
+					var router = __init__ (__world__.pylib.router);
 					var test = function (Cls) {
 						var Wrapper = __class__ ('Wrapper', [object], {
 							get __init__ () {return __get__ (this, function (self) {
@@ -2722,17 +2793,28 @@ function tests () {
 								var dospec = function () {
 									var funcs = list ([]);
 									for (var key in original) {
-										if (key == 'beforeEach') {
-											o.beforeEach (original [key]);
+										if (key.startswith ('_')) {
+											continue;
+										}
+										var obj = original [key];
+										if (key [0].isupper ()) {
+											test (obj);
+											continue;
+										}
+										if (key.startswith ('async')) {
+											var makeScope = function (fun) {
+												return (function __lambda__ (done, timeout) {
+													return fun (done, timeout);
+												});
+											};
+											var obj = makeScope (obj);
+											var key = key.__getslice__ (len ('async'), null, 1);
+										}
+										if (__in__ (key, list (['beforeEach', 'BeforeEach']))) {
+											o.beforeEach (obj);
 										}
 										else {
-											var obj = original [key];
-											if (key [0].isupper ()) {
-												test (obj);
-											}
-											else if (!(key.startswith ('_'))) {
-												funcs.append (tuple ([key, obj]));
-											}
+											funcs.append (tuple ([key, obj]));
 										}
 									}
 									var __iterable0__ = funcs;
@@ -2828,13 +2910,116 @@ function tests () {
 						})
 					})
 					var Searcher = test (Searcher);
+					var TabledTab = __class__ ('TabledTab', [object], {
+						_data: list ([dict ({'did': 'did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=', 'hid': 'hid:dns:localhost#02', 'signer': 'did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=#0', 'changed': '2000-01-01T00:00:00+00:00', 'issuants': list ([dict ({'kind': 'dns', 'issuer': 'localhost', 'registered': '2000-01-01T00:00:00+00:00', 'validationURL': 'http://localhost:8080/demo/check'})]), 'data': dict ({'keywords': list (['Canon', 'EOS Rebel T6', '251440']), 'message': 'test message'}), 'keys': list ([dict ({'key': 'dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=', 'kind': 'EdDSA'}), dict ({'key': '0UX5tP24WPEmAbROdXdygGAM3oDcvrqb3foX4EyayYI=', 'kind': 'EdDSA'})])}), dict ({'did': 'other1', 'data': dict ({'message': 'test message'})}), dict ({'did': 'other2', 'data': dict ({'message': 'another message'})})]),
+						get asyncBeforeEach () {return __get__ (this, function (self, done) {
+							var r = router.Router ();
+							r.route ();
+							self.tabs = r.tabs;
+							setTimeout (done);
+						});},
+						get startup () {return __get__ (this, function (self) {
+							self.tabs.search ();
+							o (self.tabs.searcher.searchTerm).equals ('') ('Start with no search');
+							var current = self.tabs.currentTab ();
+							o (current.Data_tab).equals (self.tabs.tabs [0].Data_tab);
+							o (py_typeof (current)).equals (inspector.Entities) ('First tab is Entities');
+						});},
+						get _setData () {return __get__ (this, function (self, callback) {
+							self.tabs.currentTab ().table._setData (self._data);
+							self._redraw (callback);
+						});},
+						get _redraw () {return __get__ (this, function (self, callback) {
+							m.redraw ();
+							setTimeout (callback, 50);
+						});},
+						get _clickRow () {return __get__ (this, function (self, row, callback) {
+							jQuery ("[data-tab='entities'].tab.active table > tbody > tr") [row].click ();
+							self._redraw (callback);
+						});},
+						get _clickId () {return __get__ (this, function (self, id, callback) {
+							jQuery ('#' + id).click ();
+							self._redraw (callback);
+						});},
+						get asyncBasicSearch () {return __get__ (this, function (self, done, timeout) {
+							timeout (200);
+							jQuery ('#' + self.tabs._searchId).val ('test message');
+							self.tabs.search ();
+							o (self.tabs.searcher.searchTerm).equals ('test message') ('Search term set properly');
+							var f1 = function () {
+								var rows = jQuery ("[data-tab='entities'].tab.active table > tbody > tr");
+								o (rows.length).equals (2) ('Two search results found');
+								var f2 = function () {
+									var rows = jQuery ("[data-tab='entities'].tab.active table > tbody > tr");
+									o (rows.length).equals (1) ('Only one entry in table');
+									var td = rows.find ('td');
+									o (td.length).equals (1) ('Entry only has one piece of data');
+									o (td.text ()).equals (inspector.Table.no_results_text);
+									done ();
+								};
+								jQuery ('#' + self.tabs._searchId).val ('not in test data');
+								self.tabs.search ();
+								self._redraw (f2);
+							};
+							self._setData (f1);
+						});},
+						get asyncSelectRows () {return __get__ (this, function (self, done, timeout) {
+							timeout (200);
+							var f1 = function () {
+								var f2 = function () {
+									var tab = self.tabs.currentTab ();
+									var expected = tab.table._stringify (self._data [0]);
+									var actual = jQuery ('#' + tab._detailsId).text ();
+									o (actual).equals (expected) ('Details of row 0 are shown');
+									o (jQuery ('#' + tab._copiedId).text ()).equals ('') ('Copy is empty');
+									var f3 = function () {
+										var expected = tab.table._stringify (self._data [1]);
+										var actual = jQuery ('#' + tab._detailsId).text ();
+										o (actual).equals (expected) ('Details of row 1 are shown');
+										o (jQuery ('#' + tab._copiedId).text ()).equals ('') ('Copy is empty');
+										done ();
+									};
+									self._clickRow (1, f3);
+								};
+								self._clickRow (0, f2);
+							};
+							self._setData (f1);
+						});},
+						get asyncDetailsCopy () {return __get__ (this, function (self, done, timeout) {
+							timeout (400);
+							var f1 = function () {
+								var f2 = function () {
+									var tab = self.tabs.currentTab ();
+									var f3 = function () {
+										var expected = tab.table._stringify (self._data [0]);
+										o (jQuery ('#' + tab._detailsId).text ()).equals (expected) ('Details of row 0 are shown');
+										o (jQuery ('#' + tab._copiedId).text ()).equals (expected) ('Details are copied');
+										var f4 = function () {
+											o (jQuery ('#' + tab._detailsId).text ()).equals (expected) ('Details are still shown');
+											o (jQuery ('#' + tab._copiedId).text ()).equals ('') ('Copy is now empty');
+											done ();
+										};
+										self._clickId (tab._clearButtonId, f4);
+									};
+									self._clickId (tab._copyButtonId, f3);
+								};
+								self._clickRow (0, f2);
+							};
+							self._setData (f1);
+						});}
+					})
+					var TabledTab = test (TabledTab);
 					__pragma__ ('<use>' +
 						'pylib.inspector' +
+						'pylib.router' +
 					'</use>')
 					__pragma__ ('<all>')
 						__all__.Searcher = Searcher;
+						__all__.TabledTab = TabledTab;
 						__all__.inspector = inspector;
+						__all__.jsdom = jsdom;
 						__all__.o = o;
+						__all__.router = router;
 						__all__.test = test;
 					__pragma__ ('</all>')
 				}
