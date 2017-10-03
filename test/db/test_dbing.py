@@ -388,6 +388,9 @@ def test_getThings():
     assert len(entries) == 1
     assert entries == ['did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=']
 
+    did = dbing.getHid(key="hid:dns:localhost#02")
+    assert did == entries[0]
+
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")
 
@@ -1209,6 +1212,60 @@ def test_clearStaleAnons():
     for expire in expires:
         entries = dbing.getExpireUid(key=expire)
         assert not entries
+
+    cleanupTmpBaseDir(dbEnv.path())
+    print("Done Test")
+
+
+def test_preloadTestDbs():
+    """
+    Test preloadTestDbs
+
+    """
+    print("Testing staging dbs")
+    priming.setupTest()
+    dbEnv = dbing.gDbEnv
+    dbing.preloadTestDbs()
+
+    agents = dbing.getAgents()
+    assert agents == ['did:igo:3syVH2woCpOvPF0SD9Z0bu_OxNe2ZgxKjTQ961LlMnA=',
+                    'did:igo:QBRKvLW1CnVDIgznfet3rpad-wZBL4qGASVpGRsE2uU=',
+                    'did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=',
+                    'did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=',
+                    'did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=']
+
+
+    things = dbing.getThings()
+    assert things == ['did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=']
+
+    did = dbing.getHid(key="hid:dns:localhost#02")
+    assert did == things[0]
+
+    #test get inbox for Ivy
+    messages = dbing.getDrops("did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=")
+    assert len(messages) == 2
+    assert messages[0]['from'] == "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE="
+
+    #test get inbox for Ann
+    messages = dbing.getDrops("did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=")
+    assert len(messages) == 1
+    assert messages[0]['from'] == "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY="
+
+    entries = dbing.getOfferExpires('did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=',
+                                    lastOnly=False)
+    assert len(entries) == 2
+
+    dat, ser, sig = dbing.getSigned(entries[0]["offer"])
+    assert dat["uid"] == 'o_00035d2976e6a000_26ace93'
+
+    auids = dbing.getAllAnonUids()
+    assert auids == ['AQIDBAoLDA0=', 'BBIDBAoLCCC=']
+
+    anons = dbing.getAnonMsgs(key=auids[0])
+    assert len(anons) == 3
+
+    anons = dbing.getAnonMsgs(key=auids[1])
+    assert len(anons) == 1
 
     cleanupTmpBaseDir(dbEnv.path())
     print("Done Test")

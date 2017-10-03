@@ -50,6 +50,7 @@ frame server
                                           dbDirPath="",
                                           keepDirPath="",
                                           test="",
+                                          preload="",
                                           fakeHidKind=odict(ival=False),
                                           ))
 def bluepeaServerOpen(self, buffer=False, **kwa):
@@ -62,6 +63,7 @@ def bluepeaServerOpen(self, buffer=False, **kwa):
         dbDirPath is directory path for database
         keepDirPath is directory path for private key files
         test is Flag if True load test endpoints and test database
+        test is Flag if True and if test is True then preload database for testing
         fakeHidKind is Flag IF True then enable "fake" HID kind that does not require validation
 
     Parameters:
@@ -82,9 +84,12 @@ def bluepeaServerOpen(self, buffer=False, **kwa):
 
     port = int(self.port.value)
     test = True if self.test.value else False  # use to load test environment
+    preload = True if self.preload.value else False  # load test db if test and True
 
     if test:
         priming.setupTest()
+        if preload:
+            dbing.preloadTestDbs()
     else:
         keepDirPath = self.keepDirPath.value if self.keepDirPath.value else None  # None is default
         keepDirPath = os.path.abspath(os.path.expanduser(keepDirPath))

@@ -12,8 +12,8 @@ DID_LENGTH = 52
 
 PROPAGATION_DELAY = 60.0  # network propagation time for consensus
 
-#TRACK_EXPIRATION_DELAY = 60 * 60 * 24  # 24 hours in units of seconds
-TRACK_EXPIRATION_DELAY =  10
+ANON_EXPIRATION_DELAY = 60 * 60 * 24  # 24 hours in units of seconds
+#ANON_EXPIRATION_DELAY =  10  # ten seconds for testing
 
 fakeHidKind = False  # module global flag, If True enable fake hid kind that does not require validation
 

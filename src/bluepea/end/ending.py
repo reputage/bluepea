@@ -32,7 +32,7 @@ from ioflo.aio.http import httping
 from ioflo.aid import getConsole
 
 from .. import bluepeaing
-from ..bluepeaing import SEPARATOR, TRACK_EXPIRATION_DELAY, ValidationError
+from ..bluepeaing import SEPARATOR, ANON_EXPIRATION_DELAY, ValidationError
 
 from ..help.helping import (parseSignatureHeader, verify64u, extractDidParts,
                             extractDatSignerParts, extractDidSignerParts,
@@ -1595,7 +1595,7 @@ class AnonMsgResource:
         uid = dat['uid']
         dt = datetime.datetime.now(tz=datetime.timezone.utc)
         create = int(dt.timestamp() * 1000000)  # timestamp in microseconds since epoch
-        expire = create + int(TRACK_EXPIRATION_DELAY * 1000000)
+        expire = create + int(ANON_EXPIRATION_DELAY * 1000000)
         sdat = ODict()
         sdat["create"] = create
         sdat["expire"] = expire

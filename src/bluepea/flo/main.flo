@@ -10,6 +10,7 @@ house main
       bid start anoner
 
   init main.server.test to True
+  init main.server.preload to True
   init main.server.fakeHidKind to False
 
   framer server be inactive via .main.server

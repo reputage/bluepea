@@ -24,10 +24,12 @@ from ioflo.aid.sixing import *
 from ioflo.aid import timing
 from ioflo.aid import getConsole
 
-from ..bluepeaing import SEPARATOR, BluepeaError, DID_LENGTH
+from ..bluepeaing import (SEPARATOR, PROPAGATION_DELAY, BluepeaError, DID_LENGTH,
+                          ANON_EXPIRATION_DELAY)
 
-from ..help.helping import (setupTmpBaseDir, verify64u,
+from ..help.helping import (setupTmpBaseDir, keyToKey64u, verify64u,
                             makeSignedAgentReg, makeSignedThingReg)
+from ..keep import keeping
 
 console = getConsole()
 
@@ -1069,6 +1071,7 @@ def setupTestDbAgentsThings(dbn="core", clobber=False):
     cdid = cdat['did']
 
     putSigned(key=cdid, ser=ser, sig=isig, dbn=dbn, clobber=clobber)
+    putHid(hid, cdid)
 
     things['cam'] = (cdid, cvk, csk)
 
@@ -1115,3 +1118,209 @@ def setupTestDbAgentsThings(dbn="core", clobber=False):
 
 
     return (agents, things)
+
+
+def preloadTestDbs(dbn="core", clobber=False):
+    """
+    Assumes lmdb database environment has been setup already
+
+    Put test agents and things in db
+    """
+    global gDbEnv
+
+    #priming.setupTest() assumes this already called
+    agents, things = setupTestDbAgentsThings(dbn=dbn, clobber=clobber)
+    keeper = keeping.gKeeper
+    agents['sam'] = (keeper.did, keeper.verkey, keeper.sigkey)  # sam the server
+
+    # load messages drops
+    annDid, annVk, annSk = agents['ann']
+    ivyDid, ivyVk, ivySk = agents['ivy']
+    thingDid, thingVk, thingSk = things['cam']
+
+    # create message from Ann to Ivy
+    dt = datetime.datetime(2000, 1, 3, tzinfo=datetime.timezone.utc)
+    changed = timing.iso8601(dt, aware=True)
+    stamp = dt.timestamp()  # make time.time value
+    muid = "m_00035d2976e6a000_26ace93"
+    signer = "{}#0".format(annDid)
+
+    msg = ODict()
+    msg['uid'] = muid
+    msg['kind'] = "found"
+    msg['signer'] = signer
+    msg['date'] = changed
+    msg['to'] = ivyDid
+    msg['from'] = annDid
+    msg['thing'] = thingDid
+    msg['subject'] = "Lose something?"
+    msg['content'] = "Look what I found"
+
+    mser = json.dumps(msg, indent=2)
+    msig = keyToKey64u(libnacl.crypto_sign(mser.encode("utf-8"), annSk)[:libnacl.crypto_sign_BYTES])
+    key = "{}/drop/{}/{}".format(ivyDid, annDid, muid)
+    putSigned(key=key, ser=mser, sig=msig, clobber=False)  # no clobber so error
+
+    # create another message from Ann to Ivy
+    dt = datetime.datetime(2000, 1, 4, tzinfo=datetime.timezone.utc)
+    changed = timing.iso8601(dt, aware=True)
+    stamp = dt.timestamp()  # make time.time value
+    muid = "m_00035d3d94be0000_15aabb5"
+    signer = "{}#0".format(annDid)
+
+    msg = ODict()
+    msg['uid'] = muid
+    msg['kind'] = "found"
+    msg['signer'] = signer
+    msg['date'] = changed
+    msg['to'] = ivyDid
+    msg['from'] = annDid
+    msg['thing'] = thingDid
+    msg['subject'] = "Lose something?"
+    msg['content'] = "Look what I found again"
+    mser = json.dumps(msg, indent=2)
+    msig = keyToKey64u(libnacl.crypto_sign(mser.encode("utf-8"), annSk)[:libnacl.crypto_sign_BYTES])
+    key = "{}/drop/{}/{}".format(ivyDid, annDid, muid)
+    putSigned(key=key, ser=mser, sig=msig, clobber=False)  # no clobber so error
+
+    # create message from Ivy to Ann
+    dt = datetime.datetime(2000, 1, 4, tzinfo=datetime.timezone.utc)
+    changed = timing.iso8601(dt, aware=True)
+    stamp = dt.timestamp()  # make time.time value
+    muid = "m_00035d3d94be0000_15aabb5"  # use duplicate muid to test no collision
+    signer = "{}#0".format(ivyDid)
+
+    msg = ODict()
+    msg['uid'] = muid
+    msg['kind'] = "found"
+    msg['signer'] = signer
+    msg['date'] = changed
+    msg['to'] = annDid
+    msg['from'] = ivyDid
+    msg['thing'] = thingDid
+    msg['subject'] = "Lose something?"
+    msg['content'] = "I am so happy your found it."
+
+    mser = json.dumps(msg, indent=2)
+    msig = keyToKey64u(libnacl.crypto_sign(mser.encode("utf-8"), annSk)[:libnacl.crypto_sign_BYTES])
+    key = "{}/drop/{}/{}".format(annDid, ivyDid, muid)
+    putSigned(key=key, ser=mser, sig=msig, clobber=False)  # no clobber so error
+
+    # load offers
+    # post offer Ivy to Ann
+    sDid, sVk, sSk = agents['sam']  # server keys
+    hDid, hVk, hSk = agents['ivy']
+    aDid, aVk, aSk = agents['ann']
+    tDid, tVk, tSk = things['cam']
+
+    ouid = "o_00035d2976e6a000_26ace93"
+    duration = PROPAGATION_DELAY * 2.0
+    offerer = "{}#0".format(hDid)  # ivy is offerer
+    poffer = ODict()
+    poffer['uid'] = ouid
+    poffer['thing'] = tDid
+    poffer['aspirant'] = aDid
+    poffer['duration'] = duration
+    poser = json.dumps(poffer, indent=2)
+    # now build offer in database
+    odat = ODict()
+    odat['uid'] = ouid
+    odat['thing'] = tDid
+    odat['aspirant'] = aDid
+    odat['duration'] = duration
+    dt = datetime.datetime(2000, 1, 1, minute=30, tzinfo=datetime.timezone.utc)
+    td = datetime.timedelta(seconds=10 * 60)  # go back 10 minutes
+    odt = dt - td
+    td = datetime.timedelta(seconds=duration)
+    expiration = timing.iso8601(odt + td, aware=True)
+    odat["expiration"] = expiration
+    signer = "{}#0".format(sDid)  # server sam signs
+    odat["signer"] = signer
+    odat["offerer"] = offerer
+    odat["offer"] = keyToKey64u(poser.encode("utf-8"))
+    oser = json.dumps(odat, indent=2)
+    osig = keyToKey64u(libnacl.crypto_sign(oser.encode("utf-8"), sSk)[:libnacl.crypto_sign_BYTES])
+    key = "{}/offer/{}".format(tDid, ouid)
+    putSigned(key=key, ser=oser, sig=osig, clobber=False)  # no clobber so error
+    putDidOfferExpire(tDid, ouid, expiration)
+
+    # not expired yet
+    ouid = "o_00035d2976e6a001_26ace99"
+    dt = datetime.datetime.now(tz=datetime.timezone.utc)
+    td = datetime.timedelta(seconds=3600)  # go ahead 1 hour
+    odt = dt + td
+    td = datetime.timedelta(seconds=duration)
+    expiration = timing.iso8601(odt + td, aware=True)
+    odat["expiration"] = expiration
+    poffer['uid'] = ouid
+    poser = json.dumps(poffer, indent=2)
+    odat["offer"] = keyToKey64u(poser.encode("utf-8"))
+    oser = json.dumps(odat, indent=2)
+    osig = keyToKey64u(libnacl.crypto_sign(oser.encode("utf-8"), sSk)[:libnacl.crypto_sign_BYTES])
+    key = "{}/offer/{}".format(tDid, ouid)
+    putSigned(key=key, ser=oser, sig=osig, clobber=False)  # no clobber so error
+    putDidOfferExpire(tDid, ouid, expiration)
+
+    # load anon db
+    dt = datetime.datetime.now(tz=datetime.timezone.utc)
+    create = int(dt.timestamp() * 1000000)  # timestamp in microseconds since epoch
+    expire = create + int(ANON_EXPIRATION_DELAY * 1000000)
+    td = datetime.timedelta(seconds=5)
+    date = timing.iso8601(dt=dt+td, aware=True)
+
+    uid = "AQIDBAoLDA0="
+    content = "EjRWeBI0Vng="
+    anon = ODict()
+    anon['uid'] = uid
+    anon['content'] = content
+    anon['date'] = date
+    sdat = ODict()
+    sdat["create"] = create
+    sdat["expire"] = expire
+    sdat["anon"] = anon
+
+    putAnonMsg(key=uid, data=sdat)
+    putExpireUid(key=expire, uid=uid)
+
+    dt = datetime.datetime.now(tz=datetime.timezone.utc)
+    create = int(dt.timestamp() * 1000000)  # timestamp in microseconds since epoch
+    expire = create + int(ANON_EXPIRATION_DELAY * 1000000)
+    td = datetime.timedelta(seconds=5)
+    date = timing.iso8601(dt=dt+td, aware=True)
+
+    uid = "AQIDBAoLDA0="
+    content = "EjRWeBI0Vng="
+    anon = ODict()
+    anon['uid'] = uid
+    anon['content'] = content
+    anon['date'] = date
+    sdat = ODict()
+    sdat["create"] = create
+    sdat["expire"] = expire
+    sdat["anon"] = anon
+
+    putAnonMsg(key=uid, data=sdat)
+    putExpireUid(key=expire, uid=uid)
+
+
+    anon2 = anon.copy()
+    anon2['content'] = "ABRWeBI0VAA="
+    data2 = ODict()
+    data2['create'] = create + 1
+    data2['expire'] = expire + 1
+    data2['anon'] = anon2
+
+    putAnonMsg(key=uid, data=data2)
+    putExpireUid(key=expire, uid=uid)
+
+
+    uid2 = "BBIDBAoLCCC="
+    anon3 = anon.copy()
+    anon3["uid"] = uid2
+    data3 = ODict()
+    data3['create'] = create
+    data3['expire'] = expire
+    data3['anon'] = anon3
+
+    putAnonMsg(key=uid2, data=data3)
+    putExpireUid(key=expire, uid=uid2)
