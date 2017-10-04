@@ -1,5 +1,5 @@
 "use strict";
-// Transcrypt'ed from Python, 2017-10-02 10:22:03
+// Transcrypt'ed from Python, 2017-10-04 09:46:35
 function tests () {
    var __symbols__ = ['__py3.6__', '__esv5__'];
     var __all__ = {};
@@ -2418,6 +2418,7 @@ function tests () {
 			__all__: {
 				__inited__: false,
 				__init__: function (__all__) {
+					var server = __init__ (__world__.pylib.server);
 					var Tab = __class__ ('Tab', [object], {
 						Name: '',
 						Data_tab: '',
@@ -2472,6 +2473,20 @@ function tests () {
 							if (typeof title == 'undefined' || (title != null && title .hasOwnProperty ("__kwargtrans__"))) {;
 								var title = null;
 							};
+							if (arguments.length) {
+								var __ilastarg0__ = arguments.length - 1;
+								if (arguments [__ilastarg0__] && arguments [__ilastarg0__].hasOwnProperty ("__kwargtrans__")) {
+									var __allkwargs0__ = arguments [__ilastarg0__--];
+									for (var __attrib0__ in __allkwargs0__) {
+										switch (__attrib0__) {
+											case 'self': var self = __allkwargs0__ [__attrib0__]; break;
+											case 'title': var title = __allkwargs0__ [__attrib0__]; break;
+										}
+									}
+								}
+							}
+							else {
+							}
 							self.title = self.Title;
 							if (title !== null) {
 								self.title = title;
@@ -2722,6 +2737,9 @@ function tests () {
 							return m ('div', m ('form', dict ({'onsubmit': self.search}), m ('div.ui.borderless.menu', m ('div.right.menu', dict ({'style': 'padding-right: 40%'}), m ('div.item', dict ({'style': 'width: 80%'}), m ('div.ui.transparent.icon.input', m ('input[type=text][placeholder=Search...]', dict ({'id': self._searchId})), m ('i.search.icon'))), m ('div.item', m ('input.ui.primary.button[type=submit][value=Search]'))))), m ('div.ui.top.attached.pointing.five.item.menu', menu_items), tab_items);
 						});}
 					});
+					__pragma__ ('<use>' +
+						'pylib.server' +
+					'</use>')
 					__pragma__ ('<all>')
 						__all__.AnonMsgs = AnonMsgs;
 						__all__.Entities = Entities;
@@ -2734,6 +2752,7 @@ function tests () {
 						__all__.Table = Table;
 						__all__.TabledTab = TabledTab;
 						__all__.Tabs = Tabs;
+						__all__.server = server;
 					__pragma__ ('</all>')
 				}
 			}
@@ -2773,64 +2792,100 @@ function tests () {
 	);
 	__nest__ (
 		__all__,
+		'pylib.server', {
+			__all__: {
+				__inited__: false,
+				__init__: function (__all__) {
+					var request = function (path) {
+						var kwargs = dict ();
+						if (arguments.length) {
+							var __ilastarg0__ = arguments.length - 1;
+							if (arguments [__ilastarg0__] && arguments [__ilastarg0__].hasOwnProperty ("__kwargtrans__")) {
+								var __allkwargs0__ = arguments [__ilastarg0__--];
+								for (var __attrib0__ in __allkwargs0__) {
+									switch (__attrib0__) {
+										case 'path': var path = __allkwargs0__ [__attrib0__]; break;
+										default: kwargs [__attrib0__] = __allkwargs0__ [__attrib0__];
+									}
+								}
+								delete kwargs.__kwargtrans__;
+							}
+						}
+						else {
+						}
+						path += '?';
+						var __iterable0__ = kwargs.py_items ();
+						for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+							var __left0__ = __iterable0__ [__index0__];
+							var key = __left0__ [0];
+							var value = __left0__ [1];
+							path += ((key + '=') + str (value)) + '&';
+						}
+						var path = path.__getslice__ (0, -(1), 1);
+						return m.request (path);
+					};
+					var Manager = __class__ ('Manager', [object], {
+						get __init__ () {return __get__ (this, function (self) {
+							self.anonMsgs = AnonMessages ();
+						});}
+					});
+					var AnonMessages = __class__ ('AnonMessages', [object], {
+						get __init__ () {return __get__ (this, function (self) {
+							self.messages = list ([]);
+						});},
+						get refresh () {return __get__ (this, function (self) {
+							while (len (self.messages)) {
+								self.messages.py_pop ();
+							}
+							return request ('/anon', __kwargtrans__ ({all: true})).then (self._parseAll);
+						});},
+						get _parseAll () {return __get__ (this, function (self, uids) {
+							var promises = list ([]);
+							var __iterable0__ = uids;
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var uid = __iterable0__ [__index0__];
+								promises.append (request ('/anon', __kwargtrans__ ({uid: uid})).then (self._parseOne));
+							}
+							return Promise.all (promises);
+						});},
+						get _parseOne () {return __get__ (this, function (self, messages) {
+							var __iterable0__ = messages;
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var message = __iterable0__ [__index0__];
+								var msg = AnonMessage (message);
+								self.messages.append (msg);
+							}
+						});}
+					});
+					var AnonMessage = __class__ ('AnonMessage', [object], {
+						get __init__ () {return __get__ (this, function (self, data) {
+							self.uid = data.anon.uid;
+							self.content = data.anon.content;
+							self.date = data.anon.date;
+							self.created = data.create;
+							self.expire = data.expire;
+						});}
+					});
+					__pragma__ ('<all>')
+						__all__.AnonMessage = AnonMessage;
+						__all__.AnonMessages = AnonMessages;
+						__all__.Manager = Manager;
+						__all__.request = request;
+					__pragma__ ('</all>')
+				}
+			}
+		}
+	);
+	__nest__ (
+		__all__,
 		'tests.test_inspector', {
 			__all__: {
 				__inited__: false,
 				__init__: function (__all__) {
-					var jsdom = require ('jsdom');
-					global.window = new jsdom.JSDOM ().window;
-					global.document = window.document;
-					global.jQuery = require ('jquery');
-					global.m = require ('mithril');
-					require ('../../semantic/dist/semantic');
-					var o = require ('mithril/ospec/ospec');
+					var test = __init__ (__world__.tests.tester).test;
 					var inspector = __init__ (__world__.pylib.inspector);
 					var router = __init__ (__world__.pylib.router);
-					var test = function (Cls) {
-						var Wrapper = __class__ ('Wrapper', [object], {
-							get __init__ () {return __get__ (this, function (self) {
-								var original = Cls ();
-								var dospec = function () {
-									var funcs = list ([]);
-									for (var key in original) {
-										if (key.startswith ('_')) {
-											continue;
-										}
-										var obj = original [key];
-										if (key [0].isupper ()) {
-											test (obj);
-											continue;
-										}
-										if (key.startswith ('async')) {
-											var makeScope = function (fun) {
-												return (function __lambda__ (done, timeout) {
-													return fun (done, timeout);
-												});
-											};
-											var obj = makeScope (obj);
-											var key = key.__getslice__ (len ('async'), null, 1);
-										}
-										if (__in__ (key, list (['beforeEach', 'BeforeEach']))) {
-											o.beforeEach (obj);
-										}
-										else {
-											funcs.append (tuple ([key, obj]));
-										}
-									}
-									var __iterable0__ = funcs;
-									for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
-										var __left0__ = __iterable0__ [__index0__];
-										var py_name = __left0__ [0];
-										var func = __left0__ [1];
-										o (py_name, func);
-									}
-								};
-								o.spec (Cls.__name__, dospec);
-							});}
-						});
-						Wrapper ();
-						return Wrapper;
-					};
+					var o = require ('mithril/ospec/ospec');
 					var Searcher = __class__ ('Searcher', [object], {
 						CaseSensitive: __class__ ('CaseSensitive', [object], {
 							get beforeEach () {return __get__ (this, function (self) {
@@ -3012,12 +3067,12 @@ function tests () {
 					__pragma__ ('<use>' +
 						'pylib.inspector' +
 						'pylib.router' +
+						'tests.tester' +
 					'</use>')
 					__pragma__ ('<all>')
 						__all__.Searcher = Searcher;
 						__all__.TabledTab = TabledTab;
 						__all__.inspector = inspector;
-						__all__.jsdom = jsdom;
 						__all__.o = o;
 						__all__.router = router;
 						__all__.test = test;
@@ -3026,13 +3081,186 @@ function tests () {
 			}
 		}
 	);
+	__nest__ (
+		__all__,
+		'tests.test_server', {
+			__all__: {
+				__inited__: false,
+				__init__: function (__all__) {
+					var test = __init__ (__world__.tests.tester).test;
+					var server = __init__ (__world__.pylib.server);
+					var o = require ('mithril/ospec/ospec');
+					var sinon = require ('sinon');
+					var Server = __class__ ('Server', [object], {
+						get beforeEach () {return __get__ (this, function (self) {
+							self.testServer = sinon.createFakeServer ();
+							window.XMLHttpRequest = global.XMLHttpRequest;
+						});},
+						get afterEach () {return __get__ (this, function (self) {
+							self.testServer.restore ();
+						});},
+						get _respond () {return __get__ (this, function (self, request, response) {
+							request.respond (200, dict ({'Content-Type': 'application/json'}), JSON.stringify (response));
+						});},
+						get basicRequest () {return __get__ (this, function (self) {
+							var endpoint = '/foo';
+							var verify = function (request) {
+								o (request.method).equals ('GET');
+								o (request.url).equals (endpoint);
+								request.respond (200);
+							};
+							self.testServer.respondWith (verify);
+							server.request (endpoint);
+							self.testServer.respond ();
+						});},
+						get queryRequest () {return __get__ (this, function (self) {
+							var endpoint = '/foo';
+							var full_path = '/foo?one=1&two=2';
+							var verify = function (request) {
+								o (request.method).equals ('GET');
+								o (request.url).equals (full_path);
+								request.respond (200);
+							};
+							self.testServer.respondWith (verify);
+							server.request (endpoint, __kwargtrans__ ({one: 1, two: 2}));
+							self.testServer.respond ();
+						});},
+						get asyncAnonMessages () {return __get__ (this, function (self, done) {
+							var manager = server.Manager ();
+							o (len (manager.anonMsgs.messages)).equals (0) ('No messages at start');
+							var all_ = function (request) {
+								self._respond (request, list (['uid1', 'uid2']));
+							};
+							self.testServer.respondWith ('/anon?all=true', all_);
+							var mContent = 'EjRWeBI0Vng=';
+							var mDate = '2017-10-03T20:55:45.186082+00:00';
+							var mCreate = 1507064140186082;
+							var mExpire = 1507150540186082;
+							var uid1 = function (request) {
+								self._respond (request, list ([dict ({'create': mCreate, 'expire': mExpire, 'anon': dict ({'uid': 'uid1', 'content': mContent, 'date': mDate})})]));
+							};
+							self.testServer.respondWith ('/anon?uid=uid1', uid1);
+							var uid2 = function (request) {
+								self._respond (request, list ([]));
+							};
+							self.testServer.respondWith ('/anon?uid=uid2', uid2);
+							var f1 = function () {
+								o (len (manager.anonMsgs.messages)).equals (1) ('Only one actual message found');
+								var message = manager.anonMsgs.messages [0];
+								o (message.uid).equals ('uid1');
+								o (message.content).equals (mContent);
+								o (message.date).equals (mDate);
+								o (message.created).equals (mCreate);
+								o (message.expire).equals (mExpire);
+								done ();
+							};
+							self.testServer.autoRespond = true;
+							manager.anonMsgs.refresh ().then (f1);
+						});}
+					})
+					var Server = test (Server);
+					__pragma__ ('<use>' +
+						'pylib.server' +
+						'tests.tester' +
+					'</use>')
+					__pragma__ ('<all>')
+						__all__.Server = Server;
+						__all__.o = o;
+						__all__.server = server;
+						__all__.sinon = sinon;
+						__all__.test = test;
+					__pragma__ ('</all>')
+				}
+			}
+		}
+	);
+	__nest__ (
+		__all__,
+		'tests.tester', {
+			__all__: {
+				__inited__: false,
+				__init__: function (__all__) {
+					var jsdom = require ('jsdom');
+					global.window = new jsdom.JSDOM ().window;
+					global.document = window.document;
+					global.XMLHttpRequest = window.XMLHttpRequest;
+					global.jQuery = require ('jquery');
+					global.m = require ('mithril');
+					require ('../../semantic/dist/semantic');
+					var o = require ('mithril/ospec/ospec');
+					var test = function (Cls) {
+						var Wrapper = __class__ ('Wrapper', [object], {
+							get __init__ () {return __get__ (this, function (self) {
+								var original = Cls ();
+								var dospec = function () {
+									var funcs = list ([]);
+									for (var key in original) {
+										if (key.startswith ('_')) {
+											continue;
+										}
+										var obj = original [key];
+										if (key [0].isupper ()) {
+											test (obj);
+											continue;
+										}
+										if (key.startswith ('async')) {
+											var makeScope = function (fun) {
+												return (function __lambda__ (done, timeout) {
+													return fun (done, timeout);
+												});
+											};
+											var obj = makeScope (obj);
+											var key = key.__getslice__ (len ('async'), null, 1);
+										}
+										if (__in__ (key, list (['beforeEach', 'BeforeEach']))) {
+											o.beforeEach (obj);
+										}
+										else if (__in__ (key, list (['before', 'Before']))) {
+											o.before (obj);
+										}
+										else if (__in__ (key, list (['afterEach', 'AfterEach']))) {
+											o.afterEach (obj);
+										}
+										else if (__in__ (key, list (['after', 'After']))) {
+											o.after (obj);
+										}
+										else {
+											funcs.append (tuple ([key, obj]));
+										}
+									}
+									var __iterable0__ = funcs;
+									for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+										var __left0__ = __iterable0__ [__index0__];
+										var py_name = __left0__ [0];
+										var func = __left0__ [1];
+										o (py_name, func);
+									}
+								};
+								o.spec (Cls.__name__, dospec);
+							});}
+						});
+						Wrapper ();
+						return Wrapper;
+					};
+					__pragma__ ('<all>')
+						__all__.jsdom = jsdom;
+						__all__.o = o;
+						__all__.test = test;
+					__pragma__ ('</all>')
+				}
+			}
+		}
+	);
 	(function () {
 		var test_inspector = __init__ (__world__.tests.test_inspector);
+		var test_server = __init__ (__world__.tests.test_server);
 		__pragma__ ('<use>' +
 			'tests.test_inspector' +
+			'tests.test_server' +
 		'</use>')
 		__pragma__ ('<all>')
 			__all__.test_inspector = test_inspector;
+			__all__.test_server = test_server;
 		__pragma__ ('</all>')
 	}) ();
    return __all__;
