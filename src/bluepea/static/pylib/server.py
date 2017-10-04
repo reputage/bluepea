@@ -27,6 +27,11 @@ class Manager:
         self.anonMsgs = AnonMessages()
 
 
+# class Entities:
+#     def __init__(self):
+
+
+
 class AnonMessages:
     def __init__(self):
         self.messages = []
@@ -55,3 +60,6 @@ class AnonMessage:
         self.date = data.anon.date
         self.created = data.create
         self.expire = data.expire
+
+
+manager = Manager()

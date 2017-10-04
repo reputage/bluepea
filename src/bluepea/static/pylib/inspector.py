@@ -1,6 +1,7 @@
 """
 Inspector page, used for viewing objects in the database.
 """
+from .pylib import server
 
 
 class Tab:
@@ -113,28 +114,96 @@ class Field:
     """
     Title = None
     """Friendly name to display in table header."""
+    Length = 4
+    """Length of string to display before truncating with ellipses"""
 
+    __pragma__("kwargs")
     def __init__(self, title=None):
         self.title = self.Title
         if title is not None:
             self.title = title
 
         self.name = self.title.lower()
+    __pragma__("nokwargs")
 
-    def format(self, string):
+    def format(self, data):
         """
-        Formats the string to match the expected view for this field.
+        Formats the data to a string matching the expected view for this field.
         """
-        if len(string) > 8:
-            string = string[:5] + "..."
+        return str(data)
+
+    def shorten(self, string):
+        """
+        Shortens the string to an appropriate length for display.
+        """
+        if len(string) > self.Length + 3:
+            string = string[:self.Length] + "..."
         return string
 
     def view(self, data):
         """
         Returns a vnode <td> suitable for display in a table.
         """
-        data = str(data)
-        return m("td", {"title": data}, self.format(data))
+        formatted = self.format(data)
+        return m("td", {"title": formatted}, self.shorten(formatted))
+
+
+class FillField(Field):
+    """
+    Field that should "use remaining space" for display.
+    """
+    Length = 100
+
+    def view(self, data):
+        node = super().view(data)
+        node.attrs["class"] = "fill-space"
+        return node
+
+class DateField(Field):
+    """
+    Field for displaying dates.
+    """
+    Length = 12
+
+class EpochField(DateField):
+    """
+    Field for displaying time since the epoch.
+    """
+    def format(self, data):
+        # Make format match that of other typical dates from server
+        data = __new__(Date(data / 1000)).toISOString()
+        return super().format(data)
+
+
+class IDField(Field):
+    """
+    Field for displaying ids.
+    """
+    Length = 4
+    Header = ""
+    """Stripped from beginning of string for displaying."""
+
+    def format(self, string):
+        if string.startswith(self.Header):
+            string = string[len(self.Header):]
+        return super().format(string)
+
+class DIDField(IDField):
+    Header = "did:igo:"
+
+class HIDField(IDField):
+    Header = "hid:"
+
+    def shorten(self, string):
+        if len(string) > 13:
+            string = string[:6] + "..." + string[-4:]
+        return string
+
+class OIDField(IDField):
+    Header = "o_"
+
+class MIDField(IDField):
+    Header = "m_"
 
 
 class Table:
@@ -245,6 +314,21 @@ class Table:
                  )
 
 
+class AnonMsgsTable(Table):
+    def __init__(self):
+        fields = [
+            IDField("UID"),
+            DateField("Date"),
+            EpochField("Created"),
+            EpochField("Expire"),
+            FillField("Content")
+        ]
+        super().__init__(fields)
+
+    def _oninit(self):
+        server.manager.anonMsgs.refresh().then(lambda: self._setData(server.manager.anonMsgs.messages))
+
+
 class Entities(TabledTab):
     Name = "Entities"
     Data_tab = "entities"
@@ -273,6 +357,9 @@ class Messages(TabledTab):
 class AnonMsgs(TabledTab):
     Name = "Anon Msgs"
     Data_tab = "anonmsgs"
+
+    def setup_table(self):
+        self.table = AnonMsgsTable()
 
 
 class Searcher:

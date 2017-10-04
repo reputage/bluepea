@@ -38,3 +38,8 @@ div .ui.card>.content.small-header {
 pre.content.code-block {
     overflow-x: auto;
 }
+
+td.fill-space {
+    overflow-x: hidden;
+    text-overflow: ellipsis;
+}

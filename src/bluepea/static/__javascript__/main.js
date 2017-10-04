@@ -1,5 +1,5 @@
 "use strict";
-// Transcrypt'ed from Python, 2017-10-02 10:22:28
+// Transcrypt'ed from Python, 2017-10-04 11:29:16
 function main () {
    var __symbols__ = ['__py3.6__', '__esv5__'];
     var __all__ = {};
@@ -2418,6 +2418,7 @@ function main () {
 			__all__: {
 				__inited__: false,
 				__init__: function (__all__) {
+					var server = __init__ (__world__.pylib.server);
 					var Tab = __class__ ('Tab', [object], {
 						Name: '',
 						Data_tab: '',
@@ -2468,26 +2469,89 @@ function main () {
 					});
 					var Field = __class__ ('Field', [object], {
 						Title: null,
+						Length: 4,
 						get __init__ () {return __get__ (this, function (self, title) {
 							if (typeof title == 'undefined' || (title != null && title .hasOwnProperty ("__kwargtrans__"))) {;
 								var title = null;
 							};
+							if (arguments.length) {
+								var __ilastarg0__ = arguments.length - 1;
+								if (arguments [__ilastarg0__] && arguments [__ilastarg0__].hasOwnProperty ("__kwargtrans__")) {
+									var __allkwargs0__ = arguments [__ilastarg0__--];
+									for (var __attrib0__ in __allkwargs0__) {
+										switch (__attrib0__) {
+											case 'self': var self = __allkwargs0__ [__attrib0__]; break;
+											case 'title': var title = __allkwargs0__ [__attrib0__]; break;
+										}
+									}
+								}
+							}
+							else {
+							}
 							self.title = self.Title;
 							if (title !== null) {
 								self.title = title;
 							}
 							self.py_name = self.title.lower ();
 						});},
-						get format () {return __get__ (this, function (self, string) {
-							if (len (string) > 8) {
-								var string = string.__getslice__ (0, 5, 1) + '...';
+						get format () {return __get__ (this, function (self, data) {
+							return str (data);
+						});},
+						get shorten () {return __get__ (this, function (self, string) {
+							if (len (string) > self.Length + 3) {
+								var string = string.__getslice__ (0, self.Length, 1) + '...';
 							}
 							return string;
 						});},
 						get view () {return __get__ (this, function (self, data) {
-							var data = str (data);
-							return m ('td', dict ({'title': data}), self.format (data));
+							var formatted = self.format (data);
+							return m ('td', dict ({'title': formatted}), self.shorten (formatted));
 						});}
+					});
+					var FillField = __class__ ('FillField', [Field], {
+						Length: 100,
+						get view () {return __get__ (this, function (self, data) {
+							var node = __super__ (FillField, 'view') (self, data);
+							node.attrs ['class'] = 'fill-space';
+							return node;
+						});}
+					});
+					var DateField = __class__ ('DateField', [Field], {
+						Length: 12
+					});
+					var EpochField = __class__ ('EpochField', [DateField], {
+						get format () {return __get__ (this, function (self, data) {
+							var data = new Date (data / 1000).toISOString ();
+							return __super__ (EpochField, 'format') (self, data);
+						});}
+					});
+					var IDField = __class__ ('IDField', [Field], {
+						Length: 4,
+						Header: '',
+						get format () {return __get__ (this, function (self, string) {
+							if (string.startswith (self.Header)) {
+								var string = string.__getslice__ (len (self.Header), null, 1);
+							}
+							return __super__ (IDField, 'format') (self, string);
+						});}
+					});
+					var DIDField = __class__ ('DIDField', [IDField], {
+						Header: 'did:igo:'
+					});
+					var HIDField = __class__ ('HIDField', [IDField], {
+						Header: 'hid:',
+						get shorten () {return __get__ (this, function (self, string) {
+							if (len (string) > 13) {
+								var string = (string.__getslice__ (0, 6, 1) + '...') + string.__getslice__ (-(4), null, 1);
+							}
+							return string;
+						});}
+					});
+					var OIDField = __class__ ('OIDField', [IDField], {
+						Header: 'o_'
+					});
+					var MIDField = __class__ ('MIDField', [IDField], {
+						Header: 'm_'
 					});
 					var Table = __class__ ('Table', [object], {
 						no_results_text: 'No results found.',
@@ -2588,6 +2652,17 @@ function main () {
 							return m ('table', dict ({'class': 'ui selectable celled unstackable single line left aligned table'}), m ('thead', m ('tr', dict ({'class': 'center aligned'}), headers)), m ('tbody', rows));
 						});}
 					});
+					var AnonMsgsTable = __class__ ('AnonMsgsTable', [Table], {
+						get __init__ () {return __get__ (this, function (self) {
+							var fields = list ([IDField ('UID'), DateField ('Date'), EpochField ('Created'), EpochField ('Expire'), FillField ('Content')]);
+							__super__ (AnonMsgsTable, '__init__') (self, fields);
+						});},
+						get _oninit () {return __get__ (this, function (self) {
+							server.manager.anonMsgs.refresh ().then ((function __lambda__ () {
+								return self._setData (server.manager.anonMsgs.messages);
+							}));
+						});}
+					});
 					var Entities = __class__ ('Entities', [TabledTab], {
 						Name: 'Entities',
 						Data_tab: 'entities',
@@ -2619,7 +2694,10 @@ function main () {
 					});
 					var AnonMsgs = __class__ ('AnonMsgs', [TabledTab], {
 						Name: 'Anon Msgs',
-						Data_tab: 'anonmsgs'
+						Data_tab: 'anonmsgs',
+						get setup_table () {return __get__ (this, function (self) {
+							self.table = AnonMsgsTable ();
+						});}
 					});
 					var Searcher = __class__ ('Searcher', [object], {
 						get __init__ () {return __get__ (this, function (self) {
@@ -2722,18 +2800,31 @@ function main () {
 							return m ('div', m ('form', dict ({'onsubmit': self.search}), m ('div.ui.borderless.menu', m ('div.right.menu', dict ({'style': 'padding-right: 40%'}), m ('div.item', dict ({'style': 'width: 80%'}), m ('div.ui.transparent.icon.input', m ('input[type=text][placeholder=Search...]', dict ({'id': self._searchId})), m ('i.search.icon'))), m ('div.item', m ('input.ui.primary.button[type=submit][value=Search]'))))), m ('div.ui.top.attached.pointing.five.item.menu', menu_items), tab_items);
 						});}
 					});
+					__pragma__ ('<use>' +
+						'pylib.server' +
+					'</use>')
 					__pragma__ ('<all>')
 						__all__.AnonMsgs = AnonMsgs;
+						__all__.AnonMsgsTable = AnonMsgsTable;
+						__all__.DIDField = DIDField;
+						__all__.DateField = DateField;
 						__all__.Entities = Entities;
+						__all__.EpochField = EpochField;
 						__all__.Field = Field;
+						__all__.FillField = FillField;
+						__all__.HIDField = HIDField;
+						__all__.IDField = IDField;
 						__all__.Issuants = Issuants;
+						__all__.MIDField = MIDField;
 						__all__.Messages = Messages;
+						__all__.OIDField = OIDField;
 						__all__.Offers = Offers;
 						__all__.Searcher = Searcher;
 						__all__.Tab = Tab;
 						__all__.Table = Table;
 						__all__.TabledTab = TabledTab;
 						__all__.Tabs = Tabs;
+						__all__.server = server;
 					__pragma__ ('</all>')
 				}
 			}
@@ -2766,6 +2857,94 @@ function main () {
 					__pragma__ ('<all>')
 						__all__.Router = Router;
 						__all__.inspector = inspector;
+					__pragma__ ('</all>')
+				}
+			}
+		}
+	);
+	__nest__ (
+		__all__,
+		'pylib.server', {
+			__all__: {
+				__inited__: false,
+				__init__: function (__all__) {
+					var request = function (path) {
+						var kwargs = dict ();
+						if (arguments.length) {
+							var __ilastarg0__ = arguments.length - 1;
+							if (arguments [__ilastarg0__] && arguments [__ilastarg0__].hasOwnProperty ("__kwargtrans__")) {
+								var __allkwargs0__ = arguments [__ilastarg0__--];
+								for (var __attrib0__ in __allkwargs0__) {
+									switch (__attrib0__) {
+										case 'path': var path = __allkwargs0__ [__attrib0__]; break;
+										default: kwargs [__attrib0__] = __allkwargs0__ [__attrib0__];
+									}
+								}
+								delete kwargs.__kwargtrans__;
+							}
+						}
+						else {
+						}
+						path += '?';
+						var __iterable0__ = kwargs.py_items ();
+						for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+							var __left0__ = __iterable0__ [__index0__];
+							var key = __left0__ [0];
+							var value = __left0__ [1];
+							path += ((key + '=') + str (value)) + '&';
+						}
+						var path = path.__getslice__ (0, -(1), 1);
+						return m.request (path);
+					};
+					var Manager = __class__ ('Manager', [object], {
+						get __init__ () {return __get__ (this, function (self) {
+							self.anonMsgs = AnonMessages ();
+						});}
+					});
+					var AnonMessages = __class__ ('AnonMessages', [object], {
+						get __init__ () {return __get__ (this, function (self) {
+							self.messages = list ([]);
+						});},
+						get refresh () {return __get__ (this, function (self) {
+							while (len (self.messages)) {
+								self.messages.py_pop ();
+							}
+							return request ('/anon', __kwargtrans__ ({all: true})).then (self._parseAll);
+						});},
+						get _parseAll () {return __get__ (this, function (self, uids) {
+							var promises = list ([]);
+							var __iterable0__ = uids;
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var uid = __iterable0__ [__index0__];
+								promises.append (request ('/anon', __kwargtrans__ ({uid: uid})).then (self._parseOne));
+							}
+							return Promise.all (promises);
+						});},
+						get _parseOne () {return __get__ (this, function (self, messages) {
+							var __iterable0__ = messages;
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var message = __iterable0__ [__index0__];
+								var msg = AnonMessage (message);
+								self.messages.append (msg);
+							}
+						});}
+					});
+					var AnonMessage = __class__ ('AnonMessage', [object], {
+						get __init__ () {return __get__ (this, function (self, data) {
+							self.uid = data.anon.uid;
+							self.content = data.anon.content;
+							self.date = data.anon.date;
+							self.created = data.create;
+							self.expire = data.expire;
+						});}
+					});
+					var manager = Manager ();
+					__pragma__ ('<all>')
+						__all__.AnonMessage = AnonMessage;
+						__all__.AnonMessages = AnonMessages;
+						__all__.Manager = Manager;
+						__all__.manager = manager;
+						__all__.request = request;
 					__pragma__ ('</all>')
 				}
 			}
