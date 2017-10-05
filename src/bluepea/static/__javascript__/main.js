@@ -1,5 +1,5 @@
 "use strict";
-// Transcrypt'ed from Python, 2017-10-04 23:46:35
+// Transcrypt'ed from Python, 2017-10-05 16:43:54
 function main () {
    var __symbols__ = ['__py3.6__', '__esv5__'];
     var __all__ = {};
@@ -2719,6 +2719,33 @@ function main () {
 							return row;
 						});}
 					});
+					var IssuantsTable = __class__ ('IssuantsTable', [Table], {
+						get __init__ () {return __get__ (this, function (self) {
+							var fields = list ([DIDField (), Field ('Kind'), FillField ('Issuer'), DateField ('Registered'), FillField ('URL')]);
+							__super__ (IssuantsTable, '__init__') (self, fields);
+						});},
+						get _oninit () {return __get__ (this, function (self) {
+							var entities = server.manager.entities;
+							entities.refreshIssuants ().then ((function __lambda__ () {
+								return self._setData (entities.issuants);
+							}));
+						});},
+						get _makeRow () {return __get__ (this, function (self, obj) {
+							var row = list ([]);
+							var __iterable0__ = self.fields;
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var field = __iterable0__ [__index0__];
+								if (field.py_name == 'url') {
+									var data = obj.validationURL;
+								}
+								else {
+									var data = obj [field.py_name];
+								}
+								row.append (field.view (data));
+							}
+							return row;
+						});}
+					});
 					var EntitiesTable = __class__ ('EntitiesTable', [Table], {
 						get __init__ () {return __get__ (this, function (self) {
 							var fields = list ([DIDField (), HIDField (), DIDField ('Signer'), DateField ('Changed'), Field ('Issuants'), FillField ('Data'), Field ('Keys')]);
@@ -2784,7 +2811,10 @@ function main () {
 					});
 					var Issuants = __class__ ('Issuants', [TabledTab], {
 						Name: 'Issuants',
-						Data_tab: 'issuants'
+						Data_tab: 'issuants',
+						get setup_table () {return __get__ (this, function (self) {
+							self.table = IssuantsTable ();
+						});}
 					});
 					var Offers = __class__ ('Offers', [TabledTab], {
 						Name: 'Offers',
@@ -2917,6 +2947,7 @@ function main () {
 						__all__.HIDField = HIDField;
 						__all__.IDField = IDField;
 						__all__.Issuants = Issuants;
+						__all__.IssuantsTable = IssuantsTable;
 						__all__.MIDField = MIDField;
 						__all__.Messages = Messages;
 						__all__.OIDField = OIDField;
@@ -3004,12 +3035,32 @@ function main () {
 							self.entities = Entities ();
 						});}
 					});
+					var onlyOne = function (func) {
+						var scope = dict ({'promise': null});
+						var wrap = function () {
+							if (scope.promise != null) {
+								return scope.promise;
+							}
+							var f = function (resolve, reject) {
+								var p = func ();
+								p.then (resolve);
+								p.catch (reject);
+							};
+							scope.promise = new Promise (f);
+							return scope.promise;
+						};
+						return wrap;
+					};
 					var Entities = __class__ ('Entities', [object], {
 						get __init__ () {return __get__ (this, function (self) {
 							self.agents = list ([]);
 							self.things = list ([]);
+							self.issuants = list ([]);
+							self.refreshAgents = onlyOne (self._refreshAgents);
+							self.refreshThings = onlyOne (self._refreshThings);
+							self.refreshIssuants = self.refreshAgents;
 						});},
-						get refreshAgents () {return __get__ (this, function (self) {
+						get _refreshAgents () {return __get__ (this, function (self) {
 							while (len (self.agents)) {
 								self.agents.py_pop ();
 							}
@@ -3025,9 +3076,19 @@ function main () {
 							return Promise.all (promises);
 						});},
 						get _parseOneAgent () {return __get__ (this, function (self, data) {
+							if (data.issuants && len (data.issuants) > 0) {
+								var __iterable0__ = data.issuants;
+								for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+									var i = __iterable0__ [__index0__];
+									var issuant = jQuery.extend (true, dict ({}), i);
+									issuant.did = data.did;
+									issuant.blahblah = 'blahblah';
+									self.issuants.append (issuant);
+								}
+							}
 							self.agents.append (data);
 						});},
-						get refreshThings () {return __get__ (this, function (self) {
+						get _refreshThings () {return __get__ (this, function (self) {
 							while (len (self.things)) {
 								self.things.py_pop ();
 							}
@@ -3049,8 +3110,9 @@ function main () {
 					var AnonMessages = __class__ ('AnonMessages', [object], {
 						get __init__ () {return __get__ (this, function (self) {
 							self.messages = list ([]);
+							self.refresh = onlyOne (self._refresh);
 						});},
-						get refresh () {return __get__ (this, function (self) {
+						get _refresh () {return __get__ (this, function (self) {
 							while (len (self.messages)) {
 								self.messages.py_pop ();
 							}
@@ -3079,6 +3141,7 @@ function main () {
 						__all__.Entities = Entities;
 						__all__.Manager = Manager;
 						__all__.manager = manager;
+						__all__.onlyOne = onlyOne;
 						__all__.request = request;
 					__pragma__ ('</all>')
 				}

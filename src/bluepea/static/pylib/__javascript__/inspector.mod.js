@@ -305,6 +305,33 @@
 							return row;
 						});}
 					});
+					var IssuantsTable = __class__ ('IssuantsTable', [Table], {
+						get __init__ () {return __get__ (this, function (self) {
+							var fields = list ([DIDField (), Field ('Kind'), FillField ('Issuer'), DateField ('Registered'), FillField ('URL')]);
+							__super__ (IssuantsTable, '__init__') (self, fields);
+						});},
+						get _oninit () {return __get__ (this, function (self) {
+							var entities = server.manager.entities;
+							entities.refreshIssuants ().then ((function __lambda__ () {
+								return self._setData (entities.issuants);
+							}));
+						});},
+						get _makeRow () {return __get__ (this, function (self, obj) {
+							var row = list ([]);
+							var __iterable0__ = self.fields;
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var field = __iterable0__ [__index0__];
+								if (field.py_name == 'url') {
+									var data = obj.validationURL;
+								}
+								else {
+									var data = obj [field.py_name];
+								}
+								row.append (field.view (data));
+							}
+							return row;
+						});}
+					});
 					var EntitiesTable = __class__ ('EntitiesTable', [Table], {
 						get __init__ () {return __get__ (this, function (self) {
 							var fields = list ([DIDField (), HIDField (), DIDField ('Signer'), DateField ('Changed'), Field ('Issuants'), FillField ('Data'), Field ('Keys')]);
@@ -370,7 +397,10 @@
 					});
 					var Issuants = __class__ ('Issuants', [TabledTab], {
 						Name: 'Issuants',
-						Data_tab: 'issuants'
+						Data_tab: 'issuants',
+						get setup_table () {return __get__ (this, function (self) {
+							self.table = IssuantsTable ();
+						});}
 					});
 					var Offers = __class__ ('Offers', [TabledTab], {
 						Name: 'Offers',
@@ -503,6 +533,7 @@
 						__all__.HIDField = HIDField;
 						__all__.IDField = IDField;
 						__all__.Issuants = Issuants;
+						__all__.IssuantsTable = IssuantsTable;
 						__all__.MIDField = MIDField;
 						__all__.Messages = Messages;
 						__all__.OIDField = OIDField;

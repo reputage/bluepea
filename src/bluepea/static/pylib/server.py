@@ -27,13 +27,35 @@ class Manager:
         self.anonMsgs = AnonMessages()
         self.entities = Entities()
 
+def onlyOne(func):
+    """
+    Enforces the promise function is only ever called once.
+    """
+    scope = {"promise": None}
+
+    def wrap():
+        if scope.promise != None:
+            return scope.promise
+
+        def f(resolve, reject):
+            p = func()
+            p.then(resolve)
+            p.catch(reject)
+        scope.promise = __new__(Promise(f))
+        return scope.promise
+    return wrap
+
 
 class Entities:
     def __init__(self):
         self.agents = []
         self.things = []
+        self.issuants = []
+        self.refreshAgents = onlyOne(self._refreshAgents)
+        self.refreshThings = onlyOne(self._refreshThings)
+        self.refreshIssuants = self.refreshAgents
 
-    def refreshAgents(self):
+    def _refreshAgents(self):
         while len(self.agents):
             self.agents.pop()
         return request("/agent", all=True).then(self._parseAllAgents)
@@ -45,9 +67,15 @@ class Entities:
         return Promise.all(promises)
 
     def _parseOneAgent(self, data):
+        if data.issuants and len(data.issuants) > 0:
+            for i in data.issuants:
+                # Copy issuant info so we can modify it without affecting the parent agent
+                issuant = jQuery.extend(True, {}, i)
+                issuant.did = data.did
+                self.issuants.append(issuant)
         self.agents.append(data)
 
-    def refreshThings(self):
+    def _refreshThings(self):
         while len(self.things):
             self.things.pop()
         return request("/thing", all=True).then(self._parseAllThings)
@@ -65,8 +93,9 @@ class Entities:
 class AnonMessages:
     def __init__(self):
         self.messages = []
+        self.refresh = onlyOne(self._refresh)
 
-    def refresh(self):
+    def _refresh(self):
         while len(self.messages):
             self.messages.pop()
         return request("/anon", all=True).then(self._parseAll)

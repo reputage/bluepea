@@ -362,6 +362,32 @@ class AnonMsgsTable(Table):
         return row
 
 
+class IssuantsTable(Table):
+    def __init__(self):
+        fields = [
+            DIDField(),
+            Field("Kind"),
+            FillField("Issuer"),
+            DateField("Registered"),
+            FillField("URL")
+        ]
+        super().__init__(fields)
+
+    def _oninit(self):
+        entities = server.manager.entities
+        entities.refreshIssuants().then(lambda: self._setData(entities.issuants))
+
+    def _makeRow(self, obj):
+        row = []
+        for field in self.fields:
+            if field.name == "url":
+                data = obj.validationURL
+            else:
+                data = obj[field.name]
+            row.append(field.view(data))
+        return row
+
+
 class EntitiesTable(Table):
     def __init__(self):
         fields = [
@@ -422,6 +448,9 @@ class Entities(TabledTab):
 class Issuants(TabledTab):
     Name = "Issuants"
     Data_tab = "issuants"
+
+    def setup_table(self):
+        self.table = IssuantsTable()
 
 
 class Offers(TabledTab):
