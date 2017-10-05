@@ -25,11 +25,41 @@ __pragma__("nokwargs")
 class Manager:
     def __init__(self):
         self.anonMsgs = AnonMessages()
+        self.entities = Entities()
 
 
-# class Entities:
-#     def __init__(self):
+class Entities:
+    def __init__(self):
+        self.agents = []
+        self.things = []
 
+    def refreshAgents(self):
+        while len(self.agents):
+            self.agents.pop()
+        return request("/agent", all=True).then(self._parseAllAgents)
+
+    def _parseAllAgents(self, dids):
+        promises = []
+        for did in dids:
+            promises.append(request("/agent", did=did).then(self._parseOneAgent))
+        return Promise.all(promises)
+
+    def _parseOneAgent(self, data):
+        self.agents.append(data)
+
+    def refreshThings(self):
+        while len(self.things):
+            self.things.pop()
+        return request("/thing", all=True).then(self._parseAllThings)
+
+    def _parseAllThings(self, dids):
+        promises = []
+        for did in dids:
+            promises.append(request("/thing", did=did).then(self._parseOneThing))
+        return Promise.all(promises)
+
+    def _parseOneThing(self, data):
+        self.things.append(data)
 
 
 class AnonMessages:
@@ -49,17 +79,7 @@ class AnonMessages:
 
     def _parseOne(self, messages):
         for message in messages:
-            msg = AnonMessage(message)
-            self.messages.append(msg)
-
-
-class AnonMessage:
-    def __init__(self, data):
-        self.uid = data.anon.uid
-        self.content = data.anon.content
-        self.date = data.anon.date
-        self.created = data.create
-        self.expire = data.expire
+            self.messages.append(message)
 
 
 manager = Manager()

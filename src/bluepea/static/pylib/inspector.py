@@ -110,7 +110,7 @@ class Field:
 
     Attributes:
         title (str): Friendly table header name
-        name (str): JSON key to use in data lookup
+        name (str): JSON key to use in data lookup by default
     """
     Title = None
     """Friendly name to display in table header."""
@@ -144,6 +144,9 @@ class Field:
         """
         Returns a vnode <td> suitable for display in a table.
         """
+        if data == None:
+            # Better to have empty data than to cause an error
+            data = ""
         formatted = self.format(data)
         return m("td", {"title": formatted}, self.shorten(formatted))
 
@@ -164,6 +167,7 @@ class DateField(Field):
     Field for displaying dates.
     """
     Length = 12
+    Title = "Date"
 
 class EpochField(DateField):
     """
@@ -180,6 +184,7 @@ class IDField(Field):
     Field for displaying ids.
     """
     Length = 4
+    Title = "UID"
     Header = ""
     """Stripped from beginning of string for displaying."""
 
@@ -190,9 +195,11 @@ class IDField(Field):
 
 class DIDField(IDField):
     Header = "did:igo:"
+    Title = "DID"
 
 class HIDField(IDField):
     Header = "hid:"
+    Title = "HID"
 
     def shorten(self, string):
         if len(string) > 13:
@@ -213,7 +220,7 @@ class Table:
     no_results_text = "No results found."
 
     def __init__(self, fields):
-        self.max_size = 8
+        self.max_size = 20
         self.fields = fields
         self.data = {}
         self.view = {
@@ -224,6 +231,7 @@ class Table:
         self._selectedUid = None
         self.detailSelected = ""
         self.filter = None
+        self._nextId = 0
 
     def _stringify(self, obj):
         """
@@ -263,16 +271,25 @@ class Table:
 
         self._setData(data)
 
-    def _setData(self, data):
+    __pragma__("kwargs")
+    def _setData(self, data, clear=True):
         """
         Clears existing data and uses the provided data instead.
-
-        Args:
-            data (list[dict])
         """
-        self.data.clear()
-        for i, datum in enumerate(data):
-            self.data[i] = datum
+        if clear:
+            self._nextId = 0
+            self.data.clear()
+        for datum in data:
+            self.data[self._nextId] = datum
+            self._nextId += 1
+    __pragma__("nokwargs")
+
+    def _makeRow(self, obj):
+        """
+        Called on each item in self.data.
+        Returns an array of <td> vnodes representing a row.
+        """
+        return [field.view(obj[field.name]) for field in self.fields]
 
     def _view(self):
         headers = [m("th", field.title) for field in self.fields]
@@ -291,8 +308,7 @@ class Table:
                 if not self.filter(obj):
                     continue
 
-            # Format each cell based on the corresponding Field
-            row = [field.view(obj[field.name]) for field in self.fields]
+            row = self._makeRow(obj)
 
             # Needed so we can pass through the key as-is to the lambda, without it changing through the loop
             def makeScope(uid):
@@ -318,7 +334,7 @@ class AnonMsgsTable(Table):
     def __init__(self):
         fields = [
             IDField("UID"),
-            DateField("Date"),
+            DateField(),
             EpochField("Created"),
             EpochField("Expire"),
             FillField("Content")
@@ -326,7 +342,72 @@ class AnonMsgsTable(Table):
         super().__init__(fields)
 
     def _oninit(self):
-        server.manager.anonMsgs.refresh().then(lambda: self._setData(server.manager.anonMsgs.messages))
+        msgs = server.manager.anonMsgs
+        msgs.refresh().then(lambda: self._setData(msgs.messages))
+
+    def _makeRow(self, obj):
+        row = []
+        for field in self.fields:
+            if field.name == "uid":
+                data = obj.anon.uid
+            elif field.name == "date":
+                data = obj.anon.date
+            elif field.name == "content":
+                data = obj.anon.content
+            elif field.name == "created":
+                data = obj.create
+            else:
+                data = obj[field.name]
+            row.append(field.view(data))
+        return row
+
+
+class EntitiesTable(Table):
+    def __init__(self):
+        fields = [
+            DIDField(),
+            HIDField(),
+            DIDField("Signer"),
+            DateField("Changed"),
+            Field("Issuants"),
+            FillField("Data"),
+            Field("Keys")
+        ]
+        super().__init__(fields)
+
+    def _oninit(self):
+        entities = server.manager.entities
+        entities.refreshAgents().then(lambda: self._setData(entities.agents, clear=False))
+        entities.refreshThings().then(lambda: self._setData(entities.things, clear=False))
+
+    def _makeRow(self, obj):
+        row = []
+        for field in self.fields:
+            if field.name == "issuants":
+                issuants = obj[field.name]
+                # If any issuants provided, just show count
+                if issuants:
+                    data = len(issuants)
+                else:
+                    data = ""
+            elif field.name == "keys":
+                keys = obj[field.name]
+                # If an keys provided, just show count
+                if keys:
+                    data = len(keys)
+                else:
+                    data = ""
+            elif field.name == "data":
+                d = obj[field.name]
+                if d:
+                    data = " ".join(d.keywords)
+                    data += " " + d.message
+                else:
+                    data = ""
+            else:
+                data = obj[field.name]
+            row.append(field.view(data))
+        return row
 
 
 class Entities(TabledTab):
@@ -335,8 +416,7 @@ class Entities(TabledTab):
     Active = True
 
     def setup_table(self):
-        fields = [Field(x) for x in ["DID", "HID", "Signer", "Changed", "Issuants", "Data", "Keys"]]
-        self.table = Table(fields)
+        self.table = EntitiesTable()
 
 
 class Issuants(TabledTab):
@@ -405,7 +485,7 @@ class Searcher:
         """
         Checks for .searchTerm in any provided dict, list, or primitive type
         """
-        if isinstance(value, dict):
+        if isinstance(value, dict) or isinstance(value, Object):
             return self.search(value)
         elif isinstance(value, list):
             for item in value:
@@ -419,10 +499,13 @@ class Searcher:
         """
         Returns True if obj recursively contains the .searchTerm string in any field.
         """
-        for value in obj.values():
+        __pragma__("jsiter")
+        for key in obj:
+            value = obj[key]
             if self._checkAny(value):
                 return True
         return False
+        __pragma__("nojsiter")
 
 
 class Tabs:

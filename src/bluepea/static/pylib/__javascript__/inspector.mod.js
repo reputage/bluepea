@@ -90,6 +90,9 @@
 							return string;
 						});},
 						get view () {return __get__ (this, function (self, data) {
+							if (data == null) {
+								var data = '';
+							}
 							var formatted = self.format (data);
 							return m ('td', dict ({'title': formatted}), self.shorten (formatted));
 						});}
@@ -103,7 +106,8 @@
 						});}
 					});
 					var DateField = __class__ ('DateField', [Field], {
-						Length: 12
+						Length: 12,
+						Title: 'Date'
 					});
 					var EpochField = __class__ ('EpochField', [DateField], {
 						get format () {return __get__ (this, function (self, data) {
@@ -113,6 +117,7 @@
 					});
 					var IDField = __class__ ('IDField', [Field], {
 						Length: 4,
+						Title: 'UID',
 						Header: '',
 						get format () {return __get__ (this, function (self, string) {
 							if (string.startswith (self.Header)) {
@@ -122,10 +127,12 @@
 						});}
 					});
 					var DIDField = __class__ ('DIDField', [IDField], {
-						Header: 'did:igo:'
+						Header: 'did:igo:',
+						Title: 'DID'
 					});
 					var HIDField = __class__ ('HIDField', [IDField], {
 						Header: 'hid:',
+						Title: 'HID',
 						get shorten () {return __get__ (this, function (self, string) {
 							if (len (string) > 13) {
 								var string = (string.__getslice__ (0, 6, 1) + '...') + string.__getslice__ (-(4), null, 1);
@@ -142,7 +149,7 @@
 					var Table = __class__ ('Table', [object], {
 						no_results_text: 'No results found.',
 						get __init__ () {return __get__ (this, function (self, fields) {
-							self.max_size = 8;
+							self.max_size = 20;
 							self.fields = fields;
 							self.data = dict ({});
 							self.view = dict ({'oninit': self._oninit, 'view': self._view});
@@ -150,6 +157,7 @@
 							self._selectedUid = null;
 							self.detailSelected = '';
 							self.filter = null;
+							self._nextId = 0;
 						});},
 						get _stringify () {return __get__ (this, function (self, obj) {
 							return JSON.stringify (obj, null, 2);
@@ -179,15 +187,46 @@
 							}
 							self._setData (data);
 						});},
-						get _setData () {return __get__ (this, function (self, data) {
-							self.data.py_clear ();
-							var __iterable0__ = enumerate (data);
-							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
-								var __left0__ = __iterable0__ [__index0__];
-								var i = __left0__ [0];
-								var datum = __left0__ [1];
-								self.data [i] = datum;
+						get _setData () {return __get__ (this, function (self, data, py_clear) {
+							if (typeof py_clear == 'undefined' || (py_clear != null && py_clear .hasOwnProperty ("__kwargtrans__"))) {;
+								var py_clear = true;
+							};
+							if (arguments.length) {
+								var __ilastarg0__ = arguments.length - 1;
+								if (arguments [__ilastarg0__] && arguments [__ilastarg0__].hasOwnProperty ("__kwargtrans__")) {
+									var __allkwargs0__ = arguments [__ilastarg0__--];
+									for (var __attrib0__ in __allkwargs0__) {
+										switch (__attrib0__) {
+											case 'self': var self = __allkwargs0__ [__attrib0__]; break;
+											case 'data': var data = __allkwargs0__ [__attrib0__]; break;
+											case 'py_clear': var py_clear = __allkwargs0__ [__attrib0__]; break;
+										}
+									}
+								}
 							}
+							else {
+							}
+							if (py_clear) {
+								self._nextId = 0;
+								self.data.py_clear ();
+							}
+							var __iterable0__ = data;
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var datum = __iterable0__ [__index0__];
+								self.data [self._nextId] = datum;
+								self._nextId++;
+							}
+						});},
+						get _makeRow () {return __get__ (this, function (self, obj) {
+							return function () {
+								var __accu0__ = [];
+								var __iterable0__ = self.fields;
+								for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+									var field = __iterable0__ [__index0__];
+									__accu0__.append (field.view (obj [field.py_name]));
+								}
+								return __accu0__;
+							} ();
 						});},
 						get _view () {return __get__ (this, function (self) {
 							var headers = function () {
@@ -215,15 +254,7 @@
 										continue;
 									}
 								}
-								var row = function () {
-									var __accu0__ = [];
-									var __iterable1__ = self.fields;
-									for (var __index1__ = 0; __index1__ < __iterable1__.length; __index1__++) {
-										var field = __iterable1__ [__index1__];
-										__accu0__.append (field.view (obj [field.py_name]));
-									}
-									return __accu0__;
-								} ();
+								var row = self._makeRow (obj);
 								var makeScope = function (uid) {
 									return (function __lambda__ (event) {
 										return self._selectRow (event, uid);
@@ -240,13 +271,93 @@
 					});
 					var AnonMsgsTable = __class__ ('AnonMsgsTable', [Table], {
 						get __init__ () {return __get__ (this, function (self) {
-							var fields = list ([IDField ('UID'), DateField ('Date'), EpochField ('Created'), EpochField ('Expire'), FillField ('Content')]);
+							var fields = list ([IDField ('UID'), DateField (), EpochField ('Created'), EpochField ('Expire'), FillField ('Content')]);
 							__super__ (AnonMsgsTable, '__init__') (self, fields);
 						});},
 						get _oninit () {return __get__ (this, function (self) {
-							server.manager.anonMsgs.refresh ().then ((function __lambda__ () {
-								return self._setData (server.manager.anonMsgs.messages);
+							var msgs = server.manager.anonMsgs;
+							msgs.refresh ().then ((function __lambda__ () {
+								return self._setData (msgs.messages);
 							}));
+						});},
+						get _makeRow () {return __get__ (this, function (self, obj) {
+							var row = list ([]);
+							var __iterable0__ = self.fields;
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var field = __iterable0__ [__index0__];
+								if (field.py_name == 'uid') {
+									var data = obj.anon.uid;
+								}
+								else if (field.py_name == 'date') {
+									var data = obj.anon.date;
+								}
+								else if (field.py_name == 'content') {
+									var data = obj.anon.content;
+								}
+								else if (field.py_name == 'created') {
+									var data = obj.create;
+								}
+								else {
+									var data = obj [field.py_name];
+								}
+								row.append (field.view (data));
+							}
+							return row;
+						});}
+					});
+					var EntitiesTable = __class__ ('EntitiesTable', [Table], {
+						get __init__ () {return __get__ (this, function (self) {
+							var fields = list ([DIDField (), HIDField (), DIDField ('Signer'), DateField ('Changed'), Field ('Issuants'), FillField ('Data'), Field ('Keys')]);
+							__super__ (EntitiesTable, '__init__') (self, fields);
+						});},
+						get _oninit () {return __get__ (this, function (self) {
+							var entities = server.manager.entities;
+							entities.refreshAgents ().then ((function __lambda__ () {
+								return self._setData (entities.agents, __kwargtrans__ ({py_clear: false}));
+							}));
+							entities.refreshThings ().then ((function __lambda__ () {
+								return self._setData (entities.things, __kwargtrans__ ({py_clear: false}));
+							}));
+						});},
+						get _makeRow () {return __get__ (this, function (self, obj) {
+							var row = list ([]);
+							var __iterable0__ = self.fields;
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var field = __iterable0__ [__index0__];
+								if (field.py_name == 'issuants') {
+									var issuants = obj [field.py_name];
+									if (issuants) {
+										var data = len (issuants);
+									}
+									else {
+										var data = '';
+									}
+								}
+								else if (field.py_name == 'keys') {
+									var py_keys = obj [field.py_name];
+									if (py_keys) {
+										var data = len (py_keys);
+									}
+									else {
+										var data = '';
+									}
+								}
+								else if (field.py_name == 'data') {
+									var d = obj [field.py_name];
+									if (d) {
+										var data = ' '.join (d.keywords);
+										data += ' ' + d.message;
+									}
+									else {
+										var data = '';
+									}
+								}
+								else {
+									var data = obj [field.py_name];
+								}
+								row.append (field.view (data));
+							}
+							return row;
 						});}
 					});
 					var Entities = __class__ ('Entities', [TabledTab], {
@@ -254,16 +365,7 @@
 						Data_tab: 'entities',
 						Active: true,
 						get setup_table () {return __get__ (this, function (self) {
-							var fields = function () {
-								var __accu0__ = [];
-								var __iterable0__ = list (['DID', 'HID', 'Signer', 'Changed', 'Issuants', 'Data', 'Keys']);
-								for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
-									var x = __iterable0__ [__index0__];
-									__accu0__.append (Field (x));
-								}
-								return __accu0__;
-							} ();
-							self.table = Table (fields);
+							self.table = EntitiesTable ();
 						});}
 					});
 					var Issuants = __class__ ('Issuants', [TabledTab], {
@@ -310,7 +412,7 @@
 							return false;
 						});},
 						get _checkAny () {return __get__ (this, function (self, value) {
-							if (isinstance (value, dict)) {
+							if (isinstance (value, dict) || isinstance (value, Object)) {
 								return self.search (value);
 							}
 							else if (isinstance (value, list)) {
@@ -328,10 +430,10 @@
 							}
 						});},
 						get search () {return __get__ (this, function (self, obj) {
-							var __iterable0__ = obj.py_values ();
-							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
-								var value = __iterable0__ [__index0__];
+							for (var key in obj) {
+								var value = obj [key];
 								if (self._checkAny (value)) {
+									print ('Search found in ' + str (value));
 									return true;
 								}
 							}
@@ -395,6 +497,7 @@
 						__all__.DIDField = DIDField;
 						__all__.DateField = DateField;
 						__all__.Entities = Entities;
+						__all__.EntitiesTable = EntitiesTable;
 						__all__.EpochField = EpochField;
 						__all__.Field = Field;
 						__all__.FillField = FillField;
