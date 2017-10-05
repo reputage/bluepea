@@ -1,5 +1,5 @@
 "use strict";
-// Transcrypt'ed from Python, 2017-10-04 22:51:40
+// Transcrypt'ed from Python, 2017-10-04 23:46:35
 function main () {
    var __symbols__ = ['__py3.6__', '__esv5__'];
     var __all__ = {};
@@ -2758,7 +2758,7 @@ function main () {
 								}
 								else if (field.py_name == 'data') {
 									var d = obj [field.py_name];
-									if (d) {
+									if (d && d.keywords && d.message) {
 										var data = ' '.join (d.keywords);
 										data += ' ' + d.message;
 									}
@@ -2847,7 +2847,6 @@ function main () {
 							for (var key in obj) {
 								var value = obj [key];
 								if (self._checkAny (value)) {
-									print ('Search found in ' + str (value));
 									return true;
 								}
 							}

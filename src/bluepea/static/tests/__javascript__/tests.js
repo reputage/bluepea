@@ -1,5 +1,5 @@
 "use strict";
-// Transcrypt'ed from Python, 2017-10-04 09:46:35
+// Transcrypt'ed from Python, 2017-10-04 23:46:25
 function tests () {
    var __symbols__ = ['__py3.6__', '__esv5__'];
     var __all__ = {};
@@ -2469,6 +2469,7 @@ function tests () {
 					});
 					var Field = __class__ ('Field', [object], {
 						Title: null,
+						Length: 4,
 						get __init__ () {return __get__ (this, function (self, title) {
 							if (typeof title == 'undefined' || (title != null && title .hasOwnProperty ("__kwargtrans__"))) {;
 								var title = null;
@@ -2493,21 +2494,76 @@ function tests () {
 							}
 							self.py_name = self.title.lower ();
 						});},
-						get format () {return __get__ (this, function (self, string) {
-							if (len (string) > 8) {
-								var string = string.__getslice__ (0, 5, 1) + '...';
+						get format () {return __get__ (this, function (self, data) {
+							return str (data);
+						});},
+						get shorten () {return __get__ (this, function (self, string) {
+							if (len (string) > self.Length + 3) {
+								var string = string.__getslice__ (0, self.Length, 1) + '...';
 							}
 							return string;
 						});},
 						get view () {return __get__ (this, function (self, data) {
-							var data = str (data);
-							return m ('td', dict ({'title': data}), self.format (data));
+							if (data == null) {
+								var data = '';
+							}
+							var formatted = self.format (data);
+							return m ('td', dict ({'title': formatted}), self.shorten (formatted));
 						});}
+					});
+					var FillField = __class__ ('FillField', [Field], {
+						Length: 100,
+						get view () {return __get__ (this, function (self, data) {
+							var node = __super__ (FillField, 'view') (self, data);
+							node.attrs ['class'] = 'fill-space';
+							return node;
+						});}
+					});
+					var DateField = __class__ ('DateField', [Field], {
+						Length: 12,
+						Title: 'Date'
+					});
+					var EpochField = __class__ ('EpochField', [DateField], {
+						get format () {return __get__ (this, function (self, data) {
+							var data = new Date (data / 1000).toISOString ();
+							return __super__ (EpochField, 'format') (self, data);
+						});}
+					});
+					var IDField = __class__ ('IDField', [Field], {
+						Length: 4,
+						Title: 'UID',
+						Header: '',
+						get format () {return __get__ (this, function (self, string) {
+							if (string.startswith (self.Header)) {
+								var string = string.__getslice__ (len (self.Header), null, 1);
+							}
+							return __super__ (IDField, 'format') (self, string);
+						});}
+					});
+					var DIDField = __class__ ('DIDField', [IDField], {
+						Header: 'did:igo:',
+						Title: 'DID'
+					});
+					var HIDField = __class__ ('HIDField', [IDField], {
+						Header: 'hid:',
+						Title: 'HID',
+						get shorten () {return __get__ (this, function (self, string) {
+							if (len (string) > 13) {
+								var string = (string.__getslice__ (0, 6, 1) + '...') + string.__getslice__ (-(4), null, 1);
+							}
+							return string;
+						});}
+					});
+					var OIDField = __class__ ('OIDField', [IDField], {
+						Header: 'o_'
+					});
+					var MIDField = __class__ ('MIDField', [IDField], {
+						Header: 'm_'
 					});
 					var Table = __class__ ('Table', [object], {
 						no_results_text: 'No results found.',
 						get __init__ () {return __get__ (this, function (self, fields) {
-							self.max_size = 8;
+							self.max_size = 20;
 							self.fields = fields;
 							self.data = dict ({});
 							self.view = dict ({'oninit': self._oninit, 'view': self._view});
@@ -2515,6 +2571,7 @@ function tests () {
 							self._selectedUid = null;
 							self.detailSelected = '';
 							self.filter = null;
+							self._nextId = 0;
 						});},
 						get _stringify () {return __get__ (this, function (self, obj) {
 							return JSON.stringify (obj, null, 2);
@@ -2544,15 +2601,46 @@ function tests () {
 							}
 							self._setData (data);
 						});},
-						get _setData () {return __get__ (this, function (self, data) {
-							self.data.py_clear ();
-							var __iterable0__ = enumerate (data);
-							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
-								var __left0__ = __iterable0__ [__index0__];
-								var i = __left0__ [0];
-								var datum = __left0__ [1];
-								self.data [i] = datum;
+						get _setData () {return __get__ (this, function (self, data, py_clear) {
+							if (typeof py_clear == 'undefined' || (py_clear != null && py_clear .hasOwnProperty ("__kwargtrans__"))) {;
+								var py_clear = true;
+							};
+							if (arguments.length) {
+								var __ilastarg0__ = arguments.length - 1;
+								if (arguments [__ilastarg0__] && arguments [__ilastarg0__].hasOwnProperty ("__kwargtrans__")) {
+									var __allkwargs0__ = arguments [__ilastarg0__--];
+									for (var __attrib0__ in __allkwargs0__) {
+										switch (__attrib0__) {
+											case 'self': var self = __allkwargs0__ [__attrib0__]; break;
+											case 'data': var data = __allkwargs0__ [__attrib0__]; break;
+											case 'py_clear': var py_clear = __allkwargs0__ [__attrib0__]; break;
+										}
+									}
+								}
 							}
+							else {
+							}
+							if (py_clear) {
+								self._nextId = 0;
+								self.data.py_clear ();
+							}
+							var __iterable0__ = data;
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var datum = __iterable0__ [__index0__];
+								self.data [self._nextId] = datum;
+								self._nextId++;
+							}
+						});},
+						get _makeRow () {return __get__ (this, function (self, obj) {
+							return function () {
+								var __accu0__ = [];
+								var __iterable0__ = self.fields;
+								for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+									var field = __iterable0__ [__index0__];
+									__accu0__.append (field.view (obj [field.py_name]));
+								}
+								return __accu0__;
+							} ();
 						});},
 						get _view () {return __get__ (this, function (self) {
 							var headers = function () {
@@ -2580,15 +2668,7 @@ function tests () {
 										continue;
 									}
 								}
-								var row = function () {
-									var __accu0__ = [];
-									var __iterable1__ = self.fields;
-									for (var __index1__ = 0; __index1__ < __iterable1__.length; __index1__++) {
-										var field = __iterable1__ [__index1__];
-										__accu0__.append (field.view (obj [field.py_name]));
-									}
-									return __accu0__;
-								} ();
+								var row = self._makeRow (obj);
 								var makeScope = function (uid) {
 									return (function __lambda__ (event) {
 										return self._selectRow (event, uid);
@@ -2603,21 +2683,103 @@ function tests () {
 							return m ('table', dict ({'class': 'ui selectable celled unstackable single line left aligned table'}), m ('thead', m ('tr', dict ({'class': 'center aligned'}), headers)), m ('tbody', rows));
 						});}
 					});
+					var AnonMsgsTable = __class__ ('AnonMsgsTable', [Table], {
+						get __init__ () {return __get__ (this, function (self) {
+							var fields = list ([IDField ('UID'), DateField (), EpochField ('Created'), EpochField ('Expire'), FillField ('Content')]);
+							__super__ (AnonMsgsTable, '__init__') (self, fields);
+						});},
+						get _oninit () {return __get__ (this, function (self) {
+							var msgs = server.manager.anonMsgs;
+							msgs.refresh ().then ((function __lambda__ () {
+								return self._setData (msgs.messages);
+							}));
+						});},
+						get _makeRow () {return __get__ (this, function (self, obj) {
+							var row = list ([]);
+							var __iterable0__ = self.fields;
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var field = __iterable0__ [__index0__];
+								if (field.py_name == 'uid') {
+									var data = obj.anon.uid;
+								}
+								else if (field.py_name == 'date') {
+									var data = obj.anon.date;
+								}
+								else if (field.py_name == 'content') {
+									var data = obj.anon.content;
+								}
+								else if (field.py_name == 'created') {
+									var data = obj.create;
+								}
+								else {
+									var data = obj [field.py_name];
+								}
+								row.append (field.view (data));
+							}
+							return row;
+						});}
+					});
+					var EntitiesTable = __class__ ('EntitiesTable', [Table], {
+						get __init__ () {return __get__ (this, function (self) {
+							var fields = list ([DIDField (), HIDField (), DIDField ('Signer'), DateField ('Changed'), Field ('Issuants'), FillField ('Data'), Field ('Keys')]);
+							__super__ (EntitiesTable, '__init__') (self, fields);
+						});},
+						get _oninit () {return __get__ (this, function (self) {
+							var entities = server.manager.entities;
+							entities.refreshAgents ().then ((function __lambda__ () {
+								return self._setData (entities.agents, __kwargtrans__ ({py_clear: false}));
+							}));
+							entities.refreshThings ().then ((function __lambda__ () {
+								return self._setData (entities.things, __kwargtrans__ ({py_clear: false}));
+							}));
+						});},
+						get _makeRow () {return __get__ (this, function (self, obj) {
+							var row = list ([]);
+							var __iterable0__ = self.fields;
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var field = __iterable0__ [__index0__];
+								if (field.py_name == 'issuants') {
+									var issuants = obj [field.py_name];
+									if (issuants) {
+										var data = len (issuants);
+									}
+									else {
+										var data = '';
+									}
+								}
+								else if (field.py_name == 'keys') {
+									var py_keys = obj [field.py_name];
+									if (py_keys) {
+										var data = len (py_keys);
+									}
+									else {
+										var data = '';
+									}
+								}
+								else if (field.py_name == 'data') {
+									var d = obj [field.py_name];
+									if (d && d.keywords && d.message) {
+										var data = ' '.join (d.keywords);
+										data += ' ' + d.message;
+									}
+									else {
+										var data = '';
+									}
+								}
+								else {
+									var data = obj [field.py_name];
+								}
+								row.append (field.view (data));
+							}
+							return row;
+						});}
+					});
 					var Entities = __class__ ('Entities', [TabledTab], {
 						Name: 'Entities',
 						Data_tab: 'entities',
 						Active: true,
 						get setup_table () {return __get__ (this, function (self) {
-							var fields = function () {
-								var __accu0__ = [];
-								var __iterable0__ = list (['DID', 'HID', 'Signer', 'Changed', 'Issuants', 'Data', 'Keys']);
-								for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
-									var x = __iterable0__ [__index0__];
-									__accu0__.append (Field (x));
-								}
-								return __accu0__;
-							} ();
-							self.table = Table (fields);
+							self.table = EntitiesTable ();
 						});}
 					});
 					var Issuants = __class__ ('Issuants', [TabledTab], {
@@ -2634,7 +2796,10 @@ function tests () {
 					});
 					var AnonMsgs = __class__ ('AnonMsgs', [TabledTab], {
 						Name: 'Anon Msgs',
-						Data_tab: 'anonmsgs'
+						Data_tab: 'anonmsgs',
+						get setup_table () {return __get__ (this, function (self) {
+							self.table = AnonMsgsTable ();
+						});}
 					});
 					var Searcher = __class__ ('Searcher', [object], {
 						get __init__ () {return __get__ (this, function (self) {
@@ -2661,7 +2826,7 @@ function tests () {
 							return false;
 						});},
 						get _checkAny () {return __get__ (this, function (self, value) {
-							if (isinstance (value, dict)) {
+							if (isinstance (value, dict) || isinstance (value, Object)) {
 								return self.search (value);
 							}
 							else if (isinstance (value, list)) {
@@ -2679,9 +2844,8 @@ function tests () {
 							}
 						});},
 						get search () {return __get__ (this, function (self, obj) {
-							var __iterable0__ = obj.py_values ();
-							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
-								var value = __iterable0__ [__index0__];
+							for (var key in obj) {
+								var value = obj [key];
 								if (self._checkAny (value)) {
 									return true;
 								}
@@ -2742,10 +2906,20 @@ function tests () {
 					'</use>')
 					__pragma__ ('<all>')
 						__all__.AnonMsgs = AnonMsgs;
+						__all__.AnonMsgsTable = AnonMsgsTable;
+						__all__.DIDField = DIDField;
+						__all__.DateField = DateField;
 						__all__.Entities = Entities;
+						__all__.EntitiesTable = EntitiesTable;
+						__all__.EpochField = EpochField;
 						__all__.Field = Field;
+						__all__.FillField = FillField;
+						__all__.HIDField = HIDField;
+						__all__.IDField = IDField;
 						__all__.Issuants = Issuants;
+						__all__.MIDField = MIDField;
 						__all__.Messages = Messages;
+						__all__.OIDField = OIDField;
 						__all__.Offers = Offers;
 						__all__.Searcher = Searcher;
 						__all__.Tab = Tab;
@@ -2827,6 +3001,49 @@ function tests () {
 					var Manager = __class__ ('Manager', [object], {
 						get __init__ () {return __get__ (this, function (self) {
 							self.anonMsgs = AnonMessages ();
+							self.entities = Entities ();
+						});}
+					});
+					var Entities = __class__ ('Entities', [object], {
+						get __init__ () {return __get__ (this, function (self) {
+							self.agents = list ([]);
+							self.things = list ([]);
+						});},
+						get refreshAgents () {return __get__ (this, function (self) {
+							while (len (self.agents)) {
+								self.agents.py_pop ();
+							}
+							return request ('/agent', __kwargtrans__ ({all: true})).then (self._parseAllAgents);
+						});},
+						get _parseAllAgents () {return __get__ (this, function (self, dids) {
+							var promises = list ([]);
+							var __iterable0__ = dids;
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var did = __iterable0__ [__index0__];
+								promises.append (request ('/agent', __kwargtrans__ ({did: did})).then (self._parseOneAgent));
+							}
+							return Promise.all (promises);
+						});},
+						get _parseOneAgent () {return __get__ (this, function (self, data) {
+							self.agents.append (data);
+						});},
+						get refreshThings () {return __get__ (this, function (self) {
+							while (len (self.things)) {
+								self.things.py_pop ();
+							}
+							return request ('/thing', __kwargtrans__ ({all: true})).then (self._parseAllThings);
+						});},
+						get _parseAllThings () {return __get__ (this, function (self, dids) {
+							var promises = list ([]);
+							var __iterable0__ = dids;
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var did = __iterable0__ [__index0__];
+								promises.append (request ('/thing', __kwargtrans__ ({did: did})).then (self._parseOneThing));
+							}
+							return Promise.all (promises);
+						});},
+						get _parseOneThing () {return __get__ (this, function (self, data) {
+							self.things.append (data);
 						});}
 					});
 					var AnonMessages = __class__ ('AnonMessages', [object], {
@@ -2852,24 +3069,16 @@ function tests () {
 							var __iterable0__ = messages;
 							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
 								var message = __iterable0__ [__index0__];
-								var msg = AnonMessage (message);
-								self.messages.append (msg);
+								self.messages.append (message);
 							}
 						});}
 					});
-					var AnonMessage = __class__ ('AnonMessage', [object], {
-						get __init__ () {return __get__ (this, function (self, data) {
-							self.uid = data.anon.uid;
-							self.content = data.anon.content;
-							self.date = data.anon.date;
-							self.created = data.create;
-							self.expire = data.expire;
-						});}
-					});
+					var manager = Manager ();
 					__pragma__ ('<all>')
-						__all__.AnonMessage = AnonMessage;
 						__all__.AnonMessages = AnonMessages;
+						__all__.Entities = Entities;
 						__all__.Manager = Manager;
+						__all__.manager = manager;
 						__all__.request = request;
 					__pragma__ ('</all>')
 				}
@@ -2886,6 +3095,7 @@ function tests () {
 					var inspector = __init__ (__world__.pylib.inspector);
 					var router = __init__ (__world__.pylib.router);
 					var o = require ('mithril/ospec/ospec');
+					var sinon = require ('sinon');
 					var Searcher = __class__ ('Searcher', [object], {
 						CaseSensitive: __class__ ('CaseSensitive', [object], {
 							get beforeEach () {return __get__ (this, function (self) {
@@ -2967,6 +3177,15 @@ function tests () {
 					var Searcher = test (Searcher);
 					var TabledTab = __class__ ('TabledTab', [object], {
 						_data: list ([dict ({'did': 'did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=', 'hid': 'hid:dns:localhost#02', 'signer': 'did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=#0', 'changed': '2000-01-01T00:00:00+00:00', 'issuants': list ([dict ({'kind': 'dns', 'issuer': 'localhost', 'registered': '2000-01-01T00:00:00+00:00', 'validationURL': 'http://localhost:8080/demo/check'})]), 'data': dict ({'keywords': list (['Canon', 'EOS Rebel T6', '251440']), 'message': 'test message'}), 'keys': list ([dict ({'key': 'dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=', 'kind': 'EdDSA'}), dict ({'key': '0UX5tP24WPEmAbROdXdygGAM3oDcvrqb3foX4EyayYI=', 'kind': 'EdDSA'})])}), dict ({'did': 'other1', 'data': dict ({'message': 'test message'})}), dict ({'did': 'other2', 'data': dict ({'message': 'another message'})})]),
+						get before () {return __get__ (this, function (self) {
+							self._testServer = sinon.createFakeServer ();
+							self._testServer.respondWith ('[]');
+							self._testServer.respondImmediately = true;
+							window.XMLHttpRequest = XMLHttpRequest;
+						});},
+						get after () {return __get__ (this, function (self) {
+							self._testServer.restore ();
+						});},
 						get asyncBeforeEach () {return __get__ (this, function (self, done) {
 							var r = router.Router ();
 							r.route ();
@@ -3075,6 +3294,7 @@ function tests () {
 						__all__.inspector = inspector;
 						__all__.o = o;
 						__all__.router = router;
+						__all__.sinon = sinon;
 						__all__.test = test;
 					__pragma__ ('</all>')
 				}
@@ -3147,10 +3367,10 @@ function tests () {
 							var f1 = function () {
 								o (len (manager.anonMsgs.messages)).equals (1) ('Only one actual message found');
 								var message = manager.anonMsgs.messages [0];
-								o (message.uid).equals ('uid1');
-								o (message.content).equals (mContent);
-								o (message.date).equals (mDate);
-								o (message.created).equals (mCreate);
+								o (message.anon.uid).equals ('uid1');
+								o (message.anon.content).equals (mContent);
+								o (message.anon.date).equals (mDate);
+								o (message.create).equals (mCreate);
 								o (message.expire).equals (mExpire);
 								done ();
 							};

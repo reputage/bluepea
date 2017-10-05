@@ -3,6 +3,7 @@ from .tests.tester import test
 from .pylib import inspector, router
 
 o = require("mithril/ospec/ospec")
+sinon = require("sinon")
 
 @test
 class Searcher:
@@ -209,6 +210,16 @@ class TabledTab:
                     "message": "another message"
                 }
         }]
+
+    def before(self):
+        # Need to make sure startup auto-loading doesn't cause an error, but we don't care about actual data
+        self._testServer = sinon.createFakeServer()
+        self._testServer.respondWith("[]")
+        self._testServer.respondImmediately = True
+        window.XMLHttpRequest = XMLHttpRequest
+
+    def after(self):
+        self._testServer.restore()
 
     def asyncBeforeEach(self, done):
         r = router.Router()

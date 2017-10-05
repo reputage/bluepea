@@ -344,7 +344,7 @@
 								}
 								else if (field.py_name == 'data') {
 									var d = obj [field.py_name];
-									if (d) {
+									if (d && d.keywords && d.message) {
 										var data = ' '.join (d.keywords);
 										data += ' ' + d.message;
 									}
@@ -433,7 +433,6 @@
 							for (var key in obj) {
 								var value = obj [key];
 								if (self._checkAny (value)) {
-									print ('Search found in ' + str (value));
 									return true;
 								}
 							}

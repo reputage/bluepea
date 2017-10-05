@@ -399,7 +399,7 @@ class EntitiesTable(Table):
                     data = ""
             elif field.name == "data":
                 d = obj[field.name]
-                if d:
+                if d and d.keywords and d.message:
                     data = " ".join(d.keywords)
                     data += " " + d.message
                 else:

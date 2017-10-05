@@ -77,10 +77,10 @@ class Server:
         def f1():
             o(len(manager.anonMsgs.messages)).equals(1)("Only one actual message found")
             message = manager.anonMsgs.messages[0]
-            o(message.uid).equals("uid1")
-            o(message.content).equals(mContent)
-            o(message.date).equals(mDate)
-            o(message.created).equals(mCreate)
+            o(message.anon.uid).equals("uid1")
+            o(message.anon.content).equals(mContent)
+            o(message.anon.date).equals(mDate)
+            o(message.create).equals(mCreate)
             o(message.expire).equals(mExpire)
             done()
 
