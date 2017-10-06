@@ -1254,6 +1254,7 @@ def preloadTestDbs(dbn="core", clobber=False):
     odat["expiration"] = expiration
     poffer['uid'] = ouid
     poser = json.dumps(poffer, indent=2)
+    odat['uid'] = ouid
     odat["offer"] = keyToKey64u(poser.encode("utf-8"))
     oser = json.dumps(odat, indent=2)
     osig = keyToKey64u(libnacl.crypto_sign(oser.encode("utf-8"), sSk)[:libnacl.crypto_sign_BYTES])
