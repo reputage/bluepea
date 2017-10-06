@@ -354,6 +354,18 @@
 							}));
 						});}
 					});
+					var MessagesTable = __class__ ('MessagesTable', [Table], {
+						get __init__ () {return __get__ (this, function (self) {
+							var fields = list ([MIDField ('UID'), Field ('Kind', __kwargtrans__ ({length: 8})), DateField (), DIDField ('To'), DIDField ('From'), DIDField ('Thing'), Field ('Subject', __kwargtrans__ ({length: 10})), FillField ('Content')]);
+							__super__ (MessagesTable, '__init__') (self, fields);
+						});},
+						get _oninit () {return __get__ (this, function (self) {
+							var entities = server.manager.entities;
+							entities.refreshMessages ().then ((function __lambda__ () {
+								return self._setData (entities.messages);
+							}));
+						});}
+					});
 					var EntitiesTable = __class__ ('EntitiesTable', [Table], {
 						get __init__ () {return __get__ (this, function (self) {
 							var fields = list ([DIDField (), HIDField (), DIDField ('Signer'), DateField ('Changed'), Field ('Issuants'), FillField ('Data'), Field ('Keys')]);
@@ -433,7 +445,10 @@
 					});
 					var Messages = __class__ ('Messages', [TabledTab], {
 						Name: 'Messages',
-						Data_tab: 'messages'
+						Data_tab: 'messages',
+						get setup_table () {return __get__ (this, function (self) {
+							self.table = MessagesTable ();
+						});}
 					});
 					var AnonMsgs = __class__ ('AnonMsgs', [TabledTab], {
 						Name: 'Anon Msgs',
@@ -561,6 +576,7 @@
 						__all__.IssuantsTable = IssuantsTable;
 						__all__.MIDField = MIDField;
 						__all__.Messages = Messages;
+						__all__.MessagesTable = MessagesTable;
 						__all__.OIDField = OIDField;
 						__all__.Offers = Offers;
 						__all__.OffersTable = OffersTable;

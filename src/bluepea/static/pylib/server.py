@@ -52,10 +52,12 @@ class Entities:
         self.things = []
         self.issuants = []
         self.offers = []
+        self.messages = []
         self.refreshAgents = onlyOne(self._refreshAgents)
         self.refreshThings = onlyOne(self._refreshThings)
         self.refreshIssuants = self.refreshAgents
         self.refreshOffers = self.refreshThings
+        self.refreshMessages = self.refreshAgents
 
     def _refreshAgents(self):
         while len(self.agents):
@@ -75,6 +77,10 @@ class Entities:
         promises = []
         for did in dids:
             promises.append(request("/agent", did=did).then(self._parseOneAgent))
+
+            def makeScope(did):
+                return lambda data: self._parseDIDMessages(did, data)
+            promises.append(request("/agent/" + str(did) + "/drop", all=True).then(makeScope(did)))
         return Promise.all(promises)
 
     def _parseOneAgent(self, data):
@@ -107,6 +113,36 @@ class Entities:
                 self.issuants.append(issuant)
         self.agents.append(data)
 
+    def _parseDIDMessages(self, did, data):
+        """
+        [
+          {
+            "from": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",
+            "uid": "m_00035d3d94be0000_15aabb5"
+          }
+        ]
+        """
+        promises = []
+        for messagestub in data:
+            promises.append(request("/agent/" + str(did) + "/drop", **{"from": messagestub["from"], "uid": messagestub.uid}).then(self._parseDIDMessage))
+        return Promise.all(promises)
+
+    def _parseDIDMessage(self, data):
+        """
+        {
+          "uid": "m_00035d3d94be0000_15aabb5",
+          "kind": "found",
+          "signer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#0",
+          "date": "2000-01-04T00:00:00+00:00",
+          "to": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+          "from": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=",
+          "thing": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
+          "subject": "Lose something?",
+          "content": "I am so happy your found it."
+        }
+        """
+        self.messages.append(data)
+
     def _refreshThings(self):
         while len(self.things):
             self.things.pop()
@@ -122,9 +158,9 @@ class Entities:
         for did in dids:
             promises.append(request("/thing", did=did).then(self._parseOneThing))
 
-            def scope():
+            def makeScope(did):
                 return lambda data: self._parseDIDOffers(did, data)
-            promises.append(request("/thing/" + str(did) + "/offer", all=True).then(scope()))
+            promises.append(request("/thing/" + str(did) + "/offer", all=True).then(makeScope(did)))
         return Promise.all(promises)
 
     def _parseOneThing(self, data):
@@ -191,12 +227,31 @@ class AnonMessages:
         return request("/anon", all=True).then(self._parseAll)
 
     def _parseAll(self, uids):
+        """
+        [
+          "AQIDBAoLDA0=",
+          "BBIDBAoLCCC="
+        ]
+        """
         promises = []
         for uid in uids:
             promises.append(request("/anon", uid=uid).then(self._parseOne))
         return Promise.all(promises)
 
     def _parseOne(self, messages):
+        """
+        [
+          {
+            "create": 1507303692490959,
+            "expire": 1507390092490959,
+            "anon": {
+              "uid": "BBIDBAoLCCC=",
+              "content": "EjRWeBI0Vng=",
+              "date": "2017-10-06T15:28:17.490959+00:00"
+            }
+          }
+        ]
+        """
         for message in messages:
             self.messages.append(message)
 

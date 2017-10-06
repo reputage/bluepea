@@ -413,6 +413,25 @@ class OffersTable(Table):
         entities.refreshOffers().then(lambda: self._setData(entities.offers))
 
 
+class MessagesTable(Table):
+    def __init__(self):
+        fields = [
+            MIDField("UID"),
+            Field("Kind", length=8),
+            DateField(),
+            DIDField("To"),
+            DIDField("From"),
+            DIDField("Thing"),
+            Field("Subject", length=10),
+            FillField("Content")
+        ]
+        super().__init__(fields)
+
+    def _oninit(self):
+        entities = server.manager.entities
+        entities.refreshMessages().then(lambda: self._setData(entities.messages))
+
+
 class EntitiesTable(Table):
     def __init__(self):
         fields = [
@@ -489,6 +508,9 @@ class Offers(TabledTab):
 class Messages(TabledTab):
     Name = "Messages"
     Data_tab = "messages"
+
+    def setup_table(self):
+        self.table = MessagesTable()
 
 
 class AnonMsgs(TabledTab):

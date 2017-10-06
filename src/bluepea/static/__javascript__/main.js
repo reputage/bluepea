@@ -1,5 +1,5 @@
 "use strict";
-// Transcrypt'ed from Python, 2017-10-06 09:33:07
+// Transcrypt'ed from Python, 2017-10-06 10:13:58
 function main () {
    var __symbols__ = ['__py3.6__', '__esv5__'];
     var __all__ = {};
@@ -2768,6 +2768,18 @@ function main () {
 							}));
 						});}
 					});
+					var MessagesTable = __class__ ('MessagesTable', [Table], {
+						get __init__ () {return __get__ (this, function (self) {
+							var fields = list ([MIDField ('UID'), Field ('Kind', __kwargtrans__ ({length: 8})), DateField (), DIDField ('To'), DIDField ('From'), DIDField ('Thing'), Field ('Subject', __kwargtrans__ ({length: 10})), FillField ('Content')]);
+							__super__ (MessagesTable, '__init__') (self, fields);
+						});},
+						get _oninit () {return __get__ (this, function (self) {
+							var entities = server.manager.entities;
+							entities.refreshMessages ().then ((function __lambda__ () {
+								return self._setData (entities.messages);
+							}));
+						});}
+					});
 					var EntitiesTable = __class__ ('EntitiesTable', [Table], {
 						get __init__ () {return __get__ (this, function (self) {
 							var fields = list ([DIDField (), HIDField (), DIDField ('Signer'), DateField ('Changed'), Field ('Issuants'), FillField ('Data'), Field ('Keys')]);
@@ -2847,7 +2859,10 @@ function main () {
 					});
 					var Messages = __class__ ('Messages', [TabledTab], {
 						Name: 'Messages',
-						Data_tab: 'messages'
+						Data_tab: 'messages',
+						get setup_table () {return __get__ (this, function (self) {
+							self.table = MessagesTable ();
+						});}
 					});
 					var AnonMsgs = __class__ ('AnonMsgs', [TabledTab], {
 						Name: 'Anon Msgs',
@@ -2975,6 +2990,7 @@ function main () {
 						__all__.IssuantsTable = IssuantsTable;
 						__all__.MIDField = MIDField;
 						__all__.Messages = Messages;
+						__all__.MessagesTable = MessagesTable;
 						__all__.OIDField = OIDField;
 						__all__.Offers = Offers;
 						__all__.OffersTable = OffersTable;
@@ -3083,10 +3099,12 @@ function main () {
 							self.things = list ([]);
 							self.issuants = list ([]);
 							self.offers = list ([]);
+							self.messages = list ([]);
 							self.refreshAgents = onlyOne (self._refreshAgents);
 							self.refreshThings = onlyOne (self._refreshThings);
 							self.refreshIssuants = self.refreshAgents;
 							self.refreshOffers = self.refreshThings;
+							self.refreshMessages = self.refreshAgents;
 						});},
 						get _refreshAgents () {return __get__ (this, function (self) {
 							while (len (self.agents)) {
@@ -3100,6 +3118,12 @@ function main () {
 							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
 								var did = __iterable0__ [__index0__];
 								promises.append (request ('/agent', __kwargtrans__ ({did: did})).then (self._parseOneAgent));
+								var makeScope = function (did) {
+									return (function __lambda__ (data) {
+										return self._parseDIDMessages (did, data);
+									});
+								};
+								promises.append (request (('/agent/' + str (did)) + '/drop', __kwargtrans__ ({all: true})).then (makeScope (did)));
 							}
 							return Promise.all (promises);
 						});},
@@ -3115,6 +3139,21 @@ function main () {
 							}
 							self.agents.append (data);
 						});},
+						get _parseDIDMessages () {return __get__ (this, function (self, did, data) {
+							var promises = list ([]);
+							var __iterable0__ = data;
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var messagestub = __iterable0__ [__index0__];
+								print ('request did=' + str (did));
+								print ('    from=' + str (messagestub ['from']));
+								print ('    uid =' + str (messagestub ['uid']));
+								promises.append (request (('/agent/' + str (did)) + '/drop', __kwargtrans__ (dict ({'from': messagestub ['from'], 'uid': messagestub.uid}))).then (self._parseDIDMessage));
+							}
+							return Promise.all (promises);
+						});},
+						get _parseDIDMessage () {return __get__ (this, function (self, data) {
+							self.messages.append (data);
+						});},
 						get _refreshThings () {return __get__ (this, function (self) {
 							while (len (self.things)) {
 								self.things.py_pop ();
@@ -3127,12 +3166,12 @@ function main () {
 							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
 								var did = __iterable0__ [__index0__];
 								promises.append (request ('/thing', __kwargtrans__ ({did: did})).then (self._parseOneThing));
-								var scope = function () {
+								var makeScope = function (did) {
 									return (function __lambda__ (data) {
 										return self._parseDIDOffers (did, data);
 									});
 								};
-								promises.append (request (('/thing/' + str (did)) + '/offer', __kwargtrans__ ({all: true})).then (scope ()));
+								promises.append (request (('/thing/' + str (did)) + '/offer', __kwargtrans__ ({all: true})).then (makeScope (did)));
 							}
 							return Promise.all (promises);
 						});},
