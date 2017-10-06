@@ -1202,7 +1202,7 @@ def preloadTestDbs(dbn="core", clobber=False):
     msg['content'] = "I am so happy your found it."
 
     mser = json.dumps(msg, indent=2)
-    msig = keyToKey64u(libnacl.crypto_sign(mser.encode("utf-8"), annSk)[:libnacl.crypto_sign_BYTES])
+    msig = keyToKey64u(libnacl.crypto_sign(mser.encode("utf-8"), ivySk)[:libnacl.crypto_sign_BYTES])
     key = "{}/drop/{}/{}".format(annDid, ivyDid, muid)
     putSigned(key=key, ser=mser, sig=msig, clobber=False)  # no clobber so error
 
