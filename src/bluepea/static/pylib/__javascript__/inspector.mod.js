@@ -56,9 +56,12 @@
 					var Field = __class__ ('Field', [object], {
 						Title: null,
 						Length: 4,
-						get __init__ () {return __get__ (this, function (self, title) {
+						get __init__ () {return __get__ (this, function (self, title, length) {
 							if (typeof title == 'undefined' || (title != null && title .hasOwnProperty ("__kwargtrans__"))) {;
 								var title = null;
+							};
+							if (typeof length == 'undefined' || (length != null && length .hasOwnProperty ("__kwargtrans__"))) {;
+								var length = null;
 							};
 							if (arguments.length) {
 								var __ilastarg0__ = arguments.length - 1;
@@ -68,6 +71,7 @@
 										switch (__attrib0__) {
 											case 'self': var self = __allkwargs0__ [__attrib0__]; break;
 											case 'title': var title = __allkwargs0__ [__attrib0__]; break;
+											case 'length': var length = __allkwargs0__ [__attrib0__]; break;
 										}
 									}
 								}
@@ -78,14 +82,18 @@
 							if (title !== null) {
 								self.title = title;
 							}
+							self.mlength = self.Length;
+							if (length !== null) {
+								self.mlength = length;
+							}
 							self.py_name = self.title.lower ();
 						});},
 						get format () {return __get__ (this, function (self, data) {
 							return str (data);
 						});},
 						get shorten () {return __get__ (this, function (self, string) {
-							if (len (string) > self.Length + 3) {
-								var string = string.__getslice__ (0, self.Length, 1) + '...';
+							if (len (string) > self.mlength + 3) {
+								var string = string.__getslice__ (0, self.mlength, 1) + '...';
 							}
 							return string;
 						});},
@@ -141,10 +149,12 @@
 						});}
 					});
 					var OIDField = __class__ ('OIDField', [IDField], {
-						Header: 'o_'
+						Header: 'o_',
+						Title: 'UID'
 					});
 					var MIDField = __class__ ('MIDField', [IDField], {
-						Header: 'm_'
+						Header: 'm_',
+						Title: 'UID'
 					});
 					var Table = __class__ ('Table', [object], {
 						no_results_text: 'No results found.',
@@ -332,6 +342,18 @@
 							return row;
 						});}
 					});
+					var OffersTable = __class__ ('OffersTable', [Table], {
+						get __init__ () {return __get__ (this, function (self) {
+							var fields = list ([OIDField ('UID'), DIDField ('Thing'), DIDField ('Aspirant'), Field ('Duration', __kwargtrans__ ({length: 5})), DateField ('Expiration'), DIDField ('Signer'), DIDField ('Offerer')]);
+							__super__ (OffersTable, '__init__') (self, fields);
+						});},
+						get _oninit () {return __get__ (this, function (self) {
+							var entities = server.manager.entities;
+							entities.refreshOffers ().then ((function __lambda__ () {
+								return self._setData (entities.offers);
+							}));
+						});}
+					});
 					var EntitiesTable = __class__ ('EntitiesTable', [Table], {
 						get __init__ () {return __get__ (this, function (self) {
 							var fields = list ([DIDField (), HIDField (), DIDField ('Signer'), DateField ('Changed'), Field ('Issuants'), FillField ('Data'), Field ('Keys')]);
@@ -404,7 +426,10 @@
 					});
 					var Offers = __class__ ('Offers', [TabledTab], {
 						Name: 'Offers',
-						Data_tab: 'offers'
+						Data_tab: 'offers',
+						get setup_table () {return __get__ (this, function (self) {
+							self.table = OffersTable ();
+						});}
 					});
 					var Messages = __class__ ('Messages', [TabledTab], {
 						Name: 'Messages',
@@ -538,6 +563,7 @@
 						__all__.Messages = Messages;
 						__all__.OIDField = OIDField;
 						__all__.Offers = Offers;
+						__all__.OffersTable = OffersTable;
 						__all__.Searcher = Searcher;
 						__all__.Tab = Tab;
 						__all__.Table = Table;

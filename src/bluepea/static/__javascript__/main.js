@@ -1,5 +1,5 @@
 "use strict";
-// Transcrypt'ed from Python, 2017-10-05 16:43:54
+// Transcrypt'ed from Python, 2017-10-06 09:33:07
 function main () {
    var __symbols__ = ['__py3.6__', '__esv5__'];
     var __all__ = {};
@@ -2470,9 +2470,12 @@ function main () {
 					var Field = __class__ ('Field', [object], {
 						Title: null,
 						Length: 4,
-						get __init__ () {return __get__ (this, function (self, title) {
+						get __init__ () {return __get__ (this, function (self, title, length) {
 							if (typeof title == 'undefined' || (title != null && title .hasOwnProperty ("__kwargtrans__"))) {;
 								var title = null;
+							};
+							if (typeof length == 'undefined' || (length != null && length .hasOwnProperty ("__kwargtrans__"))) {;
+								var length = null;
 							};
 							if (arguments.length) {
 								var __ilastarg0__ = arguments.length - 1;
@@ -2482,6 +2485,7 @@ function main () {
 										switch (__attrib0__) {
 											case 'self': var self = __allkwargs0__ [__attrib0__]; break;
 											case 'title': var title = __allkwargs0__ [__attrib0__]; break;
+											case 'length': var length = __allkwargs0__ [__attrib0__]; break;
 										}
 									}
 								}
@@ -2492,14 +2496,18 @@ function main () {
 							if (title !== null) {
 								self.title = title;
 							}
+							self.mlength = self.Length;
+							if (length !== null) {
+								self.mlength = length;
+							}
 							self.py_name = self.title.lower ();
 						});},
 						get format () {return __get__ (this, function (self, data) {
 							return str (data);
 						});},
 						get shorten () {return __get__ (this, function (self, string) {
-							if (len (string) > self.Length + 3) {
-								var string = string.__getslice__ (0, self.Length, 1) + '...';
+							if (len (string) > self.mlength + 3) {
+								var string = string.__getslice__ (0, self.mlength, 1) + '...';
 							}
 							return string;
 						});},
@@ -2555,10 +2563,12 @@ function main () {
 						});}
 					});
 					var OIDField = __class__ ('OIDField', [IDField], {
-						Header: 'o_'
+						Header: 'o_',
+						Title: 'UID'
 					});
 					var MIDField = __class__ ('MIDField', [IDField], {
-						Header: 'm_'
+						Header: 'm_',
+						Title: 'UID'
 					});
 					var Table = __class__ ('Table', [object], {
 						no_results_text: 'No results found.',
@@ -2746,6 +2756,18 @@ function main () {
 							return row;
 						});}
 					});
+					var OffersTable = __class__ ('OffersTable', [Table], {
+						get __init__ () {return __get__ (this, function (self) {
+							var fields = list ([OIDField ('UID'), DIDField ('Thing'), DIDField ('Aspirant'), Field ('Duration', __kwargtrans__ ({length: 5})), DateField ('Expiration'), DIDField ('Signer'), DIDField ('Offerer')]);
+							__super__ (OffersTable, '__init__') (self, fields);
+						});},
+						get _oninit () {return __get__ (this, function (self) {
+							var entities = server.manager.entities;
+							entities.refreshOffers ().then ((function __lambda__ () {
+								return self._setData (entities.offers);
+							}));
+						});}
+					});
 					var EntitiesTable = __class__ ('EntitiesTable', [Table], {
 						get __init__ () {return __get__ (this, function (self) {
 							var fields = list ([DIDField (), HIDField (), DIDField ('Signer'), DateField ('Changed'), Field ('Issuants'), FillField ('Data'), Field ('Keys')]);
@@ -2818,7 +2840,10 @@ function main () {
 					});
 					var Offers = __class__ ('Offers', [TabledTab], {
 						Name: 'Offers',
-						Data_tab: 'offers'
+						Data_tab: 'offers',
+						get setup_table () {return __get__ (this, function (self) {
+							self.table = OffersTable ();
+						});}
 					});
 					var Messages = __class__ ('Messages', [TabledTab], {
 						Name: 'Messages',
@@ -2952,6 +2977,7 @@ function main () {
 						__all__.Messages = Messages;
 						__all__.OIDField = OIDField;
 						__all__.Offers = Offers;
+						__all__.OffersTable = OffersTable;
 						__all__.Searcher = Searcher;
 						__all__.Tab = Tab;
 						__all__.Table = Table;
@@ -3056,9 +3082,11 @@ function main () {
 							self.agents = list ([]);
 							self.things = list ([]);
 							self.issuants = list ([]);
+							self.offers = list ([]);
 							self.refreshAgents = onlyOne (self._refreshAgents);
 							self.refreshThings = onlyOne (self._refreshThings);
 							self.refreshIssuants = self.refreshAgents;
+							self.refreshOffers = self.refreshThings;
 						});},
 						get _refreshAgents () {return __get__ (this, function (self) {
 							while (len (self.agents)) {
@@ -3082,7 +3110,6 @@ function main () {
 									var i = __iterable0__ [__index0__];
 									var issuant = jQuery.extend (true, dict ({}), i);
 									issuant.did = data.did;
-									issuant.blahblah = 'blahblah';
 									self.issuants.append (issuant);
 								}
 							}
@@ -3100,11 +3127,29 @@ function main () {
 							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
 								var did = __iterable0__ [__index0__];
 								promises.append (request ('/thing', __kwargtrans__ ({did: did})).then (self._parseOneThing));
+								var scope = function () {
+									return (function __lambda__ (data) {
+										return self._parseDIDOffers (did, data);
+									});
+								};
+								promises.append (request (('/thing/' + str (did)) + '/offer', __kwargtrans__ ({all: true})).then (scope ()));
 							}
 							return Promise.all (promises);
 						});},
 						get _parseOneThing () {return __get__ (this, function (self, data) {
 							self.things.append (data);
+						});},
+						get _parseDIDOffers () {return __get__ (this, function (self, did, data) {
+							var promises = list ([]);
+							var __iterable0__ = data;
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var offerstub = __iterable0__ [__index0__];
+								promises.append (request (('/thing/' + str (did)) + '/offer', __kwargtrans__ ({uid: offerstub.uid})).then (self._parseDIDOffer));
+							}
+							return Promise.all (promises);
+						});},
+						get _parseDIDOffer () {return __get__ (this, function (self, data) {
+							self.offers.append (data);
 						});}
 					});
 					var AnonMessages = __class__ ('AnonMessages', [object], {

@@ -118,10 +118,15 @@ class Field:
     """Length of string to display before truncating with ellipses"""
 
     __pragma__("kwargs")
-    def __init__(self, title=None):
+    def __init__(self, title=None, length=None):
         self.title = self.Title
         if title is not None:
             self.title = title
+
+        # Cannot assign "length" to object
+        self.mlength = self.Length
+        if length is not None:
+            self.mlength = length
 
         self.name = self.title.lower()
     __pragma__("nokwargs")
@@ -136,8 +141,8 @@ class Field:
         """
         Shortens the string to an appropriate length for display.
         """
-        if len(string) > self.Length + 3:
-            string = string[:self.Length] + "..."
+        if len(string) > self.mlength + 3:
+            string = string[:self.mlength] + "..."
         return string
 
     def view(self, data):
@@ -208,9 +213,11 @@ class HIDField(IDField):
 
 class OIDField(IDField):
     Header = "o_"
+    Title = "UID"
 
 class MIDField(IDField):
     Header = "m_"
+    Title = "UID"
 
 
 class Table:
@@ -388,6 +395,24 @@ class IssuantsTable(Table):
         return row
 
 
+class OffersTable(Table):
+    def __init__(self):
+        fields = [
+            OIDField("UID"),
+            DIDField("Thing"),
+            DIDField("Aspirant"),
+            Field("Duration", length=5),
+            DateField("Expiration"),
+            DIDField("Signer"),
+            DIDField("Offerer")
+        ]
+        super().__init__(fields)
+
+    def _oninit(self):
+        entities = server.manager.entities
+        entities.refreshOffers().then(lambda: self._setData(entities.offers))
+
+
 class EntitiesTable(Table):
     def __init__(self):
         fields = [
@@ -456,6 +481,9 @@ class Issuants(TabledTab):
 class Offers(TabledTab):
     Name = "Offers"
     Data_tab = "offers"
+
+    def setup_table(self):
+        self.table = OffersTable()
 
 
 class Messages(TabledTab):
