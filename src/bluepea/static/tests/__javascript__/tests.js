@@ -1,5 +1,5 @@
 "use strict";
-// Transcrypt'ed from Python, 2017-10-04 23:46:25
+// Transcrypt'ed from Python, 2017-10-07 16:40:09
 function tests () {
    var __symbols__ = ['__py3.6__', '__esv5__'];
     var __all__ = {};
@@ -2470,9 +2470,12 @@ function tests () {
 					var Field = __class__ ('Field', [object], {
 						Title: null,
 						Length: 4,
-						get __init__ () {return __get__ (this, function (self, title) {
+						get __init__ () {return __get__ (this, function (self, title, length) {
 							if (typeof title == 'undefined' || (title != null && title .hasOwnProperty ("__kwargtrans__"))) {;
 								var title = null;
+							};
+							if (typeof length == 'undefined' || (length != null && length .hasOwnProperty ("__kwargtrans__"))) {;
+								var length = null;
 							};
 							if (arguments.length) {
 								var __ilastarg0__ = arguments.length - 1;
@@ -2482,6 +2485,7 @@ function tests () {
 										switch (__attrib0__) {
 											case 'self': var self = __allkwargs0__ [__attrib0__]; break;
 											case 'title': var title = __allkwargs0__ [__attrib0__]; break;
+											case 'length': var length = __allkwargs0__ [__attrib0__]; break;
 										}
 									}
 								}
@@ -2492,14 +2496,18 @@ function tests () {
 							if (title !== null) {
 								self.title = title;
 							}
+							self.mlength = self.Length;
+							if (length !== null) {
+								self.mlength = length;
+							}
 							self.py_name = self.title.lower ();
 						});},
 						get format () {return __get__ (this, function (self, data) {
 							return str (data);
 						});},
 						get shorten () {return __get__ (this, function (self, string) {
-							if (len (string) > self.Length + 3) {
-								var string = string.__getslice__ (0, self.Length, 1) + '...';
+							if (len (string) > self.mlength + 3) {
+								var string = string.__getslice__ (0, self.mlength, 1) + '...';
 							}
 							return string;
 						});},
@@ -2555,10 +2563,12 @@ function tests () {
 						});}
 					});
 					var OIDField = __class__ ('OIDField', [IDField], {
-						Header: 'o_'
+						Header: 'o_',
+						Title: 'UID'
 					});
 					var MIDField = __class__ ('MIDField', [IDField], {
-						Header: 'm_'
+						Header: 'm_',
+						Title: 'UID'
 					});
 					var Table = __class__ ('Table', [object], {
 						no_results_text: 'No results found.',
@@ -2719,6 +2729,57 @@ function tests () {
 							return row;
 						});}
 					});
+					var IssuantsTable = __class__ ('IssuantsTable', [Table], {
+						get __init__ () {return __get__ (this, function (self) {
+							var fields = list ([DIDField (), Field ('Kind'), FillField ('Issuer'), DateField ('Registered'), FillField ('URL')]);
+							__super__ (IssuantsTable, '__init__') (self, fields);
+						});},
+						get _oninit () {return __get__ (this, function (self) {
+							var entities = server.manager.entities;
+							entities.refreshIssuants ().then ((function __lambda__ () {
+								return self._setData (entities.issuants);
+							}));
+						});},
+						get _makeRow () {return __get__ (this, function (self, obj) {
+							var row = list ([]);
+							var __iterable0__ = self.fields;
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var field = __iterable0__ [__index0__];
+								if (field.py_name == 'url') {
+									var data = obj.validationURL;
+								}
+								else {
+									var data = obj [field.py_name];
+								}
+								row.append (field.view (data));
+							}
+							return row;
+						});}
+					});
+					var OffersTable = __class__ ('OffersTable', [Table], {
+						get __init__ () {return __get__ (this, function (self) {
+							var fields = list ([OIDField ('UID'), DIDField ('Thing'), DIDField ('Aspirant'), Field ('Duration', __kwargtrans__ ({length: 5})), DateField ('Expiration'), DIDField ('Signer'), DIDField ('Offerer')]);
+							__super__ (OffersTable, '__init__') (self, fields);
+						});},
+						get _oninit () {return __get__ (this, function (self) {
+							var entities = server.manager.entities;
+							entities.refreshOffers ().then ((function __lambda__ () {
+								return self._setData (entities.offers);
+							}));
+						});}
+					});
+					var MessagesTable = __class__ ('MessagesTable', [Table], {
+						get __init__ () {return __get__ (this, function (self) {
+							var fields = list ([MIDField ('UID'), Field ('Kind', __kwargtrans__ ({length: 8})), DateField (), DIDField ('To'), DIDField ('From'), DIDField ('Thing'), Field ('Subject', __kwargtrans__ ({length: 10})), FillField ('Content')]);
+							__super__ (MessagesTable, '__init__') (self, fields);
+						});},
+						get _oninit () {return __get__ (this, function (self) {
+							var entities = server.manager.entities;
+							entities.refreshMessages ().then ((function __lambda__ () {
+								return self._setData (entities.messages);
+							}));
+						});}
+					});
 					var EntitiesTable = __class__ ('EntitiesTable', [Table], {
 						get __init__ () {return __get__ (this, function (self) {
 							var fields = list ([DIDField (), HIDField (), DIDField ('Signer'), DateField ('Changed'), Field ('Issuants'), FillField ('Data'), Field ('Keys')]);
@@ -2784,15 +2845,24 @@ function tests () {
 					});
 					var Issuants = __class__ ('Issuants', [TabledTab], {
 						Name: 'Issuants',
-						Data_tab: 'issuants'
+						Data_tab: 'issuants',
+						get setup_table () {return __get__ (this, function (self) {
+							self.table = IssuantsTable ();
+						});}
 					});
 					var Offers = __class__ ('Offers', [TabledTab], {
 						Name: 'Offers',
-						Data_tab: 'offers'
+						Data_tab: 'offers',
+						get setup_table () {return __get__ (this, function (self) {
+							self.table = OffersTable ();
+						});}
 					});
 					var Messages = __class__ ('Messages', [TabledTab], {
 						Name: 'Messages',
-						Data_tab: 'messages'
+						Data_tab: 'messages',
+						get setup_table () {return __get__ (this, function (self) {
+							self.table = MessagesTable ();
+						});}
 					});
 					var AnonMsgs = __class__ ('AnonMsgs', [TabledTab], {
 						Name: 'Anon Msgs',
@@ -2917,10 +2987,13 @@ function tests () {
 						__all__.HIDField = HIDField;
 						__all__.IDField = IDField;
 						__all__.Issuants = Issuants;
+						__all__.IssuantsTable = IssuantsTable;
 						__all__.MIDField = MIDField;
 						__all__.Messages = Messages;
+						__all__.MessagesTable = MessagesTable;
 						__all__.OIDField = OIDField;
 						__all__.Offers = Offers;
+						__all__.OffersTable = OffersTable;
 						__all__.Searcher = Searcher;
 						__all__.Tab = Tab;
 						__all__.Table = Table;
@@ -3004,12 +3077,36 @@ function tests () {
 							self.entities = Entities ();
 						});}
 					});
+					var onlyOne = function (func) {
+						var scope = dict ({'promise': null});
+						var wrap = function () {
+							if (scope.promise != null) {
+								return scope.promise;
+							}
+							var f = function (resolve, reject) {
+								var p = func ();
+								p.then (resolve);
+								p.catch (reject);
+							};
+							scope.promise = new Promise (f);
+							return scope.promise;
+						};
+						return wrap;
+					};
 					var Entities = __class__ ('Entities', [object], {
 						get __init__ () {return __get__ (this, function (self) {
 							self.agents = list ([]);
 							self.things = list ([]);
+							self.issuants = list ([]);
+							self.offers = list ([]);
+							self.messages = list ([]);
+							self.refreshAgents = onlyOne (self._refreshAgents);
+							self.refreshThings = onlyOne (self._refreshThings);
+							self.refreshIssuants = self.refreshAgents;
+							self.refreshOffers = self.refreshThings;
+							self.refreshMessages = self.refreshAgents;
 						});},
-						get refreshAgents () {return __get__ (this, function (self) {
+						get _refreshAgents () {return __get__ (this, function (self) {
 							while (len (self.agents)) {
 								self.agents.py_pop ();
 							}
@@ -3021,13 +3118,40 @@ function tests () {
 							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
 								var did = __iterable0__ [__index0__];
 								promises.append (request ('/agent', __kwargtrans__ ({did: did})).then (self._parseOneAgent));
+								var makeScope = function (did) {
+									return (function __lambda__ (data) {
+										return self._parseDIDMessages (did, data);
+									});
+								};
+								promises.append (request (('/agent/' + str (did)) + '/drop', __kwargtrans__ ({all: true})).then (makeScope (did)));
 							}
 							return Promise.all (promises);
 						});},
 						get _parseOneAgent () {return __get__ (this, function (self, data) {
+							if (data.issuants && len (data.issuants) > 0) {
+								var __iterable0__ = data.issuants;
+								for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+									var i = __iterable0__ [__index0__];
+									var issuant = jQuery.extend (true, dict ({}), i);
+									issuant.did = data.did;
+									self.issuants.append (issuant);
+								}
+							}
 							self.agents.append (data);
 						});},
-						get refreshThings () {return __get__ (this, function (self) {
+						get _parseDIDMessages () {return __get__ (this, function (self, did, data) {
+							var promises = list ([]);
+							var __iterable0__ = data;
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var messagestub = __iterable0__ [__index0__];
+								promises.append (request (('/agent/' + str (did)) + '/drop', __kwargtrans__ (dict ({'from': messagestub ['from'], 'uid': messagestub.uid}))).then (self._parseDIDMessage));
+							}
+							return Promise.all (promises);
+						});},
+						get _parseDIDMessage () {return __get__ (this, function (self, data) {
+							self.messages.append (data);
+						});},
+						get _refreshThings () {return __get__ (this, function (self) {
 							while (len (self.things)) {
 								self.things.py_pop ();
 							}
@@ -3039,18 +3163,37 @@ function tests () {
 							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
 								var did = __iterable0__ [__index0__];
 								promises.append (request ('/thing', __kwargtrans__ ({did: did})).then (self._parseOneThing));
+								var makeScope = function (did) {
+									return (function __lambda__ (data) {
+										return self._parseDIDOffers (did, data);
+									});
+								};
+								promises.append (request (('/thing/' + str (did)) + '/offer', __kwargtrans__ ({all: true})).then (makeScope (did)));
 							}
 							return Promise.all (promises);
 						});},
 						get _parseOneThing () {return __get__ (this, function (self, data) {
 							self.things.append (data);
+						});},
+						get _parseDIDOffers () {return __get__ (this, function (self, did, data) {
+							var promises = list ([]);
+							var __iterable0__ = data;
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var offerstub = __iterable0__ [__index0__];
+								promises.append (request (('/thing/' + str (did)) + '/offer', __kwargtrans__ ({uid: offerstub.uid})).then (self._parseDIDOffer));
+							}
+							return Promise.all (promises);
+						});},
+						get _parseDIDOffer () {return __get__ (this, function (self, data) {
+							self.offers.append (data);
 						});}
 					});
 					var AnonMessages = __class__ ('AnonMessages', [object], {
 						get __init__ () {return __get__ (this, function (self) {
 							self.messages = list ([]);
+							self.refresh = onlyOne (self._refresh);
 						});},
-						get refresh () {return __get__ (this, function (self) {
+						get _refresh () {return __get__ (this, function (self) {
 							while (len (self.messages)) {
 								self.messages.py_pop ();
 							}
@@ -3079,6 +3222,7 @@ function tests () {
 						__all__.Entities = Entities;
 						__all__.Manager = Manager;
 						__all__.manager = manager;
+						__all__.onlyOne = onlyOne;
 						__all__.request = request;
 					__pragma__ ('</all>')
 				}
@@ -3322,6 +3466,11 @@ function tests () {
 						get _respond () {return __get__ (this, function (self, request, response) {
 							request.respond (200, dict ({'Content-Type': 'application/json'}), JSON.stringify (response));
 						});},
+						get _respondTo () {return __get__ (this, function (self, endpoint, data) {
+							self.testServer.respondWith (endpoint, (function __lambda__ (request) {
+								return self._respond (request, data);
+							}));
+						});},
 						get basicRequest () {return __get__ (this, function (self) {
 							var endpoint = '/foo';
 							var verify = function (request) {
@@ -3348,34 +3497,129 @@ function tests () {
 						get asyncAnonMessages () {return __get__ (this, function (self, done) {
 							var manager = server.Manager ();
 							o (len (manager.anonMsgs.messages)).equals (0) ('No messages at start');
-							var all_ = function (request) {
-								self._respond (request, list (['uid1', 'uid2']));
-							};
-							self.testServer.respondWith ('/anon?all=true', all_);
-							var mContent = 'EjRWeBI0Vng=';
-							var mDate = '2017-10-03T20:55:45.186082+00:00';
-							var mCreate = 1507064140186082;
-							var mExpire = 1507150540186082;
-							var uid1 = function (request) {
-								self._respond (request, list ([dict ({'create': mCreate, 'expire': mExpire, 'anon': dict ({'uid': 'uid1', 'content': mContent, 'date': mDate})})]));
-							};
-							self.testServer.respondWith ('/anon?uid=uid1', uid1);
-							var uid2 = function (request) {
-								self._respond (request, list ([]));
-							};
-							self.testServer.respondWith ('/anon?uid=uid2', uid2);
+							self._respondTo ('/anon?all=true', list (['uid1', 'uid2']));
+							var messages1 = list ([dict ({'create': 1507064140186082, 'expire': 1507150540186082, 'anon': dict ({'uid': 'uid1', 'content': 'EjRWeBI0Vng=', 'date': '2017-10-03T20:55:45.186082+00:00'})})]);
+							var messages2 = list ([]);
+							self._respondTo ('/anon?uid=uid1', messages1);
+							self._respondTo ('/anon?uid=uid2', messages2);
 							var f1 = function () {
 								o (len (manager.anonMsgs.messages)).equals (1) ('Only one actual message found');
-								var message = manager.anonMsgs.messages [0];
-								o (message.anon.uid).equals ('uid1');
-								o (message.anon.content).equals (mContent);
-								o (message.anon.date).equals (mDate);
-								o (message.create).equals (mCreate);
-								o (message.expire).equals (mExpire);
+								o (manager.anonMsgs.messages [0]).deepEquals (messages1 [0]);
 								done ();
 							};
 							self.testServer.autoRespond = true;
 							manager.anonMsgs.refresh ().then (f1);
+						});},
+						get asyncAgents () {return __get__ (this, function (self, done) {
+							var manager = server.Manager ();
+							o (len (manager.entities.agents)).equals (0);
+							self._respondTo ('/agent?all=true', list (['did1', 'did2']));
+							var agent1 = dict ({'did': 'did1', 'signer': 'did1#0', 'changed': '2000-01-01T00:00:00+00:00', 'keys': list ([dict ({'key': '3syVH2woCpOvPF0SD9Z0bu_OxNe2ZgxKjTQ961LlMnA=', 'kind': 'EdDSA'})]), 'issuants': list ([dict ({'kind': 'dns', 'issuer': 'localhost', 'registered': '2000-01-01T00:00:00+00:00', 'validationURL': 'http://localhost:8101/demo/check'})])});
+							var agent2 = dict ({});
+							self._respondTo ('/agent?did=did1', agent1);
+							self._respondTo ('/agent?did=did2', agent2);
+							self._respondTo ('/agent/did1/drop?all=true', list ([]));
+							self._respondTo ('/agent/did2/drop?all=true', list ([]));
+							var f1 = function () {
+								o (len (manager.entities.agents)).equals (2);
+								o (manager.entities.agents [0]).deepEquals (agent1);
+								o (manager.entities.agents [1]).deepEquals (agent2);
+								done ();
+							};
+							self.testServer.autoRespond = true;
+							manager.entities.refreshAgents ().then (f1);
+						});},
+						get asyncThings () {return __get__ (this, function (self, done) {
+							var manager = server.Manager ();
+							o (len (manager.entities.things)).equals (0);
+							self._respondTo ('/thing?all=true', list (['did1', 'did2']));
+							var thing1 = dict ({'did': 'did1', 'hid': 'hid:dns:localhost#02', 'signer': 'did2#0', 'changed': '2000-01-01T00:00:00+00:00', 'data': dict ({'keywords': list (['Canon', 'EOS Rebel T6', '251440']), 'message': 'If found please return.'})});
+							var thing2 = dict ({});
+							self._respondTo ('/thing?did=did1', thing1);
+							self._respondTo ('/thing?did=did2', thing2);
+							self._respondTo ('/thing/did1/offer?all=true', list ([]));
+							self._respondTo ('/thing/did2/offer?all=true', list ([]));
+							var f1 = function () {
+								o (len (manager.entities.things)).equals (2);
+								o (manager.entities.things [0]).deepEquals (thing1);
+								o (manager.entities.things [1]).deepEquals (thing2);
+								done ();
+							};
+							self.testServer.autoRespond = true;
+							manager.entities.refreshThings ().then (f1);
+						});},
+						get asyncIssuants () {return __get__ (this, function (self, done) {
+							var manager = server.Manager ();
+							o (len (manager.entities.issuants)).equals (0);
+							self._respondTo ('/agent?all=true', list (['did1', 'did2']));
+							var issuants1 = list ([dict ({'kind': 'dns', 'issuer': 'localhost', 'registered': '2000-01-01T00:00:00+00:00', 'validationURL': 'http://localhost:8101/demo/check1'}), dict ({'kind': 'dns', 'issuer': 'localhost', 'registered': '2000-01-01T00:00:00+00:00', 'validationURL': 'http://localhost:8101/demo/check2'})]);
+							var agent1 = dict ({'did': 'did1', 'issuants': issuants1});
+							var issuants2 = list ([dict ({'kind': 'dns', 'issuer': 'localhost', 'registered': '2000-01-01T00:00:00+00:00', 'validationURL': 'http://localhost:8101/demo/check3'})]);
+							var agent2 = dict ({'did': 'did2', 'issuants': issuants2});
+							self._respondTo ('/agent?did=did1', agent1);
+							self._respondTo ('/agent?did=did2', agent2);
+							self._respondTo ('/agent/did1/drop?all=true', list ([]));
+							self._respondTo ('/agent/did2/drop?all=true', list ([]));
+							var f1 = function () {
+								o (len (manager.entities.issuants)).equals (3);
+								var iss0 = jQuery.extend (true, dict ({'did': 'did1'}), issuants1 [0]);
+								o (manager.entities.issuants [0]).deepEquals (iss0);
+								var iss1 = jQuery.extend (true, dict ({'did': 'did1'}), issuants1 [1]);
+								o (manager.entities.issuants [1]).deepEquals (iss1);
+								var iss2 = jQuery.extend (true, dict ({'did': 'did2'}), issuants2 [0]);
+								o (manager.entities.issuants [2]).deepEquals (iss2);
+								done ();
+							};
+							self.testServer.autoRespond = true;
+							manager.entities.refreshIssuants ().then (f1);
+						});},
+						get asyncOffers () {return __get__ (this, function (self, done) {
+							var manager = server.Manager ();
+							o (len (manager.entities.offers)).equals (0);
+							self._respondTo ('/thing?all=true', list (['did1', 'did2']));
+							self._respondTo ('/thing/did1/offer?all=true', list ([dict ({'uid': 'o_1'}), dict ({'uid': 'o_2'})]));
+							self._respondTo ('/thing/did2/offer?all=true', list ([dict ({'uid': 'o_3'})]));
+							var offer1 = dict ({'uid': 'o_1', 'thing': 'did1', 'aspirant': 'did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=', 'duration': 120.0, 'expiration': '2000-01-01T00:22:00+00:00', 'signer': 'did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=#0', 'offerer': 'did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#0', 'offer': 'ewogICJ1aWQiOiAib18wMDAzNWQyOTc2ZTZhMDAwXzI2YWNlOTMiLAogICJ'});
+							var offer2 = dict ({'uid': 'o_2', 'thing': 'did1', 'aspirant': 'did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=', 'duration': 120.0, 'expiration': '2000-01-01T00:22:00+00:00', 'signer': 'did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=#0', 'offerer': 'did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#0', 'offer': 'ewogICJ1aWQiOiAib18wMDAzNWQyOTc2ZTZhMDAwXzI2YWNlOTMiLAogICJ'});
+							var offer3 = dict ({'uid': 'o_3', 'thing': 'did2', 'aspirant': 'did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=', 'duration': 120.0, 'expiration': '2000-01-01T00:22:00+00:00', 'signer': 'did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=#0', 'offerer': 'did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#0', 'offer': 'ewogICJ1aWQiOiAib18wMDAzNWQyOTc2ZTZhMDAwXzI2YWNlOTMiLAogICJ'});
+							self._respondTo ('/thing/did1/offer?uid=o_1', offer1);
+							self._respondTo ('/thing/did1/offer?uid=o_2', offer2);
+							self._respondTo ('/thing/did2/offer?uid=o_3', offer3);
+							self._respondTo ('/thing?did=did1', dict ({}));
+							self._respondTo ('/thing?did=did2', dict ({}));
+							var f1 = function () {
+								o (len (manager.entities.offers)).equals (3);
+								o (manager.entities.offers [0]).deepEquals (offer1);
+								o (manager.entities.offers [1]).deepEquals (offer2);
+								o (manager.entities.offers [2]).deepEquals (offer3);
+								done ();
+							};
+							self.testServer.autoRespond = true;
+							manager.entities.refreshOffers ().then (f1);
+						});},
+						get asyncMessages () {return __get__ (this, function (self, done) {
+							var manager = server.Manager ();
+							o (len (manager.entities.messages)).equals (0);
+							self._respondTo ('/agent?all=true', list (['did1', 'did2']));
+							self._respondTo ('/agent/did1/drop?all=true', list ([dict ({'from': 'did2', 'uid': 'm_1'}), dict ({'from': 'did3', 'uid': 'm_2'})]));
+							self._respondTo ('/agent/did2/drop?all=true', list ([dict ({'from': 'did1', 'uid': 'm_3'})]));
+							var message1 = dict ({'uid': 'm_1', 'kind': 'found', 'signer': 'did2#0', 'date': '2000-01-04T00:00:00+00:00', 'to': 'did1', 'from': 'did2', 'thing': 'did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=', 'subject': 'Lose something?', 'content': 'I am so happy your found it.'});
+							var message2 = dict ({'uid': 'm_2', 'kind': 'found', 'signer': 'did3#0', 'date': '2000-01-04T00:00:00+00:00', 'to': 'did1', 'from': 'did3', 'thing': 'did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=', 'subject': 'Lose something?', 'content': 'I am so happy your found it.'});
+							var message3 = dict ({'uid': 'm_3', 'kind': 'found', 'signer': 'did1#0', 'date': '2000-01-04T00:00:00+00:00', 'to': 'did2', 'from': 'did1', 'thing': 'did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=', 'subject': 'Lose something?', 'content': 'I am so happy your found it.'});
+							self._respondTo ('/agent/did1/drop?from=did2&uid=m_1', message1);
+							self._respondTo ('/agent/did1/drop?from=did3&uid=m_2', message2);
+							self._respondTo ('/agent/did2/drop?from=did1&uid=m_3', message3);
+							self._respondTo ('/agent?did=did1', dict ({}));
+							self._respondTo ('/agent?did=did2', dict ({}));
+							var f1 = function () {
+								o (len (manager.entities.messages)).equals (3);
+								o (manager.entities.messages [0]).deepEquals (message1);
+								o (manager.entities.messages [1]).deepEquals (message2);
+								o (manager.entities.messages [2]).deepEquals (message3);
+								done ();
+							};
+							self.testServer.autoRespond = true;
+							manager.entities.refreshMessages ().then (f1);
 						});}
 					})
 					var Server = test (Server);
