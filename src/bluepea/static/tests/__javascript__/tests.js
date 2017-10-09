@@ -1,5 +1,5 @@
 "use strict";
-// Transcrypt'ed from Python, 2017-10-07 16:40:09
+// Transcrypt'ed from Python, 2017-10-09 08:39:32
 function tests () {
    var __symbols__ = ['__py3.6__', '__esv5__'];
     var __all__ = {};
@@ -2573,7 +2573,7 @@ function tests () {
 					var Table = __class__ ('Table', [object], {
 						no_results_text: 'No results found.',
 						get __init__ () {return __get__ (this, function (self, fields) {
-							self.max_size = 20;
+							self.max_size = 1000;
 							self.fields = fields;
 							self.data = dict ({});
 							self.view = dict ({'oninit': self._oninit, 'view': self._view});
@@ -2585,6 +2585,9 @@ function tests () {
 						});},
 						get _stringify () {return __get__ (this, function (self, obj) {
 							return JSON.stringify (obj, null, 2);
+						});},
+						get _limitText () {return __get__ (this, function (self) {
+							return 'Limited to {} results.'.format (self.max_size);
 						});},
 						get _selectRow () {return __get__ (this, function (self, event, uid) {
 							if (uid == self._selectedUid) {
@@ -2599,8 +2602,11 @@ function tests () {
 							self.detailSelected = self._stringify (self.data [uid]);
 						});},
 						get _oninit () {return __get__ (this, function (self) {
+							self._setData (list ([]));
+						});},
+						get _makeDummyData () {return __get__ (this, function (self, count) {
 							var data = list ([]);
-							for (var i = 0; i < 20; i++) {
+							for (var i = 0; i < count; i++) {
 								var obj = dict ({});
 								var __iterable0__ = self.fields;
 								for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
@@ -2609,7 +2615,7 @@ function tests () {
 								}
 								data.append (obj);
 							}
-							self._setData (data);
+							return data;
 						});},
 						get _setData () {return __get__ (this, function (self, data, py_clear) {
 							if (typeof py_clear == 'undefined' || (py_clear != null && py_clear .hasOwnProperty ("__kwargtrans__"))) {;
@@ -2670,7 +2676,7 @@ function tests () {
 								var key = __left0__ [0];
 								var obj = __left0__ [1];
 								if (count >= self.max_size) {
-									rows.append (m ('tr', m ('td', 'Limited to {} results.'.format (self.max_size))));
+									rows.append (m ('tr', m ('td', self._limitText ())));
 									break;
 								}
 								if (self.filter !== null) {
@@ -3424,6 +3430,19 @@ function tests () {
 								self._clickRow (0, f2);
 							};
 							self._setData (f1);
+						});},
+						get asyncRowLimit () {return __get__ (this, function (self, done) {
+							var table = self.tabs.currentTab ().table;
+							var f1 = function () {
+								var rows = jQuery ("[data-tab='entities'].tab.active table > tbody > tr");
+								o (rows.length).equals (table.max_size + 1) ('Row count limited to max size');
+								o (rows.last ().find ('td').text ()).equals (table._limitText ()) ('Last row specifies that text is limited');
+								done ();
+							};
+							table.max_size = 50;
+							var data = table._makeDummyData (table.max_size * 2);
+							table._setData (data);
+							self._redraw (f1);
 						});}
 					})
 					var TabledTab = test (TabledTab);

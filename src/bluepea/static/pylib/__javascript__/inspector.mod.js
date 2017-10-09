@@ -159,7 +159,7 @@
 					var Table = __class__ ('Table', [object], {
 						no_results_text: 'No results found.',
 						get __init__ () {return __get__ (this, function (self, fields) {
-							self.max_size = 20;
+							self.max_size = 1000;
 							self.fields = fields;
 							self.data = dict ({});
 							self.view = dict ({'oninit': self._oninit, 'view': self._view});
@@ -171,6 +171,9 @@
 						});},
 						get _stringify () {return __get__ (this, function (self, obj) {
 							return JSON.stringify (obj, null, 2);
+						});},
+						get _limitText () {return __get__ (this, function (self) {
+							return 'Limited to {} results.'.format (self.max_size);
 						});},
 						get _selectRow () {return __get__ (this, function (self, event, uid) {
 							if (uid == self._selectedUid) {
@@ -185,8 +188,11 @@
 							self.detailSelected = self._stringify (self.data [uid]);
 						});},
 						get _oninit () {return __get__ (this, function (self) {
+							self._setData (list ([]));
+						});},
+						get _makeDummyData () {return __get__ (this, function (self, count) {
 							var data = list ([]);
-							for (var i = 0; i < 20; i++) {
+							for (var i = 0; i < count; i++) {
 								var obj = dict ({});
 								var __iterable0__ = self.fields;
 								for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
@@ -195,7 +201,7 @@
 								}
 								data.append (obj);
 							}
-							self._setData (data);
+							return data;
 						});},
 						get _setData () {return __get__ (this, function (self, data, py_clear) {
 							if (typeof py_clear == 'undefined' || (py_clear != null && py_clear .hasOwnProperty ("__kwargtrans__"))) {;
@@ -256,7 +262,7 @@
 								var key = __left0__ [0];
 								var obj = __left0__ [1];
 								if (count >= self.max_size) {
-									rows.append (m ('tr', m ('td', 'Limited to {} results.'.format (self.max_size))));
+									rows.append (m ('tr', m ('td', self._limitText ())));
 									break;
 								}
 								if (self.filter !== null) {

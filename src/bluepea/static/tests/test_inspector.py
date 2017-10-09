@@ -327,3 +327,16 @@ class TabledTab:
 
         self._setData(f1)
 
+    def asyncRowLimit(self, done):
+        table = self.tabs.currentTab().table
+
+        def f1():
+            rows = jQuery("[data-tab='entities'].tab.active table > tbody > tr")
+            o(rows.length).equals(table.max_size + 1)("Row count limited to max size")
+            o(rows.last().find("td").text()).equals(table._limitText())("Last row specifies that text is limited")
+            done()
+
+        table.max_size = 50
+        data = table._makeDummyData(table.max_size * 2)
+        table._setData(data)
+        self._redraw(f1)

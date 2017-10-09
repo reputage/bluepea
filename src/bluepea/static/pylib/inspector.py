@@ -227,7 +227,7 @@ class Table:
     no_results_text = "No results found."
 
     def __init__(self, fields):
-        self.max_size = 20
+        self.max_size = 1000
         self.fields = fields
         self.data = {}
         self.view = {
@@ -245,6 +245,9 @@ class Table:
         Converts the provided json-like object to a user-friendly string.
         """
         return JSON.stringify(obj, None, 2)
+
+    def _limitText(self):
+        return "Limited to {} results.".format(self.max_size)
 
     def _selectRow(self, event, uid):
         """
@@ -268,15 +271,16 @@ class Table:
         """
         Loads any initial data.
         """
-        # Load test data
+        self._setData([])
+
+    def _makeDummyData(self, count):
         data = []
-        for i in range(20):
+        for i in range(count):
             obj = {}
             for field in self.fields:
                 obj[field.name] = "test{0} {1}".format(i, field.name)
             data.append(obj)
-
-        self._setData(data)
+        return data
 
     __pragma__("kwargs")
     def _setData(self, data, clear=True):
@@ -307,7 +311,7 @@ class Table:
         for key, obj in self.data.items():
             # Make sure we don't display too many items
             if count >= self.max_size:
-                rows.append(m("tr", m("td", "Limited to {} results.".format(self.max_size))))
+                rows.append(m("tr", m("td", self._limitText())))
                 break
 
             # Make sure object passes any current search filter
