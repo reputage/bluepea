@@ -4,6 +4,9 @@
   "description": "",
   "main": "main.js",
   "scripts": {
+    "prep-tests": "transcrypt -b -de -v -n -p .none tests.py && python -m clean_tests",
+    "transcrypt": "transcrypt -b -m main.py",
+    "debug-tests": "node %NODE_DEBUG_OPTION% tests/__javascript__/tests.js",
     "test": "ospec",
     "start": "webpack src/index.js bin/app.js -d --watch",
     "build": "webpack src/index.js bin/app.js -p"
@@ -12,8 +15,10 @@
   "author": "",
   "license": "Apache-2.0",
   "dependencies": {
+    "jsdom": "^11.2.0",
     "mithril": "^1.1.3",
-    "semantic-ui": "^2.2.13"
+    "semantic-ui": "^2.2.13",
+    "sinon": "^4.0.0"
   },
   "devDependencies": {
     "gulp": "^3.9.1",

@@ -1,11 +1,11 @@
 {
 	"version": 3,
-	"file": "/Data/Code/private/indigo/bluepea/src/bluepea/static/__javascript__/main.mod.js",
+	"file": "C:/Users/elong/AdHoc/bluepea/src/bluepea/static/__javascript__/main.mod.js",
 	"sources": [
-		"/Data/Code/private/indigo/bluepea/src/bluepea/static/main.py"
+		"C:/Users/elong/AdHoc/bluepea/src/bluepea/static/main.py"
 	],
 	"sourcesContent": [
-		"\"\"\"\nAll Browser Javascript globals are available as if imported\n\nSuch as\nfrom ... import document\nfrom ... import window\n\nAssumes that the mithril.js script has already been loaded\nso m is available as if\nfrom mithril.js import m\n\"\"\"\nimport pylib.hello\n\nroot = document.body\n\n# note class \"ui button\" is semantic-ui class\n\nm.render(root, [m(\"h1\", {\"class\": \"title\"}, \"Hello Python World\"),\n                m(\"button\", {\"class\": \"ui button\"}, \"Go Python\"),\n               ])\n\n\n\n#pylib.hello.test()  # shows that python import works\n"
+		"\"\"\"\nAll Browser Javascript globals are available as if imported\n\nSuch as\nfrom ... import document\nfrom ... import window\n\nAssumes that the mithril.js script has already been loaded\nso m is available as if\nfrom mithril.js import m\n\"\"\"\nfrom pylib import router\n\nrouter.Router().route(root=document.body)\n"
 	],
-	"mappings": "AAAA;AAkBA;AAPA;AAEA;AAKA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA"
+	"mappings": "AAAA;AAWA;AAEA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA"
 }
