@@ -95,10 +95,7 @@ setup(
     version='0.1.0',
     license='Apache2',
     description='Indigo Project Backend',
-    long_description='%s\n%s' % (
-        re.compile('^.. start-badges.*^.. end-badges', re.M | re.S).sub('', read('README.rst')),
-        re.sub(':[a-z]+:`~?(.*?)`', r'``\1``', read('CHANGELOG.rst'))
-    ),
+    long_description="Privacy Preserving Lost and Found and Tracking Service",
     author='Samuel M Smith',
     author_email='sam@prosapien.com',
     url='https://github.com/indigo-d/bluepea.git',
