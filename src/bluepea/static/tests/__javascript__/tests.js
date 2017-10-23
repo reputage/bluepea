@@ -1,5 +1,5 @@
 "use strict";
-// Transcrypt'ed from Python, 2017-10-23 12:58:47
+// Transcrypt'ed from Python, 2017-10-23 14:49:25
 function tests () {
    var __symbols__ = ['__py3.6__', '__esv5__'];
     var __all__ = {};
@@ -2463,8 +2463,14 @@ function tests () {
 						get _getRows () {return __get__ (this, function (self) {
 							return jQuery ("[data-tab='{0}'].tab table > tbody > tr".format (self.Data_tab));
 						});},
+						get _getLabel () {return __get__ (this, function (self) {
+							return jQuery (".menu a[data-tab='{0}'] .ui.label".format (self.Data_tab));
+						});},
 						get _clearCopy () {return __get__ (this, function (self) {
 							self.copiedDetails = '';
+						});},
+						get menu_item () {return __get__ (this, function (self) {
+							return m (self._menu, self._menu_attrs, m ('div', self.Name), m ('div.ui.label', '{0}/{1}'.format (self.table.shown, self.table.total)));
 						});},
 						get main_view () {return __get__ (this, function (self) {
 							return m ('div', m ('div.table-container', m (self.table.view)), m ('div.ui.hidden.divider'), m ('div.ui.two.cards', dict ({'style': 'height: 45%;'}), m ('div.ui.card', m ('div.content.small-header', m ('div.header', m ('span', 'Details'), m ('span.ui.mini.right.floated.button', dict ({'onclick': self._copyDetails, 'id': self._copyButtonId}), 'Copy'))), m ('pre.content.code-block', dict ({'id': self._detailsId}), self.table.detailSelected)), m ('div.ui.card', m ('div.content.small-header', m ('div.header', m ('span', 'Copied'), m ('span.ui.mini.right.floated.button', dict ({'onclick': self._clearCopy, 'id': self._clearButtonId}), 'Clear'))), m ('pre.content.code-block', dict ({'id': self._copiedId}), self.copiedDetails))));
@@ -2584,7 +2590,8 @@ function tests () {
 							self._selectedUid = null;
 							self.detailSelected = '';
 							self.filter = null;
-							self._nextId = 0;
+							self.total = 0;
+							self.shown = 0;
 						});},
 						get _stringify () {return __get__ (this, function (self, obj) {
 							return JSON.stringify (obj, null, 2);
@@ -2640,15 +2647,41 @@ function tests () {
 							else {
 							}
 							if (py_clear) {
-								self._nextId = 0;
+								self.total = 0;
 								self.data.py_clear ();
 							}
 							var __iterable0__ = data;
 							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
 								var datum = __iterable0__ [__index0__];
-								self.data [self._nextId] = datum;
-								self._nextId++;
+								self.data [self.total] = datum;
+								self.total++;
 							}
+							self._processData ();
+						});},
+						get setFilter () {return __get__ (this, function (self, func) {
+							if (func != self.filter) {
+								self.filter = func;
+								self._processData ();
+							}
+						});},
+						get _processData () {return __get__ (this, function (self) {
+							var count = 0;
+							var __iterable0__ = self.data.py_items ();
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var __left0__ = __iterable0__ [__index0__];
+								var key = __left0__ [0];
+								var obj = __left0__ [1];
+								if (count >= self.max_size) {
+									break;
+								}
+								if (self.filter !== null) {
+									if (!(self.filter (obj))) {
+										continue;
+									}
+								}
+								count++;
+							}
+							self.shown = count;
 						});},
 						get _makeRow () {return __get__ (this, function (self, obj) {
 							return function () {
@@ -2696,6 +2729,7 @@ function tests () {
 								rows.append (m ('tr', dict ({'onclick': makeScope (key)}), row));
 								count++;
 							}
+							self.shown = count;
 							if (!(count)) {
 								rows.append (m ('tr', m ('td', self.no_results_text)));
 							}
@@ -2959,7 +2993,7 @@ function tests () {
 							var __iterable0__ = self.tabs;
 							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
 								var tab = __iterable0__ [__index0__];
-								tab.table.filter = self.searcher.search;
+								tab.table.setFilter (self.searcher.search);
 							}
 						});},
 						get searchCurrent () {return __get__ (this, function (self) {
@@ -2970,10 +3004,10 @@ function tests () {
 							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
 								var tab = __iterable0__ [__index0__];
 								if (text && tab.Data_tab == current.Data_tab) {
-									tab.table.filter = self.searcher.search;
+									tab.table.setFilter (self.searcher.search);
 								}
 								else {
-									tab.table.filter = null;
+									tab.table.setFilter (null);
 								}
 							}
 						});},
@@ -3389,21 +3423,23 @@ function tests () {
 							o (td.length).equals (1) ('Entry only has one piece of data');
 							o (td.text ()).equals (inspector.Table.no_results_text);
 						});},
-						get _asyncBasicSearch () {return __get__ (this, function (self, done, timeout) {
+						get asyncBasicSearch () {return __get__ (this, function (self, done, timeout) {
 							timeout (200);
 							jQuery ('#' + self.tabs._searchId).val ('test message');
 							self.tabs.searchAll ();
 							o (self.tabs.searcher.searchTerm).equals ('test message') ('Search term set properly');
 							var f1 = function () {
-								var rows = self.tabs.tabs [0]._getRows ();
-								o (rows.length).equals (2) ('Two search results found');
-								var rows = self.tabs.tabs [2]._getRows ();
-								self._tableIsEmpty (rows);
+								var entities = self.tabs.tabs [0];
+								o (entities._getRows ().length).equals (2) ('Two search results found');
+								o (entities._getLabel ().text ()).equals ('2/3');
+								var offers = self.tabs.tabs [2];
+								self._tableIsEmpty (offers._getRows ());
+								o (offers._getLabel ().text ()).equals ('0/4');
 								var f2 = function () {
-									var rows = self.tabs.tabs [0]._getRows ();
-									self._tableIsEmpty (rows);
-									var rows = self.tabs.tabs [2]._getRows ();
-									o (rows.length).equals (3);
+									self._tableIsEmpty (entities._getRows ());
+									o (entities._getLabel ().text ()).equals ('0/3');
+									o (offers._getRows ().length).equals (3);
+									o (offers._getLabel ().text ()).equals ('3/4');
 									done ();
 								};
 								jQuery ('#' + self.tabs._searchId).val ('offers offer');
@@ -3464,9 +3500,11 @@ function tests () {
 						get asyncRowLimit () {return __get__ (this, function (self, done) {
 							var table = self.tabs.currentTab ().table;
 							var f1 = function () {
-								var rows = self.tabs.tabs [0]._getRows ();
+								var entities = self.tabs.tabs [0];
+								var rows = entities._getRows ();
 								o (rows.length).equals (table.max_size + 1) ('Row count limited to max size');
 								o (rows.last ().find ('td').text ()).equals (table._limitText ()) ('Last row specifies that text is limited');
+								o (entities._getLabel ().text ()).equals ('{0}/{1}'.format (table.max_size, table.total));
 								done ();
 							};
 							table.max_size = 50;
@@ -3622,7 +3660,8 @@ function tests () {
 							self.testServer.autoRespond = true;
 							manager.entities.refreshIssuants ().then (f1);
 						});},
-						get asyncOffers () {return __get__ (this, function (self, done) {
+						get asyncOffers () {return __get__ (this, function (self, done, timeout) {
+							timeout (300);
 							var manager = server.Manager ();
 							o (len (manager.entities.offers)).equals (0);
 							self._respondTo ('/thing?all=true', list (['did1', 'did2']));
@@ -3646,7 +3685,8 @@ function tests () {
 							self.testServer.autoRespond = true;
 							manager.entities.refreshOffers ().then (f1);
 						});},
-						get asyncMessages () {return __get__ (this, function (self, done) {
+						get asyncMessages () {return __get__ (this, function (self, done, timeout) {
+							timeout (300);
 							var manager = server.Manager ();
 							o (len (manager.entities.messages)).equals (0);
 							self._respondTo ('/agent?all=true', list (['did1', 'did2']));

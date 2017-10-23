@@ -49,8 +49,14 @@
 						get _getRows () {return __get__ (this, function (self) {
 							return jQuery ("[data-tab='{0}'].tab table > tbody > tr".format (self.Data_tab));
 						});},
+						get _getLabel () {return __get__ (this, function (self) {
+							return jQuery (".menu a[data-tab='{0}'] .ui.label".format (self.Data_tab));
+						});},
 						get _clearCopy () {return __get__ (this, function (self) {
 							self.copiedDetails = '';
+						});},
+						get menu_item () {return __get__ (this, function (self) {
+							return m (self._menu, self._menu_attrs, m ('div', self.Name), m ('div.ui.label', '{0}/{1}'.format (self.table.shown, self.table.total)));
 						});},
 						get main_view () {return __get__ (this, function (self) {
 							return m ('div', m ('div.table-container', m (self.table.view)), m ('div.ui.hidden.divider'), m ('div.ui.two.cards', dict ({'style': 'height: 45%;'}), m ('div.ui.card', m ('div.content.small-header', m ('div.header', m ('span', 'Details'), m ('span.ui.mini.right.floated.button', dict ({'onclick': self._copyDetails, 'id': self._copyButtonId}), 'Copy'))), m ('pre.content.code-block', dict ({'id': self._detailsId}), self.table.detailSelected)), m ('div.ui.card', m ('div.content.small-header', m ('div.header', m ('span', 'Copied'), m ('span.ui.mini.right.floated.button', dict ({'onclick': self._clearCopy, 'id': self._clearButtonId}), 'Clear'))), m ('pre.content.code-block', dict ({'id': self._copiedId}), self.copiedDetails))));
@@ -170,7 +176,8 @@
 							self._selectedUid = null;
 							self.detailSelected = '';
 							self.filter = null;
-							self._nextId = 0;
+							self.total = 0;
+							self.shown = 0;
 						});},
 						get _stringify () {return __get__ (this, function (self, obj) {
 							return JSON.stringify (obj, null, 2);
@@ -226,15 +233,41 @@
 							else {
 							}
 							if (py_clear) {
-								self._nextId = 0;
+								self.total = 0;
 								self.data.py_clear ();
 							}
 							var __iterable0__ = data;
 							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
 								var datum = __iterable0__ [__index0__];
-								self.data [self._nextId] = datum;
-								self._nextId++;
+								self.data [self.total] = datum;
+								self.total++;
 							}
+							self._processData ();
+						});},
+						get setFilter () {return __get__ (this, function (self, func) {
+							if (func != self.filter) {
+								self.filter = func;
+								self._processData ();
+							}
+						});},
+						get _processData () {return __get__ (this, function (self) {
+							var count = 0;
+							var __iterable0__ = self.data.py_items ();
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var __left0__ = __iterable0__ [__index0__];
+								var key = __left0__ [0];
+								var obj = __left0__ [1];
+								if (count >= self.max_size) {
+									break;
+								}
+								if (self.filter !== null) {
+									if (!(self.filter (obj))) {
+										continue;
+									}
+								}
+								count++;
+							}
+							self.shown = count;
 						});},
 						get _makeRow () {return __get__ (this, function (self, obj) {
 							return function () {
@@ -282,6 +315,7 @@
 								rows.append (m ('tr', dict ({'onclick': makeScope (key)}), row));
 								count++;
 							}
+							self.shown = count;
 							if (!(count)) {
 								rows.append (m ('tr', m ('td', self.no_results_text)));
 							}
@@ -545,7 +579,7 @@
 							var __iterable0__ = self.tabs;
 							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
 								var tab = __iterable0__ [__index0__];
-								tab.table.filter = self.searcher.search;
+								tab.table.setFilter (self.searcher.search);
 							}
 						});},
 						get searchCurrent () {return __get__ (this, function (self) {
@@ -556,10 +590,10 @@
 							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
 								var tab = __iterable0__ [__index0__];
 								if (text && tab.Data_tab == current.Data_tab) {
-									tab.table.filter = self.searcher.search;
+									tab.table.setFilter (self.searcher.search);
 								}
 								else {
-									tab.table.filter = null;
+									tab.table.setFilter (null);
 								}
 							}
 						});},

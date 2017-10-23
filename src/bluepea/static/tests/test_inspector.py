@@ -290,7 +290,7 @@ class TabledTab:
         o(td.length).equals(1)("Entry only has one piece of data")
         o(td.text()).equals(inspector.Table.no_results_text)
 
-    def _asyncBasicSearch(self, done, timeout):
+    def asyncBasicSearch(self, done, timeout):
         timeout(200)
 
         jQuery("#" + self.tabs._searchId).val("test message")
@@ -298,18 +298,20 @@ class TabledTab:
         o(self.tabs.searcher.searchTerm).equals("test message")("Search term set properly")
 
         def f1():
-            rows = self.tabs.tabs[0]._getRows()
-            o(rows.length).equals(2)("Two search results found")
+            entities = self.tabs.tabs[0]
+            o(entities._getRows().length).equals(2)("Two search results found")
+            o(entities._getLabel().text()).equals("2/3")
 
-            rows = self.tabs.tabs[2]._getRows()
-            self._tableIsEmpty(rows)
+            offers = self.tabs.tabs[2]
+            self._tableIsEmpty(offers._getRows())
+            o(offers._getLabel().text()).equals("0/4")
 
             def f2():
-                rows = self.tabs.tabs[0]._getRows()
-                self._tableIsEmpty(rows)
+                self._tableIsEmpty(entities._getRows())
+                o(entities._getLabel().text()).equals("0/3")
 
-                rows = self.tabs.tabs[2]._getRows()
-                o(rows.length).equals(3)
+                o(offers._getRows().length).equals(3)
+                o(offers._getLabel().text()).equals("3/4")
                 done()
 
             jQuery("#" + self.tabs._searchId).val("offers offer")
@@ -379,9 +381,11 @@ class TabledTab:
         table = self.tabs.currentTab().table
 
         def f1():
-            rows = self.tabs.tabs[0]._getRows()
+            entities = self.tabs.tabs[0]
+            rows = entities._getRows()
             o(rows.length).equals(table.max_size + 1)("Row count limited to max size")
             o(rows.last().find("td").text()).equals(table._limitText())("Last row specifies that text is limited")
+            o(entities._getLabel().text()).equals("{0}/{1}".format(table.max_size, table.total))
             done()
 
         table.max_size = 50

@@ -70,8 +70,17 @@ class TabledTab(Tab):
     def _getRows(self):
         return jQuery("[data-tab='{0}'].tab table > tbody > tr".format(self.Data_tab))
 
+    def _getLabel(self):
+        return jQuery(".menu a[data-tab='{0}'] .ui.label".format(self.Data_tab))
+
     def _clearCopy(self):
         self.copiedDetails = ""
+
+    def menu_item(self):
+        return m(self._menu, self._menu_attrs,
+                 m("div", self.Name),
+                 m("div.ui.label", "{0}/{1}".format(self.table.shown, self.table.total))
+                 )
 
     def main_view(self):
         return m("div",
@@ -226,6 +235,11 @@ class MIDField(IDField):
 class Table:
     """
     A table, its headers, and its data to be displayed.
+
+    Attributes:
+        max_size (int): maximum number of entries to display
+        total (int): number of entries in our data
+        shown (int): number of entries not hidden by filter or max_size limit
     """
     no_results_text = "No results found."
 
@@ -241,7 +255,9 @@ class Table:
         self._selectedUid = None
         self.detailSelected = ""
         self.filter = None
-        self._nextId = 0
+
+        self.total = 0
+        self.shown = 0
 
     def _stringify(self, obj):
         """
@@ -291,12 +307,34 @@ class Table:
         Clears existing data and uses the provided data instead.
         """
         if clear:
-            self._nextId = 0
+            self.total = 0
             self.data.clear()
         for datum in data:
-            self.data[self._nextId] = datum
-            self._nextId += 1
+            self.data[self.total] = datum
+            self.total += 1
+        self._processData()
     __pragma__("nokwargs")
+
+    def setFilter(self, func):
+        if func != self.filter:
+            self.filter = func
+            self._processData()
+
+    def _processData(self):
+        """
+        Processes our data, determining how many items will be shown.
+        Works around an issue where the data rows will be shown, but the displayed count
+        of how many are shown is incorrect (display hasn't been updated yet).
+        """
+        count = 0
+        for key, obj in self.data.items():
+            if count >= self.max_size:
+                break
+            if self.filter is not None:
+                if not self.filter(obj):
+                    continue
+            count += 1
+        self.shown = count
 
     def _makeRow(self, obj):
         """
@@ -331,6 +369,7 @@ class Table:
 
             count += 1
 
+        self.shown = count
         if not count:
             rows.append(m("tr", m("td", self.no_results_text)))
 
@@ -625,7 +664,7 @@ class Tabs:
         self.searcher.setSearch(text)
 
         for tab in self.tabs:
-            tab.table.filter = self.searcher.search
+            tab.table.setFilter(self.searcher.search)
 
     def searchCurrent(self):
         """
@@ -640,9 +679,9 @@ class Tabs:
         # Clear any previous tab's searches and apply current search to current tab
         for tab in self.tabs:
             if text and tab.Data_tab == current.Data_tab:
-                tab.table.filter = self.searcher.search
+                tab.table.setFilter(self.searcher.search)
             else:
-                tab.table.filter = None
+                tab.table.setFilter(None)
 
     # def searchWithin(self):
     #     text = jQuery("#" + self._searchId).val()
