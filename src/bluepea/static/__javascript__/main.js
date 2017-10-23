@@ -1,5 +1,5 @@
 "use strict";
-// Transcrypt'ed from Python, 2017-10-09 08:39:59
+// Transcrypt'ed from Python, 2017-10-23 12:13:56
 function main () {
    var __symbols__ = ['__py3.6__', '__esv5__'];
     var __all__ = {};
@@ -2460,6 +2460,9 @@ function main () {
 						get _copyDetails () {return __get__ (this, function (self) {
 							self.copiedDetails = self.table.detailSelected;
 						});},
+						get _getRows () {return __get__ (this, function (self) {
+							return jQuery ("[data-tab='{0}'].tab table > tbody > tr".format (self.Data_tab));
+						});},
 						get _clearCopy () {return __get__ (this, function (self) {
 							self.copiedDetails = '';
 						});},
@@ -2950,7 +2953,13 @@ function main () {
 							}
 							return null;
 						});},
-						get search () {return __get__ (this, function (self) {
+						get searchAll () {return __get__ (this, function (self) {
+							self.tabs [2].table._setData (list ([dict ({'uid': 'o_00035d2976e6a000_26ace93', 'thing': 'did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=', 'aspirant': 'did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=', 'duration': 120.0, 'expiration': '2000-01-01T00:22:00+00:00', 'signer': 'did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=#0', 'offerer': 'did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#0', 'offer': 'offers offer'}), dict ({'uid': 'other1', 'offer': 'offers offer'}), dict ({'uid': 'other2', 'offer': 'offers offer'}), dict ({'uid': 'other3', 'offer': 'not an offer'})]));
+							setTimeout ((function __lambda__ () {
+								return console.log (self.tabs [2]._getRows ());
+							}), 400);
+						});},
+						get searchCurrent () {return __get__ (this, function (self) {
 							var text = jQuery ('#' + self._searchId).val ();
 							self.searcher.setSearch (text);
 							var current = self.currentTab ();
@@ -2974,7 +2983,7 @@ function main () {
 								menu_items.append (tab.menu_item ());
 								tab_items.append (tab.tab_item ());
 							}
-							return m ('div', m ('form', dict ({'onsubmit': self.search}), m ('div.ui.borderless.menu', m ('div.right.menu', dict ({'style': 'padding-right: 40%'}), m ('div.item', dict ({'style': 'width: 80%'}), m ('div.ui.transparent.icon.input', m ('input[type=text][placeholder=Search...]', dict ({'id': self._searchId})), m ('i.search.icon'))), m ('div.item', m ('input.ui.primary.button[type=submit][value=Search]'))))), m ('div.ui.top.attached.pointing.five.item.menu', menu_items), tab_items);
+							return m ('div', m ('form', dict ({'onsubmit': self.searchAll}), m ('div.ui.borderless.menu', m ('div.right.menu', dict ({'style': 'padding-right: 40%'}), m ('div.item', dict ({'style': 'width: 80%'}), m ('div.ui.transparent.icon.input', m ('input[type=text][placeholder=Search...]', dict ({'id': self._searchId})), m ('i.search.icon'))), m ('div.item', m ('input.ui.primary.button[type=submit][value=Search]'))))), m ('div.ui.top.attached.pointing.five.item.menu', menu_items), tab_items);
 						});}
 					});
 					__pragma__ ('<use>' +

@@ -46,6 +46,9 @@
 						get _copyDetails () {return __get__ (this, function (self) {
 							self.copiedDetails = self.table.detailSelected;
 						});},
+						get _getRows () {return __get__ (this, function (self) {
+							return jQuery ("[data-tab='{0}'].tab table > tbody > tr".format (self.Data_tab));
+						});},
 						get _clearCopy () {return __get__ (this, function (self) {
 							self.copiedDetails = '';
 						});},
@@ -536,7 +539,16 @@
 							}
 							return null;
 						});},
-						get search () {return __get__ (this, function (self) {
+						get searchAll () {return __get__ (this, function (self) {
+							var text = jQuery ('#' + self._searchId).val ();
+							self.searcher.setSearch (text);
+							var __iterable0__ = self.tabs;
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var tab = __iterable0__ [__index0__];
+								tab.table.filter = self.searcher.search;
+							}
+						});},
+						get searchCurrent () {return __get__ (this, function (self) {
 							var text = jQuery ('#' + self._searchId).val ();
 							self.searcher.setSearch (text);
 							var current = self.currentTab ();
@@ -560,7 +572,7 @@
 								menu_items.append (tab.menu_item ());
 								tab_items.append (tab.tab_item ());
 							}
-							return m ('div', m ('form', dict ({'onsubmit': self.search}), m ('div.ui.borderless.menu', m ('div.right.menu', dict ({'style': 'padding-right: 40%'}), m ('div.item', dict ({'style': 'width: 80%'}), m ('div.ui.transparent.icon.input', m ('input[type=text][placeholder=Search...]', dict ({'id': self._searchId})), m ('i.search.icon'))), m ('div.item', m ('input.ui.primary.button[type=submit][value=Search]'))))), m ('div.ui.top.attached.pointing.five.item.menu', menu_items), tab_items);
+							return m ('div', m ('form', dict ({'onsubmit': self.searchAll}), m ('div.ui.borderless.menu', m ('div.right.menu', dict ({'style': 'padding-right: 40%'}), m ('div.item', dict ({'style': 'width: 80%'}), m ('div.ui.transparent.icon.input', m ('input[type=text][placeholder=Search...]', dict ({'id': self._searchId})), m ('i.search.icon'))), m ('div.item', m ('input.ui.primary.button[type=submit][value=Search]'))))), m ('div.ui.top.attached.pointing.five.item.menu', menu_items), tab_items);
 						});}
 					});
 					__pragma__ ('<use>' +

@@ -67,6 +67,9 @@ class TabledTab(Tab):
     def _copyDetails(self):
         self.copiedDetails = self.table.detailSelected
 
+    def _getRows(self):
+        return jQuery("[data-tab='{0}'].tab table > tbody > tr".format(self.Data_tab))
+
     def _clearCopy(self):
         self.copiedDetails = ""
 
@@ -614,7 +617,17 @@ class Tabs:
                 return tab
         return None
 
-    def search(self):
+    def searchAll(self):
+        """
+        Initiates searching across all tabs based on the current search string.
+        """
+        text = jQuery("#" + self._searchId).val()
+        self.searcher.setSearch(text)
+
+        for tab in self.tabs:
+            tab.table.filter = self.searcher.search
+
+    def searchCurrent(self):
         """
         Initiates searching in the current tab based on the current search string.
         Clears any searches in other tabs.
@@ -642,7 +655,7 @@ class Tabs:
             tab_items.append(tab.tab_item())
 
         return m("div",
-                 m("form", {"onsubmit": self.search},
+                 m("form", {"onsubmit": self.searchAll},
                    m("div.ui.borderless.menu",
                      m("div.right.menu", {"style": "padding-right: 40%"},
                        m("div.item", {"style": "width: 80%"},

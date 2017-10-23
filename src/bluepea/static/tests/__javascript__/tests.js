@@ -1,5 +1,5 @@
 "use strict";
-// Transcrypt'ed from Python, 2017-10-09 08:39:32
+// Transcrypt'ed from Python, 2017-10-23 12:58:47
 function tests () {
    var __symbols__ = ['__py3.6__', '__esv5__'];
     var __all__ = {};
@@ -2460,6 +2460,9 @@ function tests () {
 						get _copyDetails () {return __get__ (this, function (self) {
 							self.copiedDetails = self.table.detailSelected;
 						});},
+						get _getRows () {return __get__ (this, function (self) {
+							return jQuery ("[data-tab='{0}'].tab table > tbody > tr".format (self.Data_tab));
+						});},
 						get _clearCopy () {return __get__ (this, function (self) {
 							self.copiedDetails = '';
 						});},
@@ -2950,7 +2953,16 @@ function tests () {
 							}
 							return null;
 						});},
-						get search () {return __get__ (this, function (self) {
+						get searchAll () {return __get__ (this, function (self) {
+							var text = jQuery ('#' + self._searchId).val ();
+							self.searcher.setSearch (text);
+							var __iterable0__ = self.tabs;
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var tab = __iterable0__ [__index0__];
+								tab.table.filter = self.searcher.search;
+							}
+						});},
+						get searchCurrent () {return __get__ (this, function (self) {
 							var text = jQuery ('#' + self._searchId).val ();
 							self.searcher.setSearch (text);
 							var current = self.currentTab ();
@@ -2974,7 +2986,7 @@ function tests () {
 								menu_items.append (tab.menu_item ());
 								tab_items.append (tab.tab_item ());
 							}
-							return m ('div', m ('form', dict ({'onsubmit': self.search}), m ('div.ui.borderless.menu', m ('div.right.menu', dict ({'style': 'padding-right: 40%'}), m ('div.item', dict ({'style': 'width: 80%'}), m ('div.ui.transparent.icon.input', m ('input[type=text][placeholder=Search...]', dict ({'id': self._searchId})), m ('i.search.icon'))), m ('div.item', m ('input.ui.primary.button[type=submit][value=Search]'))))), m ('div.ui.top.attached.pointing.five.item.menu', menu_items), tab_items);
+							return m ('div', m ('form', dict ({'onsubmit': self.searchAll}), m ('div.ui.borderless.menu', m ('div.right.menu', dict ({'style': 'padding-right: 40%'}), m ('div.item', dict ({'style': 'width: 80%'}), m ('div.ui.transparent.icon.input', m ('input[type=text][placeholder=Search...]', dict ({'id': self._searchId})), m ('i.search.icon'))), m ('div.item', m ('input.ui.primary.button[type=submit][value=Search]'))))), m ('div.ui.top.attached.pointing.five.item.menu', menu_items), tab_items);
 						});}
 					});
 					__pragma__ ('<use>' +
@@ -3326,7 +3338,8 @@ function tests () {
 					})
 					var Searcher = test (Searcher);
 					var TabledTab = __class__ ('TabledTab', [object], {
-						_data: list ([dict ({'did': 'did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=', 'hid': 'hid:dns:localhost#02', 'signer': 'did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=#0', 'changed': '2000-01-01T00:00:00+00:00', 'issuants': list ([dict ({'kind': 'dns', 'issuer': 'localhost', 'registered': '2000-01-01T00:00:00+00:00', 'validationURL': 'http://localhost:8080/demo/check'})]), 'data': dict ({'keywords': list (['Canon', 'EOS Rebel T6', '251440']), 'message': 'test message'}), 'keys': list ([dict ({'key': 'dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=', 'kind': 'EdDSA'}), dict ({'key': '0UX5tP24WPEmAbROdXdygGAM3oDcvrqb3foX4EyayYI=', 'kind': 'EdDSA'})])}), dict ({'did': 'other1', 'data': dict ({'message': 'test message'})}), dict ({'did': 'other2', 'data': dict ({'message': 'another message'})})]),
+						_Entities_Data: list ([dict ({'did': 'did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=', 'hid': 'hid:dns:localhost#02', 'signer': 'did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=#0', 'changed': '2000-01-01T00:00:00+00:00', 'issuants': list ([dict ({'kind': 'dns', 'issuer': 'localhost', 'registered': '2000-01-01T00:00:00+00:00', 'validationURL': 'http://localhost:8080/demo/check'})]), 'data': dict ({'keywords': list (['Canon', 'EOS Rebel T6', '251440']), 'message': 'test message'}), 'keys': list ([dict ({'key': 'dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=', 'kind': 'EdDSA'}), dict ({'key': '0UX5tP24WPEmAbROdXdygGAM3oDcvrqb3foX4EyayYI=', 'kind': 'EdDSA'})])}), dict ({'did': 'other1', 'data': dict ({'message': 'test message'})}), dict ({'did': 'other2', 'data': dict ({'message': 'another message'})})]),
+						_Offers_Data: list ([dict ({'uid': 'o_00035d2976e6a000_26ace93', 'thing': 'did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=', 'aspirant': 'did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=', 'duration': 120.0, 'expiration': '2000-01-01T00:22:00+00:00', 'signer': 'did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=#0', 'offerer': 'did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#0', 'offer': 'offers offer'}), dict ({'uid': 'other1', 'offer': 'offers offer'}), dict ({'uid': 'other2', 'offer': 'offers offer'}), dict ({'uid': 'other3', 'offer': 'not an offer'})]),
 						get before () {return __get__ (this, function (self) {
 							self._testServer = sinon.createFakeServer ();
 							self._testServer.respondWith ('[]');
@@ -3343,14 +3356,19 @@ function tests () {
 							setTimeout (done);
 						});},
 						get startup () {return __get__ (this, function (self) {
-							self.tabs.search ();
+							self.tabs.searchAll ();
 							o (self.tabs.searcher.searchTerm).equals ('') ('Start with no search');
+							o (len (self.tabs.tabs)).equals (5) ('5 tabs available');
 							var current = self.tabs.currentTab ();
 							o (current.Data_tab).equals (self.tabs.tabs [0].Data_tab);
 							o (py_typeof (current)).equals (inspector.Entities) ('First tab is Entities');
+							o (self.tabs.tabs [1].Data_tab).equals (inspector.Issuants.Data_tab);
+							o (self.tabs.tabs [2].Data_tab).equals (inspector.Offers.Data_tab);
+							o (self.tabs.tabs [3].Data_tab).equals (inspector.Messages.Data_tab);
+							o (self.tabs.tabs [4].Data_tab).equals (inspector.AnonMsgs.Data_tab);
 						});},
 						get _setData () {return __get__ (this, function (self, callback) {
-							self.tabs.currentTab ().table._setData (self._data);
+							self.tabs.currentTab ().table._setData (self._Entities_Data);
 							self._redraw (callback);
 						});},
 						get _redraw () {return __get__ (this, function (self, callback) {
@@ -3358,46 +3376,58 @@ function tests () {
 							setTimeout (callback, 50);
 						});},
 						get _clickRow () {return __get__ (this, function (self, row, callback) {
-							jQuery ("[data-tab='entities'].tab.active table > tbody > tr") [row].click ();
+							self.tabs.tabs [0]._getRows () [row].click ();
 							self._redraw (callback);
 						});},
 						get _clickId () {return __get__ (this, function (self, id, callback) {
 							jQuery ('#' + id).click ();
 							self._redraw (callback);
 						});},
-						get asyncBasicSearch () {return __get__ (this, function (self, done, timeout) {
+						get _tableIsEmpty () {return __get__ (this, function (self, rows) {
+							o (rows.length).equals (1) ('Only one entry in table');
+							var td = rows.find ('td');
+							o (td.length).equals (1) ('Entry only has one piece of data');
+							o (td.text ()).equals (inspector.Table.no_results_text);
+						});},
+						get _asyncBasicSearch () {return __get__ (this, function (self, done, timeout) {
 							timeout (200);
 							jQuery ('#' + self.tabs._searchId).val ('test message');
-							self.tabs.search ();
+							self.tabs.searchAll ();
 							o (self.tabs.searcher.searchTerm).equals ('test message') ('Search term set properly');
 							var f1 = function () {
-								var rows = jQuery ("[data-tab='entities'].tab.active table > tbody > tr");
+								var rows = self.tabs.tabs [0]._getRows ();
 								o (rows.length).equals (2) ('Two search results found');
+								var rows = self.tabs.tabs [2]._getRows ();
+								self._tableIsEmpty (rows);
 								var f2 = function () {
-									var rows = jQuery ("[data-tab='entities'].tab.active table > tbody > tr");
-									o (rows.length).equals (1) ('Only one entry in table');
-									var td = rows.find ('td');
-									o (td.length).equals (1) ('Entry only has one piece of data');
-									o (td.text ()).equals (inspector.Table.no_results_text);
+									var rows = self.tabs.tabs [0]._getRows ();
+									self._tableIsEmpty (rows);
+									var rows = self.tabs.tabs [2]._getRows ();
+									o (rows.length).equals (3);
 									done ();
 								};
-								jQuery ('#' + self.tabs._searchId).val ('not in test data');
-								self.tabs.search ();
+								jQuery ('#' + self.tabs._searchId).val ('offers offer');
+								self.tabs.searchAll ();
 								self._redraw (f2);
 							};
-							self._setData (f1);
+							var offersData = function () {
+								self.tabs.tabs [2].table._setData (self._Offers_Data);
+								self._redraw (f1);
+							};
+							self.tabs.tabs [0].table._setData (self._Entities_Data);
+							self._redraw (offersData);
 						});},
 						get asyncSelectRows () {return __get__ (this, function (self, done, timeout) {
 							timeout (200);
 							var f1 = function () {
 								var f2 = function () {
 									var tab = self.tabs.currentTab ();
-									var expected = tab.table._stringify (self._data [0]);
+									var expected = tab.table._stringify (self._Entities_Data [0]);
 									var actual = jQuery ('#' + tab._detailsId).text ();
 									o (actual).equals (expected) ('Details of row 0 are shown');
 									o (jQuery ('#' + tab._copiedId).text ()).equals ('') ('Copy is empty');
 									var f3 = function () {
-										var expected = tab.table._stringify (self._data [1]);
+										var expected = tab.table._stringify (self._Entities_Data [1]);
 										var actual = jQuery ('#' + tab._detailsId).text ();
 										o (actual).equals (expected) ('Details of row 1 are shown');
 										o (jQuery ('#' + tab._copiedId).text ()).equals ('') ('Copy is empty');
@@ -3415,7 +3445,7 @@ function tests () {
 								var f2 = function () {
 									var tab = self.tabs.currentTab ();
 									var f3 = function () {
-										var expected = tab.table._stringify (self._data [0]);
+										var expected = tab.table._stringify (self._Entities_Data [0]);
 										o (jQuery ('#' + tab._detailsId).text ()).equals (expected) ('Details of row 0 are shown');
 										o (jQuery ('#' + tab._copiedId).text ()).equals (expected) ('Details are copied');
 										var f4 = function () {
@@ -3434,7 +3464,7 @@ function tests () {
 						get asyncRowLimit () {return __get__ (this, function (self, done) {
 							var table = self.tabs.currentTab ().table;
 							var f1 = function () {
-								var rows = jQuery ("[data-tab='entities'].tab.active table > tbody > tr");
+								var rows = self.tabs.tabs [0]._getRows ();
 								o (rows.length).equals (table.max_size + 1) ('Row count limited to max size');
 								o (rows.last ().find ('td').text ()).equals (table._limitText ()) ('Last row specifies that text is limited');
 								done ();

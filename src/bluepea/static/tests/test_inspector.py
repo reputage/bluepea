@@ -166,7 +166,7 @@ class Searcher:
 
 @test
 class TabledTab:
-    _data = [
+    _Entities_Data = [
         {
             "did": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
             "hid": "hid:dns:localhost#02",
@@ -211,6 +211,31 @@ class TabledTab:
                 }
         }]
 
+    _Offers_Data = [
+        {
+            "uid": "o_00035d2976e6a000_26ace93",
+            "thing": "did:igo:4JCM8dJWw_O57vM4kAtTt0yWqSgBuwiHpVgd55BioCM=",
+            "aspirant": "did:igo:Qt27fThWoNZsa88VrTkep6H-4HA8tr54sHON1vWl6FE=",
+            "duration": 120.0,
+            "expiration": "2000-01-01T00:22:00+00:00",
+            "signer": "did:igo:Xq5YqaL6L48pf0fu7IUhL0JRaU2_RxFP0AL43wYn148=#0",
+            "offerer": "did:igo:dZ74MLZXD-1QHoa73w9pQ9GroAvxqFi2RTZWlkC0raY=#0",
+            "offer": "offers offer"
+        },
+        {
+            "uid": "other1",
+            "offer": "offers offer"
+        },
+        {
+            "uid": "other2",
+            "offer": "offers offer"
+        },
+        {
+            "uid": "other3",
+            "offer": "not an offer"
+        }
+    ]
+
     def before(self):
         # Need to make sure startup auto-loading doesn't cause an error, but we don't care about actual data
         self._testServer = sinon.createFakeServer()
@@ -229,15 +254,22 @@ class TabledTab:
         setTimeout(done)
 
     def startup(self):
-        self.tabs.search()
+        self.tabs.searchAll()
         o(self.tabs.searcher.searchTerm).equals("")("Start with no search")
+
+        o(len(self.tabs.tabs)).equals(5)("5 tabs available")
 
         current = self.tabs.currentTab()
         o(current.Data_tab).equals(self.tabs.tabs[0].Data_tab)
         o(type(current)).equals(inspector.Entities)("First tab is Entities")
 
+        o(self.tabs.tabs[1].Data_tab).equals(inspector.Issuants.Data_tab)
+        o(self.tabs.tabs[2].Data_tab).equals(inspector.Offers.Data_tab)
+        o(self.tabs.tabs[3].Data_tab).equals(inspector.Messages.Data_tab)
+        o(self.tabs.tabs[4].Data_tab).equals(inspector.AnonMsgs.Data_tab)
+
     def _setData(self, callback):
-        self.tabs.currentTab().table._setData(self._data)
+        self.tabs.currentTab().table._setData(self._Entities_Data)
         self._redraw(callback)
 
     def _redraw(self, callback):
@@ -245,38 +277,54 @@ class TabledTab:
         setTimeout(callback, 50)
 
     def _clickRow(self, row, callback):
-        jQuery("[data-tab='entities'].tab.active table > tbody > tr")[row].click()
+        self.tabs.tabs[0]._getRows()[row].click()
         self._redraw(callback)
 
     def _clickId(self, id, callback):
         jQuery("#" + id).click()
         self._redraw(callback)
 
-    def asyncBasicSearch(self, done, timeout):
+    def _tableIsEmpty(self, rows):
+        o(rows.length).equals(1)("Only one entry in table")
+        td = rows.find("td")
+        o(td.length).equals(1)("Entry only has one piece of data")
+        o(td.text()).equals(inspector.Table.no_results_text)
+
+    def _asyncBasicSearch(self, done, timeout):
         timeout(200)
 
         jQuery("#" + self.tabs._searchId).val("test message")
-        self.tabs.search()
+        self.tabs.searchAll()
         o(self.tabs.searcher.searchTerm).equals("test message")("Search term set properly")
 
         def f1():
-            rows = jQuery("[data-tab='entities'].tab.active table > tbody > tr")
+            rows = self.tabs.tabs[0]._getRows()
             o(rows.length).equals(2)("Two search results found")
 
+            rows = self.tabs.tabs[2]._getRows()
+            self._tableIsEmpty(rows)
+
             def f2():
-                rows = jQuery("[data-tab='entities'].tab.active table > tbody > tr")
-                o(rows.length).equals(1)("Only one entry in table")
-                td = rows.find("td")
-                o(td.length).equals(1)("Entry only has one piece of data")
-                o(td.text()).equals(inspector.Table.no_results_text)
+                rows = self.tabs.tabs[0]._getRows()
+                self._tableIsEmpty(rows)
+
+                rows = self.tabs.tabs[2]._getRows()
+                o(rows.length).equals(3)
                 done()
 
-            jQuery("#" + self.tabs._searchId).val("not in test data")
-            self.tabs.search()
+            jQuery("#" + self.tabs._searchId).val("offers offer")
+            self.tabs.searchAll()
 
             self._redraw(f2)
 
-        self._setData(f1)
+        def offersData():
+            # For some reason we need to set the offers data after redrawing the entities data,
+            # or the offers data gets overwritten to empty
+            self.tabs.tabs[2].table._setData(self._Offers_Data)
+            self._redraw(f1)
+
+        self.tabs.tabs[0].table._setData(self._Entities_Data)
+        self._redraw(offersData)
 
     def asyncSelectRows(self, done, timeout):
         timeout(200)
@@ -284,13 +332,13 @@ class TabledTab:
         def f1():
             def f2():
                 tab = self.tabs.currentTab()
-                expected = tab.table._stringify(self._data[0])
+                expected = tab.table._stringify(self._Entities_Data[0])
                 actual = jQuery("#" + tab._detailsId).text()
                 o(actual).equals(expected)("Details of row 0 are shown")
                 o(jQuery("#" + tab._copiedId).text()).equals("")("Copy is empty")
 
                 def f3():
-                    expected = tab.table._stringify(self._data[1])
+                    expected = tab.table._stringify(self._Entities_Data[1])
                     actual = jQuery("#" + tab._detailsId).text()
                     o(actual).equals(expected)("Details of row 1 are shown")
                     o(jQuery("#" + tab._copiedId).text()).equals("")("Copy is empty")
@@ -310,7 +358,7 @@ class TabledTab:
                 tab = self.tabs.currentTab()
 
                 def f3():
-                    expected = tab.table._stringify(self._data[0])
+                    expected = tab.table._stringify(self._Entities_Data[0])
                     o(jQuery("#" + tab._detailsId).text()).equals(expected)("Details of row 0 are shown")
                     o(jQuery("#" + tab._copiedId).text()).equals(expected)("Details are copied")
 
@@ -331,7 +379,7 @@ class TabledTab:
         table = self.tabs.currentTab().table
 
         def f1():
-            rows = jQuery("[data-tab='entities'].tab.active table > tbody > tr")
+            rows = self.tabs.tabs[0]._getRows()
             o(rows.length).equals(table.max_size + 1)("Row count limited to max size")
             o(rows.last().find("td").text()).equals(table._limitText())("Last row specifies that text is limited")
             done()
