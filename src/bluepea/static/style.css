@@ -39,7 +39,7 @@ pre.content.code-block {
     overflow-x: auto;
 }
 
-td.fill-space {
+td {
     overflow-x: hidden;
     text-overflow: ellipsis;
 }

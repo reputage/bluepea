@@ -101,9 +101,6 @@
 							return str (data);
 						});},
 						get shorten () {return __get__ (this, function (self, string) {
-							if (len (string) > self.mlength + 3) {
-								var string = string.__getslice__ (0, self.mlength, 1) + '...';
-							}
 							return string;
 						});},
 						get view () {return __get__ (this, function (self, data) {
@@ -149,13 +146,7 @@
 					});
 					var HIDField = __class__ ('HIDField', [IDField], {
 						Header: 'hid:',
-						Title: 'HID',
-						get shorten () {return __get__ (this, function (self, string) {
-							if (len (string) > 13) {
-								var string = (string.__getslice__ (0, 6, 1) + '...') + string.__getslice__ (-(4), null, 1);
-							}
-							return string;
-						});}
+						Title: 'HID'
 					});
 					var OIDField = __class__ ('OIDField', [IDField], {
 						Header: 'o_',

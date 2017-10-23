@@ -1,5 +1,5 @@
 "use strict";
-// Transcrypt'ed from Python, 2017-10-23 14:26:48
+// Transcrypt'ed from Python, 2017-10-23 15:09:12
 function main () {
    var __symbols__ = ['__py3.6__', '__esv5__'];
     var __all__ = {};
@@ -2463,6 +2463,9 @@ function main () {
 						get _getRows () {return __get__ (this, function (self) {
 							return jQuery ("[data-tab='{0}'].tab table > tbody > tr".format (self.Data_tab));
 						});},
+						get _getLabel () {return __get__ (this, function (self) {
+							return jQuery (".menu a[data-tab='{0}'] .ui.label".format (self.Data_tab));
+						});},
 						get _clearCopy () {return __get__ (this, function (self) {
 							self.copiedDetails = '';
 						});},
@@ -2512,9 +2515,6 @@ function main () {
 							return str (data);
 						});},
 						get shorten () {return __get__ (this, function (self, string) {
-							if (len (string) > self.mlength + 3) {
-								var string = string.__getslice__ (0, self.mlength, 1) + '...';
-							}
 							return string;
 						});},
 						get view () {return __get__ (this, function (self, data) {
@@ -2560,13 +2560,7 @@ function main () {
 					});
 					var HIDField = __class__ ('HIDField', [IDField], {
 						Header: 'hid:',
-						Title: 'HID',
-						get shorten () {return __get__ (this, function (self, string) {
-							if (len (string) > 13) {
-								var string = (string.__getslice__ (0, 6, 1) + '...') + string.__getslice__ (-(4), null, 1);
-							}
-							return string;
-						});}
+						Title: 'HID'
 					});
 					var OIDField = __class__ ('OIDField', [IDField], {
 						Header: 'o_',

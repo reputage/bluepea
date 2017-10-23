@@ -153,8 +153,6 @@ class Field:
         """
         Shortens the string to an appropriate length for display.
         """
-        if len(string) > self.mlength + 3:
-            string = string[:self.mlength] + "..."
         return string
 
     def view(self, data):
@@ -218,10 +216,10 @@ class HIDField(IDField):
     Header = "hid:"
     Title = "HID"
 
-    def shorten(self, string):
-        if len(string) > 13:
-            string = string[:6] + "..." + string[-4:]
-        return string
+    # def shorten(self, string):
+    #     if len(string) > 13:
+    #         string = string[:6] + "..." + string[-4:]
+    #     return string
 
 class OIDField(IDField):
     Header = "o_"
