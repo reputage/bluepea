@@ -161,32 +161,41 @@
 						get __init__ () {return __get__ (this, function (self, fields) {
 							self.max_size = 1000;
 							self.fields = fields;
-							self.data = dict ({});
+							self.data = list ([]);
+							self._shownData = list ([]);
 							self.view = dict ({'view': self._view});
-							self._selectedRow = null;
-							self._selectedUid = null;
+							self._selected = null;
 							self.detailSelected = '';
 							self.filter = null;
+							self.sortField = null;
+							self.py_reversed = false;
 							self.total = 0;
 							self.shown = 0;
 						});},
 						get _stringify () {return __get__ (this, function (self, obj) {
-							return JSON.stringify (obj, null, 2);
+							var replacer = function (key, value) {
+								if (key.startswith ('_')) {
+									return ;
+								}
+								return value;
+							};
+							return JSON.stringify (obj, replacer, 2);
 						});},
 						get _limitText () {return __get__ (this, function (self) {
 							return 'Limited to {} results.'.format (self.max_size);
 						});},
-						get _selectRow () {return __get__ (this, function (self, event, uid) {
-							if (uid == self._selectedUid) {
-								return ;
+						get _selectRow () {return __get__ (this, function (self, event, obj) {
+							if (self._selected !== null) {
+								delete self._selected._selected;
+								if (self._selected._uid == obj._uid) {
+									self._selected = null;
+									self.detailSelected = '';
+									return ;
+								}
 							}
-							self._selectedUid = uid;
-							if (self._selectedRow !== null) {
-								jQuery (self._selectedRow).removeClass ('active');
-							}
-							self._selectedRow = event.currentTarget;
-							jQuery (self._selectedRow).addClass ('active');
-							self.detailSelected = self._stringify (self.data [uid]);
+							self._selected = obj;
+							obj._selected = true;
+							self.detailSelected = self._stringify (obj);
 						});},
 						get refresh () {return __get__ (this, function (self) {
 							self._setData (list ([]));
@@ -197,7 +206,7 @@
 						});},
 						get py_clear () {return __get__ (this, function (self) {
 							self.total = 0;
-							self.data.py_clear ();
+							server.clearArray (self.data);
 						});},
 						get _makeDummyData () {return __get__ (this, function (self, count) {
 							var data = list ([]);
@@ -237,7 +246,8 @@
 							var __iterable0__ = data;
 							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
 								var datum = __iterable0__ [__index0__];
-								self.data [self.total] = datum;
+								datum._uid = self.total;
+								self.data.append (datum);
 								self.total++;
 							}
 							self._processData ();
@@ -248,14 +258,31 @@
 								self._processData ();
 							}
 						});},
+						get setSort () {return __get__ (this, function (self, field) {
+							if (self.sortField == field) {
+								self.py_reversed = !(self.py_reversed);
+							}
+							else {
+								self.py_reversed = false;
+								self.sortField = field;
+							}
+							self._sortData ();
+						});},
+						get _sortData () {return __get__ (this, function (self) {
+							if (self.sortField === null) {
+								return ;
+							}
+							self._shownData.py_sort (__kwargtrans__ ({key: (function __lambda__ (obj) {
+								return self._getField (obj, self.sortField);
+							}), reverse: self.py_reversed}));
+						});},
 						get _processData () {return __get__ (this, function (self) {
-							var count = 0;
-							var __iterable0__ = self.data.py_items ();
+							server.clearArray (self._shownData);
+							self.shown = 0;
+							var __iterable0__ = self.data;
 							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
-								var __left0__ = __iterable0__ [__index0__];
-								var key = __left0__ [0];
-								var obj = __left0__ [1];
-								if (count >= self.max_size) {
+								var obj = __iterable0__ [__index0__];
+								if (self.shown >= self.max_size) {
 									break;
 								}
 								if (self.filter !== null) {
@@ -263,9 +290,13 @@
 										continue;
 									}
 								}
-								count++;
+								self._shownData.append (obj);
+								self.shown++;
 							}
-							self.shown = count;
+							self._sortData ();
+						});},
+						get _getField () {return __get__ (this, function (self, obj, field) {
+							return obj [field.py_name];
 						});},
 						get _makeRow () {return __get__ (this, function (self, obj) {
 							return function () {
@@ -273,48 +304,56 @@
 								var __iterable0__ = self.fields;
 								for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
 									var field = __iterable0__ [__index0__];
-									__accu0__.append (field.view (obj [field.py_name]));
+									__accu0__.append (field.view (self._getField (obj, field)));
 								}
 								return __accu0__;
 							} ();
 						});},
 						get _view () {return __get__ (this, function (self) {
-							var headers = function () {
-								var __accu0__ = [];
-								var __iterable0__ = self.fields;
-								for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
-									var field = __iterable0__ [__index0__];
-									__accu0__.append (m ('th', field.title));
-								}
-								return __accu0__;
-							} ();
-							var rows = list ([]);
-							var count = 0;
-							var __iterable0__ = self.data.py_items ();
+							var headers = list ([]);
+							var __iterable0__ = self.fields;
 							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
-								var __left0__ = __iterable0__ [__index0__];
-								var key = __left0__ [0];
-								var obj = __left0__ [1];
-								if (count >= self.max_size) {
-									rows.append (m ('tr', m ('td', self._limitText ())));
-									break;
-								}
-								if (self.filter !== null) {
-									if (!(self.filter (obj))) {
-										continue;
-									}
-								}
-								var row = self._makeRow (obj);
-								var makeScope = function (uid) {
+								var field = __iterable0__ [__index0__];
+								var makeScope = function (f) {
 									return (function __lambda__ (event) {
-										return self._selectRow (event, uid);
+										return self.setSort (f);
 									});
 								};
-								rows.append (m ('tr', dict ({'onclick': makeScope (key)}), row));
-								count++;
+								if (field == self.sortField) {
+									if (self.py_reversed) {
+										var icon = m ('i.arrow.down.icon');
+									}
+									else {
+										var icon = m ('i.arrow.up.icon');
+									}
+									var header = m ('th.ui.right.labeled.icon', dict ({'onclick': makeScope (field)}), icon, field.title);
+								}
+								else {
+									var header = m ('th', dict ({'onclick': makeScope (field)}), field.title);
+								}
+								headers.append (header);
 							}
-							self.shown = count;
-							if (!(count)) {
+							var rows = list ([]);
+							var __iterable0__ = self._shownData;
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var obj = __iterable0__ [__index0__];
+								var row = self._makeRow (obj);
+								var makeScope = function (o) {
+									return (function __lambda__ (event) {
+										return self._selectRow (event, o);
+									});
+								};
+								if (obj._selected) {
+									rows.append (m ('tr.active', dict ({'onclick': makeScope (obj)}), row));
+								}
+								else {
+									rows.append (m ('tr', dict ({'onclick': makeScope (obj)}), row));
+								}
+							}
+							if (self.shown >= self.max_size) {
+								rows.append (m ('tr', m ('td', self._limitText ())));
+							}
+							if (!(self.shown)) {
 								rows.append (m ('tr', m ('td', self.no_results_text)));
 							}
 							return m ('table', dict ({'class': 'ui selectable celled unstackable single line left aligned table'}), m ('thead', m ('tr', dict ({'class': 'center aligned'}), headers)), m ('tbody', rows));
@@ -332,29 +371,20 @@
 								return self._setData (msgs.messages);
 							}));
 						});},
-						get _makeRow () {return __get__ (this, function (self, obj) {
-							var row = list ([]);
-							var __iterable0__ = self.fields;
-							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
-								var field = __iterable0__ [__index0__];
-								if (field.py_name == 'uid') {
-									var data = obj.anon.uid;
-								}
-								else if (field.py_name == 'date') {
-									var data = obj.anon.date;
-								}
-								else if (field.py_name == 'content') {
-									var data = obj.anon.content;
-								}
-								else if (field.py_name == 'created') {
-									var data = obj.create;
-								}
-								else {
-									var data = obj [field.py_name];
-								}
-								row.append (field.view (data));
+						get _getField () {return __get__ (this, function (self, obj, field) {
+							if (field.py_name == 'uid') {
+								return obj.anon.uid;
 							}
-							return row;
+							else if (field.py_name == 'date') {
+								return obj.anon.date;
+							}
+							else if (field.py_name == 'content') {
+								return obj.anon.content;
+							}
+							else if (field.py_name == 'created') {
+								return obj.create;
+							}
+							return obj [field.py_name];
 						});}
 					});
 					var IssuantsTable = __class__ ('IssuantsTable', [Table], {
@@ -369,20 +399,11 @@
 								return self._setData (entities.issuants);
 							}));
 						});},
-						get _makeRow () {return __get__ (this, function (self, obj) {
-							var row = list ([]);
-							var __iterable0__ = self.fields;
-							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
-								var field = __iterable0__ [__index0__];
-								if (field.py_name == 'url') {
-									var data = obj.validationURL;
-								}
-								else {
-									var data = obj [field.py_name];
-								}
-								row.append (field.view (data));
+						get _getField () {return __get__ (this, function (self, obj, field) {
+							if (field.py_name == 'url') {
+								return obj.validationURL;
 							}
-							return row;
+							return obj [field.py_name];
 						});}
 					});
 					var OffersTable = __class__ ('OffersTable', [Table], {
@@ -427,45 +448,36 @@
 							}));
 							return Promise.all (list ([p1, p2]));
 						});},
-						get _makeRow () {return __get__ (this, function (self, obj) {
-							var row = list ([]);
-							var __iterable0__ = self.fields;
-							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
-								var field = __iterable0__ [__index0__];
-								if (field.py_name == 'issuants') {
-									var issuants = obj [field.py_name];
-									if (issuants) {
-										var data = len (issuants);
-									}
-									else {
-										var data = '';
-									}
-								}
-								else if (field.py_name == 'keys') {
-									var py_keys = obj [field.py_name];
-									if (py_keys) {
-										var data = len (py_keys);
-									}
-									else {
-										var data = '';
-									}
-								}
-								else if (field.py_name == 'data') {
-									var d = obj [field.py_name];
-									if (d && d.keywords && d.message) {
-										var data = ' '.join (d.keywords);
-										data += ' ' + d.message;
-									}
-									else {
-										var data = '';
-									}
+						get _getField () {return __get__ (this, function (self, obj, field) {
+							if (field.py_name == 'issuants') {
+								var issuants = obj [field.py_name];
+								if (issuants) {
+									return len (issuants);
 								}
 								else {
-									var data = obj [field.py_name];
+									return '';
 								}
-								row.append (field.view (data));
 							}
-							return row;
+							else if (field.py_name == 'keys') {
+								var py_keys = obj [field.py_name];
+								if (py_keys) {
+									return len (py_keys);
+								}
+								else {
+									return '';
+								}
+							}
+							else if (field.py_name == 'data') {
+								var d = obj [field.py_name];
+								if (d && d.keywords && d.message) {
+									var data = ' '.join (d.keywords);
+									return (data + ' ') + d.message;
+								}
+								else {
+									return '';
+								}
+							}
+							return obj [field.py_name];
 						});}
 					});
 					var Entities = __class__ ('Entities', [TabledTab], {
@@ -548,6 +560,9 @@
 						});},
 						get search () {return __get__ (this, function (self, obj) {
 							for (var key in obj) {
+								if (key.startswith ('_')) {
+									continue;
+								}
 								var value = obj [key];
 								if (self._checkAny (value)) {
 									return true;

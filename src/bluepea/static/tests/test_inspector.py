@@ -328,6 +328,38 @@ class TabledTab:
         self.tabs.tabs[0].table._setData(self._Entities_Data)
         self._redraw(offersData)
 
+    def stableSort(self):
+        a = {"anon": {"uid": "a", "content": ""}}
+        a3 = {"anon": {"uid": "a", "content": "3"}}
+        a1 = {"anon": {"uid": "a", "content": "1"}}
+        b4 = {"anon": {"uid": "b", "content": "4"}}
+        d2 = {"anon": {"uid": "d", "content": "2"}}
+        c5 = {"anon": {"uid": "c", "content": "5"}}
+        data = [a3, a, a1, b4, d2, c5]
+
+        anons = self.tabs.tabs[4]
+        anons.table._setData(data)
+
+        # Sort by content
+        field = anons.table.fields[4]
+        o(field.name).equals("content")
+        anons.table.setSort(field)
+        o(anons.table._shownData).deepEquals([a, a1, d2, a3, b4, c5])
+
+        # Reverse sort by content
+        anons.table.setSort(field)
+        o(anons.table._shownData).deepEquals([c5, b4, a3, d2, a1, a])
+
+        # Stably sort by uid instead
+        field = anons.table.fields[0]
+        o(field.name).equals("uid")
+        anons.table.setSort(field)
+        o(anons.table._shownData).deepEquals([a3, a1, a, b4, c5, d2])
+
+        # Stably reverse sort by uid
+        anons.table.setSort(field)
+        o(anons.table._shownData).deepEquals([d2, c5, b4, a, a1, a3])
+
     def asyncSelectRows(self, done, timeout):
         timeout(200)
 
