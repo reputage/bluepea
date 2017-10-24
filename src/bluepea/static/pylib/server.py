@@ -19,23 +19,20 @@ def request(path, **kwargs):
         path += key + "=" + str(value) + "&"
     path = path[:-1]  # Removed unused & or ?
     return m.request(path)
-__pragma__("nokwargs")
 
 
-class Manager:
-    def __init__(self):
-        self.anonMsgs = AnonMessages()
-        self.entities = Entities()
-
-def onlyOne(func):
+def onlyOne(func, interval=1000):
     """
-    Enforces the promise function is only ever called once.
+    Enforces the promise function is called no more than once per span of time (milliseconds).
     """
-    scope = {"promise": None}
+    scope = {"promise": None, "lastCalled": 0}
 
     def wrap():
-        if scope.promise != None:
+        now = __new__(Date())
+        if scope.promise != None and now - scope.lastCalled < interval:
             return scope.promise
+
+        scope.lastCalled = now
 
         def f(resolve, reject):
             p = func()
@@ -44,24 +41,40 @@ def onlyOne(func):
         scope.promise = __new__(Promise(f))
         return scope.promise
     return wrap
+__pragma__("nokwargs")
+
+
+def clearArray(a):
+    while len(a):
+        a.pop()
+
+
+class Manager:
+    def __init__(self):
+        self.anonMsgs = AnonMessages()
+        self.entities = Entities()
 
 
 class Entities:
+    Refresh_Interval = 1000
+    """Do not allow refreshing any function more often than this."""
+
     def __init__(self):
         self.agents = []
         self.things = []
         self.issuants = []
         self.offers = []
         self.messages = []
-        self.refreshAgents = onlyOne(self._refreshAgents)
-        self.refreshThings = onlyOne(self._refreshThings)
+        self.refreshAgents = onlyOne(self._refreshAgents, interval=self.Refresh_Interval)
+        self.refreshThings = onlyOne(self._refreshThings, interval=self.Refresh_Interval)
         self.refreshIssuants = self.refreshAgents
         self.refreshOffers = self.refreshThings
         self.refreshMessages = self.refreshAgents
 
     def _refreshAgents(self):
-        while len(self.agents):
-            self.agents.pop()
+        clearArray(self.agents)
+        clearArray(self.issuants)
+        clearArray(self.messages)
         return request("/agent", all=True).then(self._parseAllAgents)
 
     def _parseAllAgents(self, dids):
@@ -144,8 +157,8 @@ class Entities:
         self.messages.append(data)
 
     def _refreshThings(self):
-        while len(self.things):
-            self.things.pop()
+        clearArray(self.things)
+        clearArray(self.offers)
         return request("/thing", all=True).then(self._parseAllThings)
 
     def _parseAllThings(self, dids):
@@ -217,13 +230,14 @@ class Entities:
 
 
 class AnonMessages:
+    Refresh_Interval = Entities.Refresh_Interval
+
     def __init__(self):
         self.messages = []
-        self.refresh = onlyOne(self._refresh)
+        self.refresh = onlyOne(self._refresh, interval=self.Refresh_Interval)
 
     def _refresh(self):
-        while len(self.messages):
-            self.messages.pop()
+        clearArray(self.messages)
         return request("/anon", all=True).then(self._parseAll)
 
     def _parseAll(self, uids):

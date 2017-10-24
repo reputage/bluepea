@@ -210,7 +210,8 @@ class Server:
         self.testServer.autoRespond = True
         manager.entities.refreshIssuants().then(f1)
 
-    def asyncOffers(self, done):
+    def asyncOffers(self, done, timeout):
+        timeout(300)
         manager = server.Manager()
         o(len(manager.entities.offers)).equals(0)
 
@@ -266,7 +267,8 @@ class Server:
         self.testServer.autoRespond = True
         manager.entities.refreshOffers().then(f1)
 
-    def asyncMessages(self, done):
+    def asyncMessages(self, done, timeout):
+        timeout(300)
         manager = server.Manager()
         o(len(manager.entities.messages)).equals(0)
 

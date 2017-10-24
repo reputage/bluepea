@@ -67,8 +67,20 @@ class TabledTab(Tab):
     def _copyDetails(self):
         self.copiedDetails = self.table.detailSelected
 
+    def _getRows(self):
+        return jQuery("[data-tab='{0}'].tab table > tbody > tr".format(self.Data_tab))
+
+    def _getLabel(self):
+        return jQuery(".menu a[data-tab='{0}'] .ui.label".format(self.Data_tab))
+
     def _clearCopy(self):
         self.copiedDetails = ""
+
+    def menu_item(self):
+        return m(self._menu, self._menu_attrs,
+                 m("div", self.Name),
+                 m("div.ui.label.small", "{0}/{1}".format(self.table.shown, self.table.total))
+                 )
 
     def main_view(self):
         return m("div",
@@ -141,8 +153,6 @@ class Field:
         """
         Shortens the string to an appropriate length for display.
         """
-        if len(string) > self.mlength + 3:
-            string = string[:self.mlength] + "..."
         return string
 
     def view(self, data):
@@ -206,10 +216,10 @@ class HIDField(IDField):
     Header = "hid:"
     Title = "HID"
 
-    def shorten(self, string):
-        if len(string) > 13:
-            string = string[:6] + "..." + string[-4:]
-        return string
+    # def shorten(self, string):
+    #     if len(string) > 13:
+    #         string = string[:6] + "..." + string[-4:]
+    #     return string
 
 class OIDField(IDField):
     Header = "o_"
@@ -223,55 +233,83 @@ class MIDField(IDField):
 class Table:
     """
     A table, its headers, and its data to be displayed.
+
+    Attributes:
+        max_size (int): maximum number of entries to display
+        total (int): number of entries in our data
+        shown (int): number of entries not hidden by filter or max_size limit
     """
     no_results_text = "No results found."
 
     def __init__(self, fields):
         self.max_size = 1000
         self.fields = fields
-        self.data = {}
+        self.data = []
+        self._shownData = []
         self.view = {
-            "oninit": self._oninit,
+            # "oninit": self.refresh,
             "view": self._view
         }
-        self._selectedRow = None
-        self._selectedUid = None
+
+        self._selected = None
         self.detailSelected = ""
+
         self.filter = None
-        self._nextId = 0
+        self.sortField = None
+        self.reversed = False
+
+        self.total = 0
+        self.shown = 0
 
     def _stringify(self, obj):
         """
         Converts the provided json-like object to a user-friendly string.
         """
-        return JSON.stringify(obj, None, 2)
+        def replacer(key, value):
+            # Hide any keys starting with underscore
+            if key.startswith("_"):
+                return
+            return value
+        return JSON.stringify(obj, replacer, 2)
 
     def _limitText(self):
         return "Limited to {} results.".format(self.max_size)
 
-    def _selectRow(self, event, uid):
+    def _selectRow(self, event, obj):
         """
         Deselects any previously selected row and
         selects the row specified in the event.
         """
-        if uid == self._selectedUid:
-            return
+        if self._selected is not None:
+            # Deselect the last-selected object
+            del self._selected._selected
 
-        self._selectedUid = uid
+            if self._selected._uid == obj._uid:
+                # Remove the current selection and don't set another
+                self._selected = None
+                self.detailSelected = ""
+                return
 
-        if self._selectedRow is not None:
-            jQuery(self._selectedRow).removeClass("active")
+        # Select the new object
+        self._selected = obj
+        obj._selected = True
+        self.detailSelected = self._stringify(obj)
 
-        self._selectedRow = event.currentTarget
-        jQuery(self._selectedRow).addClass("active")
-
-        self.detailSelected = self._stringify(self.data[uid])
-
-    def _oninit(self):
+    def refresh(self):
         """
-        Loads any initial data.
+        Refreshes any data from the server and returns a promise which resolves
+        when finished.
         """
         self._setData([])
+        p = __new__(Promise(lambda resolve: resolve()))
+        return Promise
+
+    def clear(self):
+        """
+        Removes memory of all current data.
+        """
+        self.total = 0
+        server.clearArray(self.data)
 
     def _makeDummyData(self, count):
         data = []
@@ -286,49 +324,111 @@ class Table:
     def _setData(self, data, clear=True):
         """
         Clears existing data and uses the provided data instead.
+        Adds a "_uid" field to each piece of data, for tracking internally.
         """
         if clear:
-            self._nextId = 0
-            self.data.clear()
+            self.clear()
         for datum in data:
-            self.data[self._nextId] = datum
-            self._nextId += 1
+            datum._uid = self.total
+            self.data.append(datum)
+            self.total += 1
+        self._processData()
     __pragma__("nokwargs")
+
+    def setFilter(self, func):
+        if func != self.filter:
+            self.filter = func
+            self._processData()
+
+    def setSort(self, field):
+        """
+        Sets our sort to be on the given field.
+        If this is the same as our currently-sorting field, then reverses the sort
+        on that same field.
+        """
+        if self.sortField == field:
+            self.reversed = not self.reversed
+        else:
+            self.reversed = False
+            self.sortField = field
+
+        self._sortData()
+
+    def _sortData(self):
+        if self.sortField is None:
+            return
+
+        self._shownData.sort(key=lambda obj: self._getField(obj, self.sortField), reverse=self.reversed)
+
+    def _processData(self):
+        """
+        Processes our data, determining which items to show and putting them into
+        a list that is sorted if necessary.
+        """
+        server.clearArray(self._shownData)
+
+        self.shown = 0
+        for obj in self.data:
+            if self.shown >= self.max_size:
+                break
+            if self.filter is not None:
+                if not self.filter(obj):
+                    continue
+
+            self._shownData.append(obj)
+            self.shown += 1
+
+        self._sortData()
+
+    def _getField(self, obj, field):
+        """
+        Gets the info from the object matching the given field.
+        """
+        return obj[field.name]
 
     def _makeRow(self, obj):
         """
         Called on each item in self.data.
         Returns an array of <td> vnodes representing a row.
         """
-        return [field.view(obj[field.name]) for field in self.fields]
+        return [field.view(self._getField(obj, field)) for field in self.fields]
 
     def _view(self):
-        headers = [m("th", field.title) for field in self.fields]
+        # Create the headers
+        headers = []
+        for field in self.fields:
+            def makeScope(f):
+                return lambda event: self.setSort(f)
+            if field == self.sortField:
+                if self.reversed:
+                    icon = m("i.arrow.down.icon")
+                else:
+                    icon = m("i.arrow.up.icon")
+                header = m("th.ui.right.labeled.icon", {"onclick": makeScope(field)},
+                           icon,
+                           field.title)
+            else:
+                header = m("th", {"onclick": makeScope(field)}, field.title)
 
-        # Create the rows of the table
+            headers.append(header)
+
+        # Create the rows
         rows = []
-        count = 0
-        for key, obj in self.data.items():
-            # Make sure we don't display too many items
-            if count >= self.max_size:
-                rows.append(m("tr", m("td", self._limitText())))
-                break
-
-            # Make sure object passes any current search filter
-            if self.filter is not None:
-                if not self.filter(obj):
-                    continue
-
+        for obj in self._shownData:
             row = self._makeRow(obj)
 
-            # Needed so we can pass through the key as-is to the lambda, without it changing through the loop
-            def makeScope(uid):
-                return lambda event: self._selectRow(event, uid)
-            rows.append(m("tr", {"onclick": makeScope(key)}, row))
+            # Needed so we can pass through the object as-is to the lambda, without it changing through the loop
+            def makeScope(o):
+                return lambda event: self._selectRow(event, o)
+            if obj._selected:
+                rows.append(m("tr.active", {"onclick": makeScope(obj)}, row))
+            else:
+                rows.append(m("tr", {"onclick": makeScope(obj)}, row))
 
-            count += 1
+        if self.shown >= self.max_size:
+            rows.append(m("tr", m("td", self._limitText())))
 
-        if not count:
+        if not self.shown:
             rows.append(m("tr", m("td", self.no_results_text)))
 
         return m("table", {"class": "ui selectable celled unstackable single line left aligned table"},
@@ -352,25 +452,21 @@ class AnonMsgsTable(Table):
         ]
         super().__init__(fields)
 
-    def _oninit(self):
+    def refresh(self):
+        self.clear()
         msgs = server.manager.anonMsgs
-        msgs.refresh().then(lambda: self._setData(msgs.messages))
+        return msgs.refresh().then(lambda: self._setData(msgs.messages))
 
-    def _makeRow(self, obj):
-        row = []
-        for field in self.fields:
-            if field.name == "uid":
-                data = obj.anon.uid
-            elif field.name == "date":
-                data = obj.anon.date
-            elif field.name == "content":
-                data = obj.anon.content
-            elif field.name == "created":
-                data = obj.create
-            else:
-                data = obj[field.name]
-            row.append(field.view(data))
-        return row
+    def _getField(self, obj, field):
+        if field.name == "uid":
+            return obj.anon.uid
+        elif field.name == "date":
+            return obj.anon.date
+        elif field.name == "content":
+            return obj.anon.content
+        elif field.name == "created":
+            return obj.create
+        return obj[field.name]
 
 
 class IssuantsTable(Table):
@@ -384,19 +480,15 @@ class IssuantsTable(Table):
         ]
         super().__init__(fields)
 
-    def _oninit(self):
+    def refresh(self):
+        self.clear()
         entities = server.manager.entities
-        entities.refreshIssuants().then(lambda: self._setData(entities.issuants))
+        return entities.refreshIssuants().then(lambda: self._setData(entities.issuants))
 
-    def _makeRow(self, obj):
-        row = []
-        for field in self.fields:
-            if field.name == "url":
-                data = obj.validationURL
-            else:
-                data = obj[field.name]
-            row.append(field.view(data))
-        return row
+    def _getField(self, obj, field):
+        if field.name == "url":
+            return obj.validationURL
+        return obj[field.name]
 
 
 class OffersTable(Table):
@@ -412,9 +504,10 @@ class OffersTable(Table):
         ]
         super().__init__(fields)
 
-    def _oninit(self):
+    def refresh(self):
+        self.clear()
         entities = server.manager.entities
-        entities.refreshOffers().then(lambda: self._setData(entities.offers))
+        return entities.refreshOffers().then(lambda: self._setData(entities.offers))
 
 
 class MessagesTable(Table):
@@ -431,9 +524,10 @@ class MessagesTable(Table):
         ]
         super().__init__(fields)
 
-    def _oninit(self):
+    def refresh(self):
+        self.clear()
         entities = server.manager.entities
-        entities.refreshMessages().then(lambda: self._setData(entities.messages))
+        return entities.refreshMessages().then(lambda: self._setData(entities.messages))
 
 
 class EntitiesTable(Table):
@@ -449,39 +543,36 @@ class EntitiesTable(Table):
         ]
         super().__init__(fields)
 
-    def _oninit(self):
+    def refresh(self):
+        self.clear()
         entities = server.manager.entities
-        entities.refreshAgents().then(lambda: self._setData(entities.agents, clear=False))
-        entities.refreshThings().then(lambda: self._setData(entities.things, clear=False))
+        p1 = entities.refreshAgents().then(lambda: self._setData(entities.agents, clear=False))
+        p2 = entities.refreshThings().then(lambda: self._setData(entities.things, clear=False))
+        return Promise.all([p1, p2])
 
-    def _makeRow(self, obj):
-        row = []
-        for field in self.fields:
-            if field.name == "issuants":
-                issuants = obj[field.name]
-                # If any issuants provided, just show count
-                if issuants:
-                    data = len(issuants)
-                else:
-                    data = ""
-            elif field.name == "keys":
-                keys = obj[field.name]
-                # If an keys provided, just show count
-                if keys:
-                    data = len(keys)
-                else:
-                    data = ""
-            elif field.name == "data":
-                d = obj[field.name]
-                if d and d.keywords and d.message:
-                    data = " ".join(d.keywords)
-                    data += " " + d.message
-                else:
-                    data = ""
+    def _getField(self, obj, field):
+        if field.name == "issuants":
+            issuants = obj[field.name]
+            # If any issuants provided, just show count
+            if issuants:
+                return len(issuants)
             else:
-                data = obj[field.name]
-            row.append(field.view(data))
-        return row
+                return ""
+        elif field.name == "keys":
+            keys = obj[field.name]
+            # If an keys provided, just show count
+            if keys:
+                return len(keys)
+            else:
+                return ""
+        elif field.name == "data":
+            d = obj[field.name]
+            if d and d.keywords and d.message:
+                data = " ".join(d.keywords)
+                return data + " " + d.message
+            else:
+                return ""
+        return obj[field.name]
 
 
 class Entities(TabledTab):
@@ -584,6 +675,10 @@ class Searcher:
         """
         __pragma__("jsiter")
         for key in obj:
+            if key.startswith("_"):
+                # Skip any "private" keys
+                continue
+
             value = obj[key]
             if self._checkAny(value):
                 return True
@@ -600,8 +695,33 @@ class Tabs:
         self._searchId = "inspectorSearchId"
         self.searcher = Searcher()
 
+        self._refreshing = False
+        self._refreshPromise = None
+
         # Required to activate tab functionality (so clicking a menu item will activate that tab)
         jQuery(document).ready(lambda: jQuery('.menu > a.item').tab())
+
+        self.refresh()
+
+    def refresh(self):
+        """
+        Retrieves server data and populates our tabs and tables.
+        """
+        if self._refreshing:
+            return self._refreshPromise
+        self._refreshing = True
+
+        promises = []
+        for tab in self.tabs:
+            promises.append(tab.table.refresh())
+
+        def done():
+            self._refreshing = False
+
+        self._refreshPromise = Promise.all(promises)
+        self._refreshPromise.then(done)
+        self._refreshPromise.catch(done)
+        return self._refreshPromise
 
     def currentTab(self):
         """
@@ -614,7 +734,17 @@ class Tabs:
                 return tab
         return None
 
-    def search(self):
+    def searchAll(self):
+        """
+        Initiates searching across all tabs based on the current search string.
+        """
+        text = jQuery("#" + self._searchId).val()
+        self.searcher.setSearch(text)
+
+        for tab in self.tabs:
+            tab.table.setFilter(self.searcher.search)
+
+    def searchCurrent(self):
         """
         Initiates searching in the current tab based on the current search string.
         Clears any searches in other tabs.
@@ -627,9 +757,9 @@ class Tabs:
         # Clear any previous tab's searches and apply current search to current tab
         for tab in self.tabs:
             if text and tab.Data_tab == current.Data_tab:
-                tab.table.filter = self.searcher.search
+                tab.table.setFilter(self.searcher.search)
             else:
-                tab.table.filter = None
+                tab.table.setFilter(None)
 
     # def searchWithin(self):
     #     text = jQuery("#" + self._searchId).val()
@@ -641,8 +771,17 @@ class Tabs:
             menu_items.append(tab.menu_item())
             tab_items.append(tab.tab_item())
 
+        if self._refreshing:
+            refresher = m("button.ui.icon.button.disabled", {"onclick": self.refresh},
+                          m("i.refresh.icon.spinning")
+                          )
+        else:
+            refresher = m("button.ui.icon.button", {"onclick": self.refresh},
+                          m("i.refresh.icon")
+                          )
+
         return m("div",
-                 m("form", {"onsubmit": self.search},
+                 m("form", {"onsubmit": self.searchAll},
                    m("div.ui.borderless.menu",
                      m("div.right.menu", {"style": "padding-right: 40%"},
                        m("div.item", {"style": "width: 80%"},
@@ -654,6 +793,9 @@ class Tabs:
                        m("div.item",
                          m("input.ui.primary.button[type=submit][value=Search]")
                          ),
+                       m("div.item",
+                         refresher
+                         )
                        # m("div.item",
                        #   m("div.ui.secondary.button", {"onclick": self.searchWithin}, "Search Within")
                        #   )

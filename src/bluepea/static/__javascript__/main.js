@@ -1,5 +1,5 @@
 "use strict";
-// Transcrypt'ed from Python, 2017-10-09 08:39:59
+// Transcrypt'ed from Python, 2017-10-24 15:21:33
 function main () {
    var __symbols__ = ['__py3.6__', '__esv5__'];
     var __all__ = {};
@@ -2460,8 +2460,17 @@ function main () {
 						get _copyDetails () {return __get__ (this, function (self) {
 							self.copiedDetails = self.table.detailSelected;
 						});},
+						get _getRows () {return __get__ (this, function (self) {
+							return jQuery ("[data-tab='{0}'].tab table > tbody > tr".format (self.Data_tab));
+						});},
+						get _getLabel () {return __get__ (this, function (self) {
+							return jQuery (".menu a[data-tab='{0}'] .ui.label".format (self.Data_tab));
+						});},
 						get _clearCopy () {return __get__ (this, function (self) {
 							self.copiedDetails = '';
+						});},
+						get menu_item () {return __get__ (this, function (self) {
+							return m (self._menu, self._menu_attrs, m ('div', self.Name), m ('div.ui.label.small', '{0}/{1}'.format (self.table.shown, self.table.total)));
 						});},
 						get main_view () {return __get__ (this, function (self) {
 							return m ('div', m ('div.table-container', m (self.table.view)), m ('div.ui.hidden.divider'), m ('div.ui.two.cards', dict ({'style': 'height: 45%;'}), m ('div.ui.card', m ('div.content.small-header', m ('div.header', m ('span', 'Details'), m ('span.ui.mini.right.floated.button', dict ({'onclick': self._copyDetails, 'id': self._copyButtonId}), 'Copy'))), m ('pre.content.code-block', dict ({'id': self._detailsId}), self.table.detailSelected)), m ('div.ui.card', m ('div.content.small-header', m ('div.header', m ('span', 'Copied'), m ('span.ui.mini.right.floated.button', dict ({'onclick': self._clearCopy, 'id': self._clearButtonId}), 'Clear'))), m ('pre.content.code-block', dict ({'id': self._copiedId}), self.copiedDetails))));
@@ -2506,9 +2515,6 @@ function main () {
 							return str (data);
 						});},
 						get shorten () {return __get__ (this, function (self, string) {
-							if (len (string) > self.mlength + 3) {
-								var string = string.__getslice__ (0, self.mlength, 1) + '...';
-							}
 							return string;
 						});},
 						get view () {return __get__ (this, function (self, data) {
@@ -2554,13 +2560,7 @@ function main () {
 					});
 					var HIDField = __class__ ('HIDField', [IDField], {
 						Header: 'hid:',
-						Title: 'HID',
-						get shorten () {return __get__ (this, function (self, string) {
-							if (len (string) > 13) {
-								var string = (string.__getslice__ (0, 6, 1) + '...') + string.__getslice__ (-(4), null, 1);
-							}
-							return string;
-						});}
+						Title: 'HID'
 					});
 					var OIDField = __class__ ('OIDField', [IDField], {
 						Header: 'o_',
@@ -2575,34 +2575,52 @@ function main () {
 						get __init__ () {return __get__ (this, function (self, fields) {
 							self.max_size = 1000;
 							self.fields = fields;
-							self.data = dict ({});
-							self.view = dict ({'oninit': self._oninit, 'view': self._view});
-							self._selectedRow = null;
-							self._selectedUid = null;
+							self.data = list ([]);
+							self._shownData = list ([]);
+							self.view = dict ({'view': self._view});
+							self._selected = null;
 							self.detailSelected = '';
 							self.filter = null;
-							self._nextId = 0;
+							self.sortField = null;
+							self.py_reversed = false;
+							self.total = 0;
+							self.shown = 0;
 						});},
 						get _stringify () {return __get__ (this, function (self, obj) {
-							return JSON.stringify (obj, null, 2);
+							var replacer = function (key, value) {
+								if (key.startswith ('_')) {
+									return ;
+								}
+								return value;
+							};
+							return JSON.stringify (obj, replacer, 2);
 						});},
 						get _limitText () {return __get__ (this, function (self) {
 							return 'Limited to {} results.'.format (self.max_size);
 						});},
-						get _selectRow () {return __get__ (this, function (self, event, uid) {
-							if (uid == self._selectedUid) {
-								return ;
+						get _selectRow () {return __get__ (this, function (self, event, obj) {
+							if (self._selected !== null) {
+								delete self._selected._selected;
+								if (self._selected._uid == obj._uid) {
+									self._selected = null;
+									self.detailSelected = '';
+									return ;
+								}
 							}
-							self._selectedUid = uid;
-							if (self._selectedRow !== null) {
-								jQuery (self._selectedRow).removeClass ('active');
-							}
-							self._selectedRow = event.currentTarget;
-							jQuery (self._selectedRow).addClass ('active');
-							self.detailSelected = self._stringify (self.data [uid]);
+							self._selected = obj;
+							obj._selected = true;
+							self.detailSelected = self._stringify (obj);
 						});},
-						get _oninit () {return __get__ (this, function (self) {
+						get refresh () {return __get__ (this, function (self) {
 							self._setData (list ([]));
+							var p = new Promise ((function __lambda__ (resolve) {
+								return resolve ();
+							}));
+							return Promise;
+						});},
+						get py_clear () {return __get__ (this, function (self) {
+							self.total = 0;
+							server.clearArray (self.data);
 						});},
 						get _makeDummyData () {return __get__ (this, function (self, count) {
 							var data = list ([]);
@@ -2637,46 +2655,48 @@ function main () {
 							else {
 							}
 							if (py_clear) {
-								self._nextId = 0;
-								self.data.py_clear ();
+								self.py_clear ();
 							}
 							var __iterable0__ = data;
 							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
 								var datum = __iterable0__ [__index0__];
-								self.data [self._nextId] = datum;
-								self._nextId++;
+								datum._uid = self.total;
+								self.data.append (datum);
+								self.total++;
+							}
+							self._processData ();
+						});},
+						get setFilter () {return __get__ (this, function (self, func) {
+							if (func != self.filter) {
+								self.filter = func;
+								self._processData ();
 							}
 						});},
-						get _makeRow () {return __get__ (this, function (self, obj) {
-							return function () {
-								var __accu0__ = [];
-								var __iterable0__ = self.fields;
-								for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
-									var field = __iterable0__ [__index0__];
-									__accu0__.append (field.view (obj [field.py_name]));
-								}
-								return __accu0__;
-							} ();
+						get setSort () {return __get__ (this, function (self, field) {
+							if (self.sortField == field) {
+								self.py_reversed = !(self.py_reversed);
+							}
+							else {
+								self.py_reversed = false;
+								self.sortField = field;
+							}
+							self._sortData ();
 						});},
-						get _view () {return __get__ (this, function (self) {
-							var headers = function () {
-								var __accu0__ = [];
-								var __iterable0__ = self.fields;
-								for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
-									var field = __iterable0__ [__index0__];
-									__accu0__.append (m ('th', field.title));
-								}
-								return __accu0__;
-							} ();
-							var rows = list ([]);
-							var count = 0;
-							var __iterable0__ = self.data.py_items ();
+						get _sortData () {return __get__ (this, function (self) {
+							if (self.sortField === null) {
+								return ;
+							}
+							self._shownData.py_sort (__kwargtrans__ ({key: (function __lambda__ (obj) {
+								return self._getField (obj, self.sortField);
+							}), reverse: self.py_reversed}));
+						});},
+						get _processData () {return __get__ (this, function (self) {
+							server.clearArray (self._shownData);
+							self.shown = 0;
+							var __iterable0__ = self.data;
 							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
-								var __left0__ = __iterable0__ [__index0__];
-								var key = __left0__ [0];
-								var obj = __left0__ [1];
-								if (count >= self.max_size) {
-									rows.append (m ('tr', m ('td', self._limitText ())));
+								var obj = __iterable0__ [__index0__];
+								if (self.shown >= self.max_size) {
 									break;
 								}
 								if (self.filter !== null) {
@@ -2684,16 +2704,70 @@ function main () {
 										continue;
 									}
 								}
-								var row = self._makeRow (obj);
-								var makeScope = function (uid) {
+								self._shownData.append (obj);
+								self.shown++;
+							}
+							self._sortData ();
+						});},
+						get _getField () {return __get__ (this, function (self, obj, field) {
+							return obj [field.py_name];
+						});},
+						get _makeRow () {return __get__ (this, function (self, obj) {
+							return function () {
+								var __accu0__ = [];
+								var __iterable0__ = self.fields;
+								for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+									var field = __iterable0__ [__index0__];
+									__accu0__.append (field.view (self._getField (obj, field)));
+								}
+								return __accu0__;
+							} ();
+						});},
+						get _view () {return __get__ (this, function (self) {
+							var headers = list ([]);
+							var __iterable0__ = self.fields;
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var field = __iterable0__ [__index0__];
+								var makeScope = function (f) {
 									return (function __lambda__ (event) {
-										return self._selectRow (event, uid);
+										return self.setSort (f);
 									});
 								};
-								rows.append (m ('tr', dict ({'onclick': makeScope (key)}), row));
-								count++;
+								if (field == self.sortField) {
+									if (self.py_reversed) {
+										var icon = m ('i.arrow.down.icon');
+									}
+									else {
+										var icon = m ('i.arrow.up.icon');
+									}
+									var header = m ('th.ui.right.labeled.icon', dict ({'onclick': makeScope (field)}), icon, field.title);
+								}
+								else {
+									var header = m ('th', dict ({'onclick': makeScope (field)}), field.title);
+								}
+								headers.append (header);
 							}
-							if (!(count)) {
+							var rows = list ([]);
+							var __iterable0__ = self._shownData;
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var obj = __iterable0__ [__index0__];
+								var row = self._makeRow (obj);
+								var makeScope = function (o) {
+									return (function __lambda__ (event) {
+										return self._selectRow (event, o);
+									});
+								};
+								if (obj._selected) {
+									rows.append (m ('tr.active', dict ({'onclick': makeScope (obj)}), row));
+								}
+								else {
+									rows.append (m ('tr', dict ({'onclick': makeScope (obj)}), row));
+								}
+							}
+							if (self.shown >= self.max_size) {
+								rows.append (m ('tr', m ('td', self._limitText ())));
+							}
+							if (!(self.shown)) {
 								rows.append (m ('tr', m ('td', self.no_results_text)));
 							}
 							return m ('table', dict ({'class': 'ui selectable celled unstackable single line left aligned table'}), m ('thead', m ('tr', dict ({'class': 'center aligned'}), headers)), m ('tbody', rows));
@@ -2704,35 +2778,27 @@ function main () {
 							var fields = list ([IDField ('UID'), DateField (), EpochField ('Created'), EpochField ('Expire'), FillField ('Content')]);
 							__super__ (AnonMsgsTable, '__init__') (self, fields);
 						});},
-						get _oninit () {return __get__ (this, function (self) {
+						get refresh () {return __get__ (this, function (self) {
+							self.py_clear ();
 							var msgs = server.manager.anonMsgs;
-							msgs.refresh ().then ((function __lambda__ () {
+							return msgs.refresh ().then ((function __lambda__ () {
 								return self._setData (msgs.messages);
 							}));
 						});},
-						get _makeRow () {return __get__ (this, function (self, obj) {
-							var row = list ([]);
-							var __iterable0__ = self.fields;
-							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
-								var field = __iterable0__ [__index0__];
-								if (field.py_name == 'uid') {
-									var data = obj.anon.uid;
-								}
-								else if (field.py_name == 'date') {
-									var data = obj.anon.date;
-								}
-								else if (field.py_name == 'content') {
-									var data = obj.anon.content;
-								}
-								else if (field.py_name == 'created') {
-									var data = obj.create;
-								}
-								else {
-									var data = obj [field.py_name];
-								}
-								row.append (field.view (data));
+						get _getField () {return __get__ (this, function (self, obj, field) {
+							if (field.py_name == 'uid') {
+								return obj.anon.uid;
 							}
-							return row;
+							else if (field.py_name == 'date') {
+								return obj.anon.date;
+							}
+							else if (field.py_name == 'content') {
+								return obj.anon.content;
+							}
+							else if (field.py_name == 'created') {
+								return obj.create;
+							}
+							return obj [field.py_name];
 						});}
 					});
 					var IssuantsTable = __class__ ('IssuantsTable', [Table], {
@@ -2740,26 +2806,18 @@ function main () {
 							var fields = list ([DIDField (), Field ('Kind'), FillField ('Issuer'), DateField ('Registered'), FillField ('URL')]);
 							__super__ (IssuantsTable, '__init__') (self, fields);
 						});},
-						get _oninit () {return __get__ (this, function (self) {
+						get refresh () {return __get__ (this, function (self) {
+							self.py_clear ();
 							var entities = server.manager.entities;
-							entities.refreshIssuants ().then ((function __lambda__ () {
+							return entities.refreshIssuants ().then ((function __lambda__ () {
 								return self._setData (entities.issuants);
 							}));
 						});},
-						get _makeRow () {return __get__ (this, function (self, obj) {
-							var row = list ([]);
-							var __iterable0__ = self.fields;
-							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
-								var field = __iterable0__ [__index0__];
-								if (field.py_name == 'url') {
-									var data = obj.validationURL;
-								}
-								else {
-									var data = obj [field.py_name];
-								}
-								row.append (field.view (data));
+						get _getField () {return __get__ (this, function (self, obj, field) {
+							if (field.py_name == 'url') {
+								return obj.validationURL;
 							}
-							return row;
+							return obj [field.py_name];
 						});}
 					});
 					var OffersTable = __class__ ('OffersTable', [Table], {
@@ -2767,9 +2825,10 @@ function main () {
 							var fields = list ([OIDField ('UID'), DIDField ('Thing'), DIDField ('Aspirant'), Field ('Duration', __kwargtrans__ ({length: 5})), DateField ('Expiration'), DIDField ('Signer'), DIDField ('Offerer')]);
 							__super__ (OffersTable, '__init__') (self, fields);
 						});},
-						get _oninit () {return __get__ (this, function (self) {
+						get refresh () {return __get__ (this, function (self) {
+							self.py_clear ();
 							var entities = server.manager.entities;
-							entities.refreshOffers ().then ((function __lambda__ () {
+							return entities.refreshOffers ().then ((function __lambda__ () {
 								return self._setData (entities.offers);
 							}));
 						});}
@@ -2779,9 +2838,10 @@ function main () {
 							var fields = list ([MIDField ('UID'), Field ('Kind', __kwargtrans__ ({length: 8})), DateField (), DIDField ('To'), DIDField ('From'), DIDField ('Thing'), Field ('Subject', __kwargtrans__ ({length: 10})), FillField ('Content')]);
 							__super__ (MessagesTable, '__init__') (self, fields);
 						});},
-						get _oninit () {return __get__ (this, function (self) {
+						get refresh () {return __get__ (this, function (self) {
+							self.py_clear ();
 							var entities = server.manager.entities;
-							entities.refreshMessages ().then ((function __lambda__ () {
+							return entities.refreshMessages ().then ((function __lambda__ () {
 								return self._setData (entities.messages);
 							}));
 						});}
@@ -2791,54 +2851,47 @@ function main () {
 							var fields = list ([DIDField (), HIDField (), DIDField ('Signer'), DateField ('Changed'), Field ('Issuants'), FillField ('Data'), Field ('Keys')]);
 							__super__ (EntitiesTable, '__init__') (self, fields);
 						});},
-						get _oninit () {return __get__ (this, function (self) {
+						get refresh () {return __get__ (this, function (self) {
+							self.py_clear ();
 							var entities = server.manager.entities;
-							entities.refreshAgents ().then ((function __lambda__ () {
+							var p1 = entities.refreshAgents ().then ((function __lambda__ () {
 								return self._setData (entities.agents, __kwargtrans__ ({py_clear: false}));
 							}));
-							entities.refreshThings ().then ((function __lambda__ () {
+							var p2 = entities.refreshThings ().then ((function __lambda__ () {
 								return self._setData (entities.things, __kwargtrans__ ({py_clear: false}));
 							}));
+							return Promise.all (list ([p1, p2]));
 						});},
-						get _makeRow () {return __get__ (this, function (self, obj) {
-							var row = list ([]);
-							var __iterable0__ = self.fields;
-							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
-								var field = __iterable0__ [__index0__];
-								if (field.py_name == 'issuants') {
-									var issuants = obj [field.py_name];
-									if (issuants) {
-										var data = len (issuants);
-									}
-									else {
-										var data = '';
-									}
-								}
-								else if (field.py_name == 'keys') {
-									var py_keys = obj [field.py_name];
-									if (py_keys) {
-										var data = len (py_keys);
-									}
-									else {
-										var data = '';
-									}
-								}
-								else if (field.py_name == 'data') {
-									var d = obj [field.py_name];
-									if (d && d.keywords && d.message) {
-										var data = ' '.join (d.keywords);
-										data += ' ' + d.message;
-									}
-									else {
-										var data = '';
-									}
+						get _getField () {return __get__ (this, function (self, obj, field) {
+							if (field.py_name == 'issuants') {
+								var issuants = obj [field.py_name];
+								if (issuants) {
+									return len (issuants);
 								}
 								else {
-									var data = obj [field.py_name];
+									return '';
 								}
-								row.append (field.view (data));
 							}
-							return row;
+							else if (field.py_name == 'keys') {
+								var py_keys = obj [field.py_name];
+								if (py_keys) {
+									return len (py_keys);
+								}
+								else {
+									return '';
+								}
+							}
+							else if (field.py_name == 'data') {
+								var d = obj [field.py_name];
+								if (d && d.keywords && d.message) {
+									var data = ' '.join (d.keywords);
+									return (data + ' ') + d.message;
+								}
+								else {
+									return '';
+								}
+							}
+							return obj [field.py_name];
 						});}
 					});
 					var Entities = __class__ ('Entities', [TabledTab], {
@@ -2921,6 +2974,9 @@ function main () {
 						});},
 						get search () {return __get__ (this, function (self, obj) {
 							for (var key in obj) {
+								if (key.startswith ('_')) {
+									continue;
+								}
 								var value = obj [key];
 								if (self._checkAny (value)) {
 									return true;
@@ -2934,9 +2990,31 @@ function main () {
 							self.tabs = list ([Entities (), Issuants (), Offers (), Messages (), AnonMsgs ()]);
 							self._searchId = 'inspectorSearchId';
 							self.searcher = Searcher ();
+							self._refreshing = false;
+							self._refreshPromise = null;
 							jQuery (document).ready ((function __lambda__ () {
 								return jQuery ('.menu > a.item').tab ();
 							}));
+							self.refresh ();
+						});},
+						get refresh () {return __get__ (this, function (self) {
+							if (self._refreshing) {
+								return self._refreshPromise;
+							}
+							self._refreshing = true;
+							var promises = list ([]);
+							var __iterable0__ = self.tabs;
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var tab = __iterable0__ [__index0__];
+								promises.append (tab.table.refresh ());
+							}
+							var done = function () {
+								self._refreshing = false;
+							};
+							self._refreshPromise = Promise.all (promises);
+							self._refreshPromise.then (done);
+							self._refreshPromise.catch (done);
+							return self._refreshPromise;
 						});},
 						get currentTab () {return __get__ (this, function (self) {
 							var active = jQuery ('.menu a.item.active');
@@ -2950,7 +3028,16 @@ function main () {
 							}
 							return null;
 						});},
-						get search () {return __get__ (this, function (self) {
+						get searchAll () {return __get__ (this, function (self) {
+							var text = jQuery ('#' + self._searchId).val ();
+							self.searcher.setSearch (text);
+							var __iterable0__ = self.tabs;
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var tab = __iterable0__ [__index0__];
+								tab.table.setFilter (self.searcher.search);
+							}
+						});},
+						get searchCurrent () {return __get__ (this, function (self) {
 							var text = jQuery ('#' + self._searchId).val ();
 							self.searcher.setSearch (text);
 							var current = self.currentTab ();
@@ -2958,10 +3045,10 @@ function main () {
 							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
 								var tab = __iterable0__ [__index0__];
 								if (text && tab.Data_tab == current.Data_tab) {
-									tab.table.filter = self.searcher.search;
+									tab.table.setFilter (self.searcher.search);
 								}
 								else {
-									tab.table.filter = null;
+									tab.table.setFilter (null);
 								}
 							}
 						});},
@@ -2974,7 +3061,13 @@ function main () {
 								menu_items.append (tab.menu_item ());
 								tab_items.append (tab.tab_item ());
 							}
-							return m ('div', m ('form', dict ({'onsubmit': self.search}), m ('div.ui.borderless.menu', m ('div.right.menu', dict ({'style': 'padding-right: 40%'}), m ('div.item', dict ({'style': 'width: 80%'}), m ('div.ui.transparent.icon.input', m ('input[type=text][placeholder=Search...]', dict ({'id': self._searchId})), m ('i.search.icon'))), m ('div.item', m ('input.ui.primary.button[type=submit][value=Search]'))))), m ('div.ui.top.attached.pointing.five.item.menu', menu_items), tab_items);
+							if (self._refreshing) {
+								var refresher = m ('button.ui.icon.button.disabled', dict ({'onclick': self.refresh}), m ('i.refresh.icon.spinning'));
+							}
+							else {
+								var refresher = m ('button.ui.icon.button', dict ({'onclick': self.refresh}), m ('i.refresh.icon'));
+							}
+							return m ('div', m ('form', dict ({'onsubmit': self.searchAll}), m ('div.ui.borderless.menu', m ('div.right.menu', dict ({'style': 'padding-right: 40%'}), m ('div.item', dict ({'style': 'width: 80%'}), m ('div.ui.transparent.icon.input', m ('input[type=text][placeholder=Search...]', dict ({'id': self._searchId})), m ('i.search.icon'))), m ('div.item', m ('input.ui.primary.button[type=submit][value=Search]')), m ('div.item', refresher)))), m ('div.ui.top.attached.pointing.five.item.menu', menu_items), tab_items);
 						});}
 					});
 					__pragma__ ('<use>' +
@@ -3077,19 +3170,56 @@ function main () {
 						var path = path.__getslice__ (0, -(1), 1);
 						return m.request (path);
 					};
-					var Manager = __class__ ('Manager', [object], {
-						get __init__ () {return __get__ (this, function (self) {
-							self.anonMsgs = AnonMessages ();
-							self.entities = Entities ();
-						});}
-					});
-					var onlyOne = function (func) {
-						var scope = dict ({'promise': null});
+					var onlyOne = function (func, interval) {
+						if (typeof interval == 'undefined' || (interval != null && interval .hasOwnProperty ("__kwargtrans__"))) {;
+							var interval = 1000;
+						};
+						if (arguments.length) {
+							var __ilastarg0__ = arguments.length - 1;
+							if (arguments [__ilastarg0__] && arguments [__ilastarg0__].hasOwnProperty ("__kwargtrans__")) {
+								var __allkwargs0__ = arguments [__ilastarg0__--];
+								for (var __attrib0__ in __allkwargs0__) {
+									switch (__attrib0__) {
+										case 'func': var func = __allkwargs0__ [__attrib0__]; break;
+										case 'interval': var interval = __allkwargs0__ [__attrib0__]; break;
+									}
+								}
+							}
+						}
+						else {
+						}
+						var scope = dict ({'promise': null, 'lastCalled': 0});
 						var wrap = function () {
-							if (scope.promise != null) {
+							if (arguments.length) {
+								var __ilastarg0__ = arguments.length - 1;
+								if (arguments [__ilastarg0__] && arguments [__ilastarg0__].hasOwnProperty ("__kwargtrans__")) {
+									var __allkwargs0__ = arguments [__ilastarg0__--];
+									for (var __attrib0__ in __allkwargs0__) {
+									}
+								}
+							}
+							else {
+							}
+							var now = new Date ();
+							if (scope.promise != null && now - scope.lastCalled < interval) {
 								return scope.promise;
 							}
+							scope.lastCalled = now;
 							var f = function (resolve, reject) {
+								if (arguments.length) {
+									var __ilastarg0__ = arguments.length - 1;
+									if (arguments [__ilastarg0__] && arguments [__ilastarg0__].hasOwnProperty ("__kwargtrans__")) {
+										var __allkwargs0__ = arguments [__ilastarg0__--];
+										for (var __attrib0__ in __allkwargs0__) {
+											switch (__attrib0__) {
+												case 'resolve': var resolve = __allkwargs0__ [__attrib0__]; break;
+												case 'reject': var reject = __allkwargs0__ [__attrib0__]; break;
+											}
+										}
+									}
+								}
+								else {
+								}
 								var p = func ();
 								p.then (resolve);
 								p.catch (reject);
@@ -3099,23 +3229,35 @@ function main () {
 						};
 						return wrap;
 					};
+					var clearArray = function (a) {
+						while (len (a)) {
+							a.py_pop ();
+						}
+					};
+					var Manager = __class__ ('Manager', [object], {
+						get __init__ () {return __get__ (this, function (self) {
+							self.anonMsgs = AnonMessages ();
+							self.entities = Entities ();
+						});}
+					});
 					var Entities = __class__ ('Entities', [object], {
+						Refresh_Interval: 1000,
 						get __init__ () {return __get__ (this, function (self) {
 							self.agents = list ([]);
 							self.things = list ([]);
 							self.issuants = list ([]);
 							self.offers = list ([]);
 							self.messages = list ([]);
-							self.refreshAgents = onlyOne (self._refreshAgents);
-							self.refreshThings = onlyOne (self._refreshThings);
+							self.refreshAgents = onlyOne (self._refreshAgents, __kwargtrans__ ({interval: self.Refresh_Interval}));
+							self.refreshThings = onlyOne (self._refreshThings, __kwargtrans__ ({interval: self.Refresh_Interval}));
 							self.refreshIssuants = self.refreshAgents;
 							self.refreshOffers = self.refreshThings;
 							self.refreshMessages = self.refreshAgents;
 						});},
 						get _refreshAgents () {return __get__ (this, function (self) {
-							while (len (self.agents)) {
-								self.agents.py_pop ();
-							}
+							clearArray (self.agents);
+							clearArray (self.issuants);
+							clearArray (self.messages);
 							return request ('/agent', __kwargtrans__ ({all: true})).then (self._parseAllAgents);
 						});},
 						get _parseAllAgents () {return __get__ (this, function (self, dids) {
@@ -3158,9 +3300,8 @@ function main () {
 							self.messages.append (data);
 						});},
 						get _refreshThings () {return __get__ (this, function (self) {
-							while (len (self.things)) {
-								self.things.py_pop ();
-							}
+							clearArray (self.things);
+							clearArray (self.offers);
 							return request ('/thing', __kwargtrans__ ({all: true})).then (self._parseAllThings);
 						});},
 						get _parseAllThings () {return __get__ (this, function (self, dids) {
@@ -3195,14 +3336,13 @@ function main () {
 						});}
 					});
 					var AnonMessages = __class__ ('AnonMessages', [object], {
+						Refresh_Interval: Entities.Refresh_Interval,
 						get __init__ () {return __get__ (this, function (self) {
 							self.messages = list ([]);
-							self.refresh = onlyOne (self._refresh);
+							self.refresh = onlyOne (self._refresh, __kwargtrans__ ({interval: self.Refresh_Interval}));
 						});},
 						get _refresh () {return __get__ (this, function (self) {
-							while (len (self.messages)) {
-								self.messages.py_pop ();
-							}
+							clearArray (self.messages);
 							return request ('/anon', __kwargtrans__ ({all: true})).then (self._parseAll);
 						});},
 						get _parseAll () {return __get__ (this, function (self, uids) {
@@ -3227,6 +3367,7 @@ function main () {
 						__all__.AnonMessages = AnonMessages;
 						__all__.Entities = Entities;
 						__all__.Manager = Manager;
+						__all__.clearArray = clearArray;
 						__all__.manager = manager;
 						__all__.onlyOne = onlyOne;
 						__all__.request = request;
