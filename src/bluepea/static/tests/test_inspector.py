@@ -392,3 +392,103 @@ class TabledTab:
         data = table._makeDummyData(table.max_size * 2)
         table._setData(data)
         self._redraw(f1)
+
+
+@test
+class Refresh:
+    def before(self):
+        self.testServer = sinon.createFakeServer()
+        self.testServer.respondWith("[]")
+        self.testServer.respondImmediately = True
+        window.XMLHttpRequest = XMLHttpRequest
+
+    def after(self):
+        self.testServer.restore()
+
+    def _respond(self, request, response):
+        request.respond(200, {"Content-Type": "application/json"}, JSON.stringify(response))
+
+    def _respondTo(self, endpoint, data):
+        self.testServer.respondWith(endpoint, lambda request: self._respond(request, data))
+
+    def _redraw(self, callback):
+        m.redraw()
+        setTimeout(callback, 50)
+
+    def asyncBasic(self, done, timeout):
+        timeout(300 + inspector.server.AnonMessages.Refresh_Interval)
+        refresh_interval = inspector.server.AnonMessages.Refresh_Interval
+
+        # Setup server responses
+        messages1 = [
+            {
+                "create": 1507064140186082,
+                "expire": 1507150540186082,
+                "anon": {
+                    "uid": "uid1",
+                    "content": "EjRWeBI0Vng=",
+                    "date": "2017-10-03T20:55:45.186082+00:00"
+                }
+            },
+            {
+                "create": 123,
+                "anon": {
+                    "uid": "uid2"
+                }
+            },
+            {
+                "create": 1234,
+                "anon": {
+                    "uid": "uid3"
+                }
+            },
+            {
+                "create": 1235,
+                "anon": {
+                    "uid": "uid4"
+                }
+            }
+        ]
+        self._respondTo("/anon?all=true", ["uid1"])
+        self._respondTo("/anon?uid=uid1", messages1)
+
+        # Create tabs
+        r = router.Router()
+        r.route()
+        tabs = r.tabs
+
+        def f1():
+            anons = tabs.tabs[4]
+            o(anons._getRows().length).equals(len(messages1))("Loaded original data")
+
+            messages2 = [
+                {
+                    "create": 0,
+                    "anon": {
+                        "uid": "uid5"
+                    }
+                },
+                {
+                    "create": 1,
+                    "anon": {
+                        "uid": "uid6"
+                    }
+                }
+            ]
+            self._respondTo("/anon?all=true", ["uid2"])
+            self._respondTo("/anon?uid=uid2", messages2)
+
+            def f2():
+                o(anons._getRows().length).equals(len(messages1))("Still has original data")
+
+                def f3():
+                    o(anons._getRows().length).equals(len(messages2))("Loaded new data")
+                    done()
+
+                # Wait for refresh timer to expire, then refresh
+                setTimeout(lambda: tabs.refresh().then(lambda: self._redraw(f3)), refresh_interval)
+
+            tabs.refresh().then(lambda: self._redraw(f2))
+
+        # Things like "current tab" take a moment to appear in the DOM, so wait for them
+        setTimeout(lambda: self._redraw(f1))

@@ -79,7 +79,7 @@ class TabledTab(Tab):
     def menu_item(self):
         return m(self._menu, self._menu_attrs,
                  m("div", self.Name),
-                 m("div.ui.label", "{0}/{1}".format(self.table.shown, self.table.total))
+                 m("div.ui.label.small", "{0}/{1}".format(self.table.shown, self.table.total))
                  )
 
     def main_view(self):
@@ -246,7 +246,7 @@ class Table:
         self.fields = fields
         self.data = {}
         self.view = {
-            "oninit": self._oninit,
+            # "oninit": self.refresh,
             "view": self._view
         }
         self._selectedRow = None
@@ -284,11 +284,21 @@ class Table:
 
         self.detailSelected = self._stringify(self.data[uid])
 
-    def _oninit(self):
+    def refresh(self):
         """
-        Loads any initial data.
+        Refreshes any data from the server and returns a promise which resolves
+        when finished.
         """
         self._setData([])
+        p = __new__(Promise(lambda resolve: resolve()))
+        return Promise
+
+    def clear(self):
+        """
+        Removes memory of all current data.
+        """
+        self.total = 0
+        self.data.clear()
 
     def _makeDummyData(self, count):
         data = []
@@ -305,8 +315,7 @@ class Table:
         Clears existing data and uses the provided data instead.
         """
         if clear:
-            self.total = 0
-            self.data.clear()
+            self.clear()
         for datum in data:
             self.data[self.total] = datum
             self.total += 1
@@ -392,9 +401,10 @@ class AnonMsgsTable(Table):
         ]
         super().__init__(fields)
 
-    def _oninit(self):
+    def refresh(self):
+        self.clear()
         msgs = server.manager.anonMsgs
-        msgs.refresh().then(lambda: self._setData(msgs.messages))
+        return msgs.refresh().then(lambda: self._setData(msgs.messages))
 
     def _makeRow(self, obj):
         row = []
@@ -424,9 +434,10 @@ class IssuantsTable(Table):
         ]
         super().__init__(fields)
 
-    def _oninit(self):
+    def refresh(self):
+        self.clear()
         entities = server.manager.entities
-        entities.refreshIssuants().then(lambda: self._setData(entities.issuants))
+        return entities.refreshIssuants().then(lambda: self._setData(entities.issuants))
 
     def _makeRow(self, obj):
         row = []
@@ -452,9 +463,10 @@ class OffersTable(Table):
         ]
         super().__init__(fields)
 
-    def _oninit(self):
+    def refresh(self):
+        self.clear()
         entities = server.manager.entities
-        entities.refreshOffers().then(lambda: self._setData(entities.offers))
+        return entities.refreshOffers().then(lambda: self._setData(entities.offers))
 
 
 class MessagesTable(Table):
@@ -471,9 +483,10 @@ class MessagesTable(Table):
         ]
         super().__init__(fields)
 
-    def _oninit(self):
+    def refresh(self):
+        self.clear()
         entities = server.manager.entities
-        entities.refreshMessages().then(lambda: self._setData(entities.messages))
+        return entities.refreshMessages().then(lambda: self._setData(entities.messages))
 
 
 class EntitiesTable(Table):
@@ -489,10 +502,12 @@ class EntitiesTable(Table):
         ]
         super().__init__(fields)
 
-    def _oninit(self):
+    def refresh(self):
+        self.clear()
         entities = server.manager.entities
-        entities.refreshAgents().then(lambda: self._setData(entities.agents, clear=False))
-        entities.refreshThings().then(lambda: self._setData(entities.things, clear=False))
+        p1 = entities.refreshAgents().then(lambda: self._setData(entities.agents, clear=False))
+        p2 = entities.refreshThings().then(lambda: self._setData(entities.things, clear=False))
+        return Promise.all([p1, p2])
 
     def _makeRow(self, obj):
         row = []
@@ -640,8 +655,33 @@ class Tabs:
         self._searchId = "inspectorSearchId"
         self.searcher = Searcher()
 
+        self._refreshing = False
+        self._refreshPromise = None
+
         # Required to activate tab functionality (so clicking a menu item will activate that tab)
         jQuery(document).ready(lambda: jQuery('.menu > a.item').tab())
+
+        self.refresh()
+
+    def refresh(self):
+        """
+        Retrieves server data and populates our tabs and tables.
+        """
+        if self._refreshing:
+            return self._refreshPromise
+        self._refreshing = True
+
+        promises = []
+        for tab in self.tabs:
+            promises.append(tab.table.refresh())
+
+        def done():
+            self._refreshing = False
+
+        self._refreshPromise = Promise.all(promises)
+        self._refreshPromise.then(done)
+        self._refreshPromise.catch(done)
+        return self._refreshPromise
 
     def currentTab(self):
         """
@@ -691,6 +731,15 @@ class Tabs:
             menu_items.append(tab.menu_item())
             tab_items.append(tab.tab_item())
 
+        if self._refreshing:
+            refresher = m("button.ui.icon.button.disabled", {"onclick": self.refresh},
+                          m("i.refresh.icon.spinning")
+                          )
+        else:
+            refresher = m("button.ui.icon.button", {"onclick": self.refresh},
+                          m("i.refresh.icon")
+                          )
+
         return m("div",
                  m("form", {"onsubmit": self.searchAll},
                    m("div.ui.borderless.menu",
@@ -704,6 +753,9 @@ class Tabs:
                        m("div.item",
                          m("input.ui.primary.button[type=submit][value=Search]")
                          ),
+                       m("div.item",
+                         refresher
+                         )
                        # m("div.item",
                        #   m("div.ui.secondary.button", {"onclick": self.searchWithin}, "Search Within")
                        #   )

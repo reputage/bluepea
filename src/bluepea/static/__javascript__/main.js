@@ -1,5 +1,5 @@
 "use strict";
-// Transcrypt'ed from Python, 2017-10-23 15:09:12
+// Transcrypt'ed from Python, 2017-10-23 19:23:10
 function main () {
    var __symbols__ = ['__py3.6__', '__esv5__'];
     var __all__ = {};
@@ -2470,7 +2470,7 @@ function main () {
 							self.copiedDetails = '';
 						});},
 						get menu_item () {return __get__ (this, function (self) {
-							return m (self._menu, self._menu_attrs, m ('div', self.Name), m ('div.ui.label', '{0}/{1}'.format (self.table.shown, self.table.total)));
+							return m (self._menu, self._menu_attrs, m ('div', self.Name), m ('div.ui.label.small', '{0}/{1}'.format (self.table.shown, self.table.total)));
 						});},
 						get main_view () {return __get__ (this, function (self) {
 							return m ('div', m ('div.table-container', m (self.table.view)), m ('div.ui.hidden.divider'), m ('div.ui.two.cards', dict ({'style': 'height: 45%;'}), m ('div.ui.card', m ('div.content.small-header', m ('div.header', m ('span', 'Details'), m ('span.ui.mini.right.floated.button', dict ({'onclick': self._copyDetails, 'id': self._copyButtonId}), 'Copy'))), m ('pre.content.code-block', dict ({'id': self._detailsId}), self.table.detailSelected)), m ('div.ui.card', m ('div.content.small-header', m ('div.header', m ('span', 'Copied'), m ('span.ui.mini.right.floated.button', dict ({'onclick': self._clearCopy, 'id': self._clearButtonId}), 'Clear'))), m ('pre.content.code-block', dict ({'id': self._copiedId}), self.copiedDetails))));
@@ -2576,7 +2576,7 @@ function main () {
 							self.max_size = 1000;
 							self.fields = fields;
 							self.data = dict ({});
-							self.view = dict ({'oninit': self._oninit, 'view': self._view});
+							self.view = dict ({'view': self._view});
 							self._selectedRow = null;
 							self._selectedUid = null;
 							self.detailSelected = '';
@@ -2602,8 +2602,16 @@ function main () {
 							jQuery (self._selectedRow).addClass ('active');
 							self.detailSelected = self._stringify (self.data [uid]);
 						});},
-						get _oninit () {return __get__ (this, function (self) {
+						get refresh () {return __get__ (this, function (self) {
 							self._setData (list ([]));
+							var p = new Promise ((function __lambda__ (resolve) {
+								return resolve ();
+							}));
+							return Promise;
+						});},
+						get py_clear () {return __get__ (this, function (self) {
+							self.total = 0;
+							self.data.py_clear ();
 						});},
 						get _makeDummyData () {return __get__ (this, function (self, count) {
 							var data = list ([]);
@@ -2638,8 +2646,7 @@ function main () {
 							else {
 							}
 							if (py_clear) {
-								self.total = 0;
-								self.data.py_clear ();
+								self.py_clear ();
 							}
 							var __iterable0__ = data;
 							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
@@ -2732,9 +2739,10 @@ function main () {
 							var fields = list ([IDField ('UID'), DateField (), EpochField ('Created'), EpochField ('Expire'), FillField ('Content')]);
 							__super__ (AnonMsgsTable, '__init__') (self, fields);
 						});},
-						get _oninit () {return __get__ (this, function (self) {
+						get refresh () {return __get__ (this, function (self) {
+							self.py_clear ();
 							var msgs = server.manager.anonMsgs;
-							msgs.refresh ().then ((function __lambda__ () {
+							return msgs.refresh ().then ((function __lambda__ () {
 								return self._setData (msgs.messages);
 							}));
 						});},
@@ -2768,9 +2776,10 @@ function main () {
 							var fields = list ([DIDField (), Field ('Kind'), FillField ('Issuer'), DateField ('Registered'), FillField ('URL')]);
 							__super__ (IssuantsTable, '__init__') (self, fields);
 						});},
-						get _oninit () {return __get__ (this, function (self) {
+						get refresh () {return __get__ (this, function (self) {
+							self.py_clear ();
 							var entities = server.manager.entities;
-							entities.refreshIssuants ().then ((function __lambda__ () {
+							return entities.refreshIssuants ().then ((function __lambda__ () {
 								return self._setData (entities.issuants);
 							}));
 						});},
@@ -2795,9 +2804,10 @@ function main () {
 							var fields = list ([OIDField ('UID'), DIDField ('Thing'), DIDField ('Aspirant'), Field ('Duration', __kwargtrans__ ({length: 5})), DateField ('Expiration'), DIDField ('Signer'), DIDField ('Offerer')]);
 							__super__ (OffersTable, '__init__') (self, fields);
 						});},
-						get _oninit () {return __get__ (this, function (self) {
+						get refresh () {return __get__ (this, function (self) {
+							self.py_clear ();
 							var entities = server.manager.entities;
-							entities.refreshOffers ().then ((function __lambda__ () {
+							return entities.refreshOffers ().then ((function __lambda__ () {
 								return self._setData (entities.offers);
 							}));
 						});}
@@ -2807,9 +2817,10 @@ function main () {
 							var fields = list ([MIDField ('UID'), Field ('Kind', __kwargtrans__ ({length: 8})), DateField (), DIDField ('To'), DIDField ('From'), DIDField ('Thing'), Field ('Subject', __kwargtrans__ ({length: 10})), FillField ('Content')]);
 							__super__ (MessagesTable, '__init__') (self, fields);
 						});},
-						get _oninit () {return __get__ (this, function (self) {
+						get refresh () {return __get__ (this, function (self) {
+							self.py_clear ();
 							var entities = server.manager.entities;
-							entities.refreshMessages ().then ((function __lambda__ () {
+							return entities.refreshMessages ().then ((function __lambda__ () {
 								return self._setData (entities.messages);
 							}));
 						});}
@@ -2819,14 +2830,16 @@ function main () {
 							var fields = list ([DIDField (), HIDField (), DIDField ('Signer'), DateField ('Changed'), Field ('Issuants'), FillField ('Data'), Field ('Keys')]);
 							__super__ (EntitiesTable, '__init__') (self, fields);
 						});},
-						get _oninit () {return __get__ (this, function (self) {
+						get refresh () {return __get__ (this, function (self) {
+							self.py_clear ();
 							var entities = server.manager.entities;
-							entities.refreshAgents ().then ((function __lambda__ () {
+							var p1 = entities.refreshAgents ().then ((function __lambda__ () {
 								return self._setData (entities.agents, __kwargtrans__ ({py_clear: false}));
 							}));
-							entities.refreshThings ().then ((function __lambda__ () {
+							var p2 = entities.refreshThings ().then ((function __lambda__ () {
 								return self._setData (entities.things, __kwargtrans__ ({py_clear: false}));
 							}));
+							return Promise.all (list ([p1, p2]));
 						});},
 						get _makeRow () {return __get__ (this, function (self, obj) {
 							var row = list ([]);
@@ -2962,9 +2975,32 @@ function main () {
 							self.tabs = list ([Entities (), Issuants (), Offers (), Messages (), AnonMsgs ()]);
 							self._searchId = 'inspectorSearchId';
 							self.searcher = Searcher ();
+							self._refreshing = false;
 							jQuery (document).ready ((function __lambda__ () {
 								return jQuery ('.menu > a.item').tab ();
 							}));
+							self.refresh ();
+						});},
+						get refresh () {return __get__ (this, function (self) {
+							if (self._refreshing) {
+								return ;
+							}
+							self._refreshing = true;
+							var promises = list ([]);
+							var __iterable0__ = self.tabs;
+							for (var __index0__ = 0; __index0__ < __iterable0__.length; __index0__++) {
+								var tab = __iterable0__ [__index0__];
+								promises.append (tab.table.refresh ());
+							}
+							var done = function () {
+								print ('done');
+								self._refreshing = false;
+							};
+							var p = Promise.all (promises);
+							p.then (done);
+							p.then (done);
+							p.catch (done);
+							return p;
 						});},
 						get currentTab () {return __get__ (this, function (self) {
 							var active = jQuery ('.menu a.item.active');
@@ -3011,7 +3047,13 @@ function main () {
 								menu_items.append (tab.menu_item ());
 								tab_items.append (tab.tab_item ());
 							}
-							return m ('div', m ('form', dict ({'onsubmit': self.searchAll}), m ('div.ui.borderless.menu', m ('div.right.menu', dict ({'style': 'padding-right: 40%'}), m ('div.item', dict ({'style': 'width: 80%'}), m ('div.ui.transparent.icon.input', m ('input[type=text][placeholder=Search...]', dict ({'id': self._searchId})), m ('i.search.icon'))), m ('div.item', m ('input.ui.primary.button[type=submit][value=Search]'))))), m ('div.ui.top.attached.pointing.five.item.menu', menu_items), tab_items);
+							if (self._refreshing) {
+								var refresher = m ('button.ui.icon.button.disabled', dict ({'onclick': self.refresh}), m ('i.refresh.icon.spinning'));
+							}
+							else {
+								var refresher = m ('button.ui.icon.button', dict ({'onclick': self.refresh}), m ('i.refresh.icon'));
+							}
+							return m ('div', m ('form', dict ({'onsubmit': self.searchAll}), m ('div.ui.borderless.menu', m ('div.right.menu', dict ({'style': 'padding-right: 40%'}), m ('div.item', dict ({'style': 'width: 80%'}), m ('div.ui.transparent.icon.input', m ('input[type=text][placeholder=Search...]', dict ({'id': self._searchId})), m ('i.search.icon'))), m ('div.item', m ('input.ui.primary.button[type=submit][value=Search]')), m ('div.item', refresher)))), m ('div.ui.top.attached.pointing.five.item.menu', menu_items), tab_items);
 						});}
 					});
 					__pragma__ ('<use>' +
@@ -3114,19 +3156,56 @@ function main () {
 						var path = path.__getslice__ (0, -(1), 1);
 						return m.request (path);
 					};
-					var Manager = __class__ ('Manager', [object], {
-						get __init__ () {return __get__ (this, function (self) {
-							self.anonMsgs = AnonMessages ();
-							self.entities = Entities ();
-						});}
-					});
-					var onlyOne = function (func) {
-						var scope = dict ({'promise': null});
+					var onlyOne = function (func, interval) {
+						if (typeof interval == 'undefined' || (interval != null && interval .hasOwnProperty ("__kwargtrans__"))) {;
+							var interval = 1000;
+						};
+						if (arguments.length) {
+							var __ilastarg0__ = arguments.length - 1;
+							if (arguments [__ilastarg0__] && arguments [__ilastarg0__].hasOwnProperty ("__kwargtrans__")) {
+								var __allkwargs0__ = arguments [__ilastarg0__--];
+								for (var __attrib0__ in __allkwargs0__) {
+									switch (__attrib0__) {
+										case 'func': var func = __allkwargs0__ [__attrib0__]; break;
+										case 'interval': var interval = __allkwargs0__ [__attrib0__]; break;
+									}
+								}
+							}
+						}
+						else {
+						}
+						var scope = dict ({'promise': null, 'lastCalled': 0});
 						var wrap = function () {
-							if (scope.promise != null) {
+							if (arguments.length) {
+								var __ilastarg0__ = arguments.length - 1;
+								if (arguments [__ilastarg0__] && arguments [__ilastarg0__].hasOwnProperty ("__kwargtrans__")) {
+									var __allkwargs0__ = arguments [__ilastarg0__--];
+									for (var __attrib0__ in __allkwargs0__) {
+									}
+								}
+							}
+							else {
+							}
+							var now = new Date ();
+							if (scope.promise != null && now - scope.lastCalled < interval) {
 								return scope.promise;
 							}
+							scope.lastCalled = now;
 							var f = function (resolve, reject) {
+								if (arguments.length) {
+									var __ilastarg0__ = arguments.length - 1;
+									if (arguments [__ilastarg0__] && arguments [__ilastarg0__].hasOwnProperty ("__kwargtrans__")) {
+										var __allkwargs0__ = arguments [__ilastarg0__--];
+										for (var __attrib0__ in __allkwargs0__) {
+											switch (__attrib0__) {
+												case 'resolve': var resolve = __allkwargs0__ [__attrib0__]; break;
+												case 'reject': var reject = __allkwargs0__ [__attrib0__]; break;
+											}
+										}
+									}
+								}
+								else {
+								}
 								var p = func ();
 								p.then (resolve);
 								p.catch (reject);
@@ -3136,6 +3215,17 @@ function main () {
 						};
 						return wrap;
 					};
+					var clearArray = function (a) {
+						while (len (a)) {
+							a.py_pop ();
+						}
+					};
+					var Manager = __class__ ('Manager', [object], {
+						get __init__ () {return __get__ (this, function (self) {
+							self.anonMsgs = AnonMessages ();
+							self.entities = Entities ();
+						});}
+					});
 					var Entities = __class__ ('Entities', [object], {
 						get __init__ () {return __get__ (this, function (self) {
 							self.agents = list ([]);
@@ -3150,9 +3240,9 @@ function main () {
 							self.refreshMessages = self.refreshAgents;
 						});},
 						get _refreshAgents () {return __get__ (this, function (self) {
-							while (len (self.agents)) {
-								self.agents.py_pop ();
-							}
+							clearArray (self.agents);
+							clearArray (self.issuants);
+							clearArray (self.messages);
 							return request ('/agent', __kwargtrans__ ({all: true})).then (self._parseAllAgents);
 						});},
 						get _parseAllAgents () {return __get__ (this, function (self, dids) {
@@ -3195,9 +3285,8 @@ function main () {
 							self.messages.append (data);
 						});},
 						get _refreshThings () {return __get__ (this, function (self) {
-							while (len (self.things)) {
-								self.things.py_pop ();
-							}
+							clearArray (self.things);
+							clearArray (self.offers);
 							return request ('/thing', __kwargtrans__ ({all: true})).then (self._parseAllThings);
 						});},
 						get _parseAllThings () {return __get__ (this, function (self, dids) {
@@ -3237,9 +3326,7 @@ function main () {
 							self.refresh = onlyOne (self._refresh);
 						});},
 						get _refresh () {return __get__ (this, function (self) {
-							while (len (self.messages)) {
-								self.messages.py_pop ();
-							}
+							clearArray (self.messages);
 							return request ('/anon', __kwargtrans__ ({all: true})).then (self._parseAll);
 						});},
 						get _parseAll () {return __get__ (this, function (self, uids) {
@@ -3264,6 +3351,7 @@ function main () {
 						__all__.AnonMessages = AnonMessages;
 						__all__.Entities = Entities;
 						__all__.Manager = Manager;
+						__all__.clearArray = clearArray;
 						__all__.manager = manager;
 						__all__.onlyOne = onlyOne;
 						__all__.request = request;
