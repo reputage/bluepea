@@ -293,20 +293,20 @@ def setupKeeper(baseDirPath=None, seed=None, prikey=None):
     global gKeepDirPath, gKeeper
 
     if not baseDirPath:
-        baseDirPath = DATABASE_DIR_PATH
+        baseDirPath = KEEP_DIR_PATH
 
     baseDirPath = os.path.abspath(os.path.expanduser(baseDirPath))
     if not os.path.exists(baseDirPath):
         try:
             os.makedirs(baseDirPath)
         except OSError as ex:
-            baseDirPath = ALT_DATABASE_DIR_PATH
+            baseDirPath = ALT_KEEP_DIR_PATH
             baseDirPath = os.path.abspath(os.path.expanduser(baseDirPath))
             if not os.path.exists(baseDirPath):
                 os.makedirs(baseDirPath)
     else:
         if not os.access(baseDirPath, os.R_OK | os.W_OK):
-            baseDirPath = ALT_DATABASE_DIR_PATH
+            baseDirPath = ALT_KEEP_DIR_PATH
             baseDirPath = os.path.abspath(os.path.expanduser(baseDirPath))
             if not os.path.exists(baseDirPath):
                 os.makedirs(baseDirPath)
@@ -342,7 +342,7 @@ def setupKeep(baseDirPath=None):
     global gKeepDirPath
 
     if not baseDirPath:
-        baseDirPath = DATABASE_DIR_PATH
+        baseDirPath = KEEP_DIR_PATH
 
     baseDirPath = os.path.abspath(os.path.expanduser(baseDirPath))
     if not os.path.exists(baseDirPath):
