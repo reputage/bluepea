@@ -132,6 +132,7 @@ $ pip3 install arrow
 $ pip3 install pytest
 $ pip3 install pytest-falcon
 $ pip3 install lmdb
+$ pip3 install click
 ```
 
 --------
