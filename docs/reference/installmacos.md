@@ -77,7 +77,6 @@ This puts Python3.6 in /usr/local so it does not clobber the system installed py
 
 ```bash
 $ brew install python3
-$ brew linkapps python3
 ```
 
 Now python3 is installed and can be run from the command line in terminal.
@@ -87,10 +86,10 @@ $ $ which python3
 /usr/local/bin/python3
 
 $ python3
-Python 3.6.2 (default, Jul 17 2017, 16:44:45) 
+Python 3.6.2 (default, Jul 17 2017, 16:44:45)
 [GCC 4.2.1 Compatible Apple LLVM 8.1.0 (clang-802.0.42)] on darwin
 Type "help", "copyright", "credits" or "license" for more information.
->>> 
+>>>
 ```
 
 pip3 is also installed and will install packages to the newly installed Python3 in /usr/local/bin
